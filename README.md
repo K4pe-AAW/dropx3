@@ -106,14 +106,17 @@ uptodate.tokyoはデザイン参考元だが、RSS配信とrobots.txtでのク�
 
 ### 本番の自動実行について
 
-[vercel.json](vercel.json) に `GET /api/cron/collect` を毎時実行するVercel Cronを設定済み。
-Vercel側で `CRON_SECRET` を設定していれば追加作業なしで動く(Mac側のスリープ状態に左右されない)。
+[vercel.json](vercel.json) に `GET /api/cron/collect` を1日1回(22:00 UTC = 7:00 JST)実行する
+Vercel Cronを設定済み。Vercel側で `CRON_SECRET` を設定していれば追加作業なしで動く
+(Mac側のスリープ状態に左右されない)。**HobbyプランはCron Jobsが1日1回までの制限**があるため
+毎時実行はできない。もっと頻度を上げたい場合はVercelをProプランにアップグレードするか、
+下記のローカルcronを併用する。
 
 ### ローカル自動実行について（開発機のみ・任意）
 
 開発機のuser crontabに以下を登録すれば、ローカルでも1時間ごとに収集→AI下書き生成が走る
 （`npm run dev` を起動していなくても、`scripts/collect.ts` を直接叩く方式なので動く）。
-ただし本番相当の自動化はVercel Cron側で完結するので、これは開発時の動作確認用途が主。
+Vercel Cronは1日1回までなので、日中の更新頻度を上げたい場合はこちらを併用するとよい。
 
 ```
 0 * * * * cd /Users/koh/Desktop/claude01/dropwire && /usr/local/bin/npx tsx scripts/collect.ts >> /Users/koh/Desktop/claude01/dropwire/log.txt 2>&1
