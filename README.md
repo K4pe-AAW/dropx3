@@ -22,12 +22,16 @@ npm run dev
 
 ## 技術構成
 
-Next.js 16 (App Router) / TypeScript / Tailwind CSS v4。データは `data/articles.json` への
-ファイル読み書き（4over-fashion-newsと同じ方式）。DBは使っていない。
+Next.js 16 (App Router) / TypeScript / Tailwind CSS v4。データは Vercel Blob 上の
+articles.json / drafts.json への読み書き（[lib/storage.ts](lib/storage.ts)）。
+リレーショナルDBは使わず、フラットなJSONを丸ごと読み書きする方式は維持しているが、
+Vercelの本番環境はファイルシステムへの書き込みが永続化されないため、ローカルファイルでは
+なくBlobストレージを使っている。`BLOB_READ_WRITE_TOKEN`が未設定だとエラーになる
+（ローカルファイルへのフォールバックはない）。初回セットアップは下記「Vercel Blobのセットアップ」参照。
 
 - `lib/site-config.ts` — サイト名・タグライン等の一元設定
 - `lib/types.ts` — Article / Draft の型定義
-- `lib/storage.ts` — articles.json / drafts.json の読み書き
+- `lib/storage.ts` — articles.json / drafts.json のBlob読み書き(非同期)
 - `lib/affiliate.ts` — アフィリエイトリンクの安全な描画（rel属性、http(s)以外のスキームを拒否）
 - `components/` — Header/Footer/ArticleCard/AffiliateCTA等の共通UI
 - `app/` — ページ本体（下記「ページ構成」参照）
@@ -76,10 +80,11 @@ uptodate.tokyo・FULLRESSと同じ運用（ブランド公式が提供した画�
 - 上記いずれにも該当しない/確認が面倒な場合は、`https://placehold.co/...`のプレースホルダーで
   代用する（シード記事と同じ体裁）。「ブランド提供画像かどうか自信が持てないなら転載しない」が原則。
 
-を行ってから「公開する」を押すと `data/articles.json` に反映される。
+を行ってから「公開する」を押すと Blob上の articles.json に反映される。
 
-外部cron（Vercel Cron等）から定期実行したい場合は
-`GET /api/cron/collect`（ヘッダー `x-cron-secret: $CRON_SECRET`）を叩く。
+外部cronから定期実行したい場合は `GET /api/cron/collect` を叩く。認証は
+`Authorization: Bearer $CRON_SECRET`（[vercel.json](vercel.json)のVercel Cronが自動送信）
+または `x-cron-secret: $CRON_SECRET` ヘッダーのどちらでも通る。
 
 uptodate.tokyoはデザイン参考元だが、RSS配信とrobots.txtでのクロール許可を他の競合4誌と同条件で
 確認できたため収集元に含めている（デザインを参考にしたことと、ニュースの一次ソースとして
@@ -87,10 +92,28 @@ uptodate.tokyoはデザイン参考元だが、RSS配信とrobots.txtでのク�
 ソースを追加する場合は `curl -I <feed-url>` で200が返ることと `curl <site>/robots.txt` の内容を
 確認してから `lib/sources.ts` に追記すること。
 
-### ローカル自動実行について（設定済み）
+### Vercel Blobのセットアップ（本番・ローカル共通で必須）
 
-このマシンのユーザーcrontabに以下を登録済み。**1時間ごとに収集→AI下書き生成**が自動で走る
-（`npm run dev` でサーバーを起動していなくても動く。`scripts/collect.ts` を直接叩く方式なので）。
+1. Vercelダッシュボード → プロジェクト → Storage → Create Database → Blob
+2. プロジェクトに接続すると `BLOB_READ_WRITE_TOKEN` が自動でVercel側の環境変数に入る
+3. ローカルでも同じ値を `.env.local` に追加する（`vercel env pull .env.local` でも可）
+4. 初回のみ、ローカルの `data/articles.json` / `data/drafts.json` の内容をBlobへ移す:
+   ```bash
+   npm run seed-blob
+   ```
+   以後はBlob側が正のデータになる。ローカルの `data/*.json` は初期シード用の控えとして残るだけで、
+   アプリはもう読みに行かない。
+
+### 本番の自動実行について
+
+[vercel.json](vercel.json) に `GET /api/cron/collect` を毎時実行するVercel Cronを設定済み。
+Vercel側で `CRON_SECRET` を設定していれば追加作業なしで動く(Mac側のスリープ状態に左右されない)。
+
+### ローカル自動実行について（開発機のみ・任意）
+
+開発機のuser crontabに以下を登録すれば、ローカルでも1時間ごとに収集→AI下書き生成が走る
+（`npm run dev` を起動していなくても、`scripts/collect.ts` を直接叩く方式なので動く）。
+ただし本番相当の自動化はVercel Cron側で完結するので、これは開発時の動作確認用途が主。
 
 ```
 0 * * * * cd /Users/koh/Desktop/claude01/dropwire && /usr/local/bin/npx tsx scripts/collect.ts >> /Users/koh/Desktop/claude01/dropwire/log.txt 2>&1
@@ -98,9 +121,13 @@ uptodate.tokyoはデザイン参考元だが、RSS配信とrobots.txtでのク�
 
 - ログ: [log.txt](log.txt)（このファイル自体はgit管理しない想定。`.gitignore`に追記済み）
 - 停止・頻度変更: `crontab -e` で該当行を削除 or 書き換え（例: 30分毎なら `*/30 * * * *`、15分毎なら`*/15 * * * *`）
-- 前提: `.env.local` に有効な `OPENAI_API_KEY` が入っていること。空だとRSS取得はできてもAI下書きが
-  全件エラーになる（下書き0件のまま）。エラーは出るが落ちない設計なので、キーを後から入れれば
-  次回の実行から自動で復旧する。
+- 前提: `.env.local` に有効な `OPENAI_API_KEY` と `BLOB_READ_WRITE_TOKEN` が入っていること。
+  後者が空だと収集自体がエラーで落ちる。前者が空だとRSS取得はできてもAI下書きが全件エラーになる
+  （下書き0件のまま）。いずれもエラーは出るが落ちない設計なので、キーを後から入れれば次回の
+  実行から自動で復旧する。
+- ノートPCの場合、その時刻にスリープしていれば実行機会自体がスキップされる(cron/launchd共通の
+  制約で、後から取り戻すような追いつき実行はしない)。四六時中確実に回したいなら上のVercel Cronに
+  任せるのが確実。
 - RSS取得先（HOUYHNHNM等）への配慮として、頻度を上げすぎないこと。
 - PR TIMESは`lib/sources.ts`の`PR_TIMES_KEYWORDS`でファッション文脈に絞り込み済み。ただし単発の
   誤爆（無関係な業界の「コラボ」記事等）が下書きに紛れる可能性はゼロではないので、`/admin`での

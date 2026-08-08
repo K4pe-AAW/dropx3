@@ -16,12 +16,12 @@ export type CollectSummary = {
 export async function runCollectAndDraft(): Promise<CollectSummary> {
   const { items, errors: collectErrors } = await collectFromRss()
 
-  const existingDrafts = readDrafts().drafts
+  const existingDrafts = (await readDrafts()).drafts
   const existingUrls = new Set(existingDrafts.flatMap((d) => d.sourceRefs.map((r) => r.url)))
   const targets = items.filter((item) => !existingUrls.has(item.sourceUrl))
 
   const { drafts, errors: draftErrors } = await draftFromRawItems(targets)
-  const { saved, skipped } = addDrafts(drafts)
+  const { saved, skipped } = await addDrafts(drafts)
 
   return {
     fetched: items.length,

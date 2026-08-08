@@ -11,8 +11,9 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams
   const query = (q ?? "").trim()
+  const all = query ? await getAllArticles() : []
   const results = query
-    ? getAllArticles().filter((a) => {
+    ? all.filter((a) => {
         const haystack = `${a.title} ${a.excerpt} ${a.brands.join(" ")} ${a.tags.join(" ")}`.toLowerCase()
         return haystack.includes(query.toLowerCase())
       })

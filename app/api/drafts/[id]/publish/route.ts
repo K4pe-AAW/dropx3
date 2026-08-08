@@ -34,7 +34,7 @@ function sanitizeOfficialLinks(input: unknown): OfficialLink[] {
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const draft = getDraftById(id)
+  const draft = await getDraftById(id)
   if (!draft) {
     return NextResponse.json({ error: "下書きが見つかりません" }, { status: 404 })
   }
@@ -91,8 +91,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     sourceRefs: draft.sourceRefs,
   }
 
-  publishArticle(article)
-  removeDraft(draft.id)
+  await publishArticle(article)
+  await removeDraft(draft.id)
 
   return NextResponse.json({ ok: true, slug: article.slug })
 }

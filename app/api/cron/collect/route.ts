@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { runCollectAndDraft } from "@/lib/pipeline"
 
 /**
- * 外部スケジューラ(Vercel Cron / system cron等)から
- * `curl -H "x-cron-secret: $CRON_SECRET" https://.../api/cron/collect`
- * の形で叩く想定。/admin配下と違いcookie認証は使わない（ブラウザセッションがないため）。
+ * 外部スケジューラから叩く想定。/admin配下と違いcookie認証は使わない(ブラウザセッションがないため)。
+ * - Vercel Cron(vercel.jsonのcrons)は`Authorization: Bearer $CRON_SECRET`を自動付与する。
+ * - それ以外の外部スケジューラ向けに`x-cron-secret: $CRON_SECRET`ヘッダーも引き続き受け付ける。
  */
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret")
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  const bearer = req.headers.get("authorization")
+  const legacy = req.headers.get("x-cron-secret")
+  const provided = bearer?.replace(/^Bearer\s+/i, "") ?? legacy
+
+  if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 

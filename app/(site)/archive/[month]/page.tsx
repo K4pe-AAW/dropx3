@@ -10,7 +10,8 @@ function monthLabel(key: string) {
 }
 
 export async function generateStaticParams() {
-  return getArchiveMonths().map((m) => ({ month: m.key }))
+  const archive = await getArchiveMonths()
+  return archive.map((m) => ({ month: m.key }))
 }
 
 export async function generateMetadata({
@@ -30,12 +31,13 @@ export default async function ArchiveMonthPage({
   const { month } = await params
   if (!/^\d{4}-\d{2}$/.test(month)) notFound()
 
-  const articles = getAllArticles().filter((a) => a.publishedAt.slice(0, 7) === month)
+  const allArticles = await getAllArticles()
+  const articles = allArticles.filter((a) => a.publishedAt.slice(0, 7) === month)
   if (articles.length === 0) notFound()
 
-  const brands = getAllBrands()
-  const archive = getArchiveMonths()
-  const popular = getFeaturedArticles(6)
+  const brands = await getAllBrands()
+  const archive = await getArchiveMonths()
+  const popular = await getFeaturedArticles(6)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">

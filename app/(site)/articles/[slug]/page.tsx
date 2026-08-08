@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { categoryLabel } from "@/lib/site-config"
 
 export async function generateStaticParams() {
-  return getAllArticles().map((a) => ({ slug: a.slug }))
+  const all = await getAllArticles()
+  return all.map((a) => ({ slug: a.slug }))
 }
 
 export async function generateMetadata({
@@ -20,7 +21,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const article = getArticleBySlug(slug)
+  const article = await getArticleBySlug(slug)
   if (!article) return {}
   return {
     title: article.title,
@@ -46,10 +47,10 @@ export default async function ArticleDetailPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const article = getArticleBySlug(slug)
+  const article = await getArticleBySlug(slug)
   if (!article) notFound()
 
-  const related = getRelatedArticles(article, 4)
+  const related = await getRelatedArticles(article, 4)
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">

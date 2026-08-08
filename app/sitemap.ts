@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next"
 import { getAllArticles, getAllBrands } from "@/lib/storage"
 import { siteConfig } from "@/lib/site-config"
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const articles = getAllArticles()
-  const brands = getAllBrands()
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const articles = await getAllArticles()
+  const brands = await getAllBrands()
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: siteConfig.url, changeFrequency: "hourly", priority: 1 },

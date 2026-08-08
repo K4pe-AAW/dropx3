@@ -8,7 +8,7 @@ import { categoryLabel } from "@/lib/site-config"
 export const metadata: Metadata = { title: "管理画面" }
 
 export default async function AdminPage() {
-  const drafts = getPendingDrafts()
+  const drafts = await getPendingDrafts()
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">

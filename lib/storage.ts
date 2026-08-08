@@ -1,29 +1,38 @@
-import fs from "fs"
-import path from "path"
 import crypto from "crypto"
+import { put, head } from "@vercel/blob"
 import { Article, ArticlesData, Draft, DraftsData } from "./types"
 
-const ARTICLES_FILE = path.join(process.cwd(), "data", "articles.json")
-const DRAFTS_FILE = path.join(process.cwd(), "data", "drafts.json")
+const ARTICLES_PATH = "data/articles.json"
+const DRAFTS_PATH = "data/drafts.json"
 
-function ensureDir(file: string) {
-  const dir = path.dirname(file)
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-}
-
-function readJson<T>(file: string, fallback: T): T {
-  ensureDir(file)
-  if (!fs.existsSync(file)) return fallback
+async function readJson<T>(pathname: string, fallback: T): Promise<T> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN が設定されていません。VercelダッシュボードのStorageタブでBlobを作成し、.env.localに追加してください。"
+    )
+  }
   try {
-    return JSON.parse(fs.readFileSync(file, "utf-8"))
+    const info = await head(pathname).catch(() => null)
+    if (!info) return fallback
+    const res = await fetch(info.url, { cache: "no-store" })
+    if (!res.ok) return fallback
+    return (await res.json()) as T
   } catch {
     return fallback
   }
 }
 
-function writeJson(file: string, data: unknown) {
-  ensureDir(file)
-  fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf-8")
+async function writeJson(pathname: string, data: unknown) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN が設定されていません。VercelダッシュボードのStorageタブでBlobを作成し、.env.localに追加してください。"
+    )
+  }
+  await put(pathname, JSON.stringify(data, null, 2), {
+    access: "public",
+    contentType: "application/json",
+    allowOverwrite: true,
+  })
 }
 
 export function generateId(seed: string): string {
@@ -41,22 +50,21 @@ export function generateSlug(title: string, id: string): string {
 
 // --- Articles (公開済み) ---
 
-export function readArticles(): ArticlesData {
-  return readJson<ArticlesData>(ARTICLES_FILE, { articles: [], lastUpdated: new Date().toISOString() })
+export async function readArticles(): Promise<ArticlesData> {
+  return readJson<ArticlesData>(ARTICLES_PATH, { articles: [], lastUpdated: new Date().toISOString() })
 }
 
-export function writeArticles(data: ArticlesData) {
-  writeJson(ARTICLES_FILE, data)
+export async function writeArticles(data: ArticlesData) {
+  await writeJson(ARTICLES_PATH, data)
 }
 
-export function getAllArticles(): Article[] {
+export async function getAllArticles(): Promise<Article[]> {
   // publishedAtはUTC('Z')とJST('+09:00')が混在しうるため、文字列比較ではなく実時刻で比較する
-  return readArticles()
-    .articles.slice()
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+  const { articles } = await readArticles()
+  return articles.slice().sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
 }
 
-export function getArticleBySlug(slug: string): Article | undefined {
+export async function getArticleBySlug(slug: string): Promise<Article | undefined> {
   // Next.jsのdynamic route paramsがURLエンコードされたまま渡ってくることがあるため明示的にデコードする
   let decoded = slug
   try {
@@ -64,34 +72,40 @@ export function getArticleBySlug(slug: string): Article | undefined {
   } catch {
     // 不正なエンコーディングなら元の文字列のまま照合を試みる
   }
-  return readArticles().articles.find((a) => a.slug === decoded)
+  const { articles } = await readArticles()
+  return articles.find((a) => a.slug === decoded)
 }
 
-export function getArticlesByCategory(category: string): Article[] {
-  return getAllArticles().filter((a) => a.category === category)
+export async function getArticlesByCategory(category: string): Promise<Article[]> {
+  const all = await getAllArticles()
+  return all.filter((a) => a.category === category)
 }
 
-export function getArticlesByBrand(brand: string): Article[] {
+export async function getArticlesByBrand(brand: string): Promise<Article[]> {
   const target = decodeURIComponent(brand).toLowerCase()
-  return getAllArticles().filter((a) => a.brands.some((b) => b.toLowerCase() === target))
+  const all = await getAllArticles()
+  return all.filter((a) => a.brands.some((b) => b.toLowerCase() === target))
 }
 
-export function getFeaturedArticles(limit = 6): Article[] {
-  const featured = getAllArticles().filter((a) => a.featured)
-  return (featured.length > 0 ? featured : getAllArticles()).slice(0, limit)
+export async function getFeaturedArticles(limit = 6): Promise<Article[]> {
+  const all = await getAllArticles()
+  const featured = all.filter((a) => a.featured)
+  return (featured.length > 0 ? featured : all).slice(0, limit)
 }
 
-export function getRelatedArticles(article: Article, limit = 4): Article[] {
+export async function getRelatedArticles(article: Article, limit = 4): Promise<Article[]> {
   const brandSet = new Set(article.brands.map((b) => b.toLowerCase()))
-  return getAllArticles()
+  const all = await getAllArticles()
+  return all
     .filter((a) => a.id !== article.id)
     .filter((a) => a.category === article.category || a.brands.some((b) => brandSet.has(b.toLowerCase())))
     .slice(0, limit)
 }
 
-export function getAllBrands(): { name: string; count: number }[] {
+export async function getAllBrands(): Promise<{ name: string; count: number }[]> {
   const counts = new Map<string, number>()
-  for (const a of getAllArticles()) {
+  const all = await getAllArticles()
+  for (const a of all) {
     for (const b of a.brands) counts.set(b, (counts.get(b) ?? 0) + 1)
   }
   return Array.from(counts.entries())
@@ -99,9 +113,10 @@ export function getAllBrands(): { name: string; count: number }[] {
     .sort((a, b) => a.name.localeCompare(b.name, "ja"))
 }
 
-export function getArchiveMonths(): { key: string; label: string; count: number }[] {
+export async function getArchiveMonths(): Promise<{ key: string; label: string; count: number }[]> {
   const counts = new Map<string, number>()
-  for (const a of getAllArticles()) {
+  const all = await getAllArticles()
+  for (const a of all) {
     const d = new Date(a.publishedAt)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
     counts.set(key, (counts.get(key) ?? 0) + 1)
@@ -114,36 +129,36 @@ export function getArchiveMonths(): { key: string; label: string; count: number 
     .sort((a, b) => (a.key < b.key ? 1 : -1))
 }
 
-export function publishArticle(article: Article) {
-  const data = readArticles()
+export async function publishArticle(article: Article) {
+  const data = await readArticles()
   data.articles = data.articles.filter((a) => a.id !== article.id)
   data.articles.unshift(article)
   data.lastUpdated = new Date().toISOString()
-  writeArticles(data)
+  await writeArticles(data)
 }
 
 // --- Drafts (収集パイプラインの出力。人間のレビュー待ち) ---
 
-export function readDrafts(): DraftsData {
-  return readJson<DraftsData>(DRAFTS_FILE, { drafts: [] })
+export async function readDrafts(): Promise<DraftsData> {
+  return readJson<DraftsData>(DRAFTS_PATH, { drafts: [] })
 }
 
-export function writeDrafts(data: DraftsData) {
-  writeJson(DRAFTS_FILE, data)
+export async function writeDrafts(data: DraftsData) {
+  await writeJson(DRAFTS_PATH, data)
 }
 
-export function getPendingDrafts(): Draft[] {
-  return readDrafts()
-    .drafts.filter((d) => d.status === "pending")
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+export async function getPendingDrafts(): Promise<Draft[]> {
+  const { drafts } = await readDrafts()
+  return drafts.filter((d) => d.status === "pending").sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
 }
 
-export function getDraftById(id: string): Draft | undefined {
-  return readDrafts().drafts.find((d) => d.id === id)
+export async function getDraftById(id: string): Promise<Draft | undefined> {
+  const { drafts } = await readDrafts()
+  return drafts.find((d) => d.id === id)
 }
 
-export function addDrafts(newDrafts: Draft[]): { saved: number; skipped: number } {
-  const data = readDrafts()
+export async function addDrafts(newDrafts: Draft[]): Promise<{ saved: number; skipped: number }> {
+  const data = await readDrafts()
   let saved = 0
   let skipped = 0
 
@@ -164,19 +179,19 @@ export function addDrafts(newDrafts: Draft[]): { saved: number; skipped: number 
     data.drafts = data.drafts.slice(0, 300)
   }
 
-  writeDrafts(data)
+  await writeDrafts(data)
   return { saved, skipped }
 }
 
-export function updateDraftStatus(id: string, status: Draft["status"]) {
-  const data = readDrafts()
+export async function updateDraftStatus(id: string, status: Draft["status"]) {
+  const data = await readDrafts()
   const draft = data.drafts.find((d) => d.id === id)
   if (draft) draft.status = status
-  writeDrafts(data)
+  await writeDrafts(data)
 }
 
-export function removeDraft(id: string) {
-  const data = readDrafts()
+export async function removeDraft(id: string) {
+  const data = await readDrafts()
   data.drafts = data.drafts.filter((d) => d.id !== id)
-  writeDrafts(data)
+  await writeDrafts(data)
 }

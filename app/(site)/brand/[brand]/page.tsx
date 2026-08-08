@@ -20,12 +20,12 @@ export default async function BrandPage({
 }) {
   const { brand } = await params
   const name = decodeURIComponent(brand)
-  const articles = getArticlesByBrand(brand)
+  const articles = await getArticlesByBrand(brand)
   if (articles.length === 0) notFound()
 
-  const brands = getAllBrands()
-  const archive = getArchiveMonths()
-  const popular = getFeaturedArticles(6)
+  const brands = await getAllBrands()
+  const archive = await getArchiveMonths()
+  const popular = await getFeaturedArticles(6)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">

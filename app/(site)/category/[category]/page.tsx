@@ -35,14 +35,14 @@ export default async function CategoryPage({
   const found = siteConfig.categories.find((c) => c.slug === category)
   if (!found) notFound()
 
-  const articles = getArticlesByCategory(category)
+  const articles = await getArticlesByCategory(category)
   const totalPages = Math.max(1, Math.ceil(articles.length / PAGE_SIZE))
   const currentPage = Math.min(Math.max(1, Number(page) || 1), totalPages)
   const list = articles.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  const brands = getAllBrands()
-  const archive = getArchiveMonths()
-  const popular = getFeaturedArticles(6)
+  const brands = await getAllBrands()
+  const archive = await getArchiveMonths()
+  const popular = await getFeaturedArticles(6)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">

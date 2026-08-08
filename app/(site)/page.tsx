@@ -11,14 +11,14 @@ export default async function HomePage({
   searchParams: Promise<{ page?: string }>
 }) {
   const { page } = await searchParams
-  const all = getAllArticles()
+  const all = await getAllArticles()
   const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE))
   const currentPage = Math.min(Math.max(1, Number(page) || 1), totalPages)
   const list = all.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  const brands = getAllBrands()
-  const archive = getArchiveMonths()
-  const popular = getFeaturedArticles(6)
+  const brands = await getAllBrands()
+  const archive = await getArchiveMonths()
+  const popular = await getFeaturedArticles(6)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
