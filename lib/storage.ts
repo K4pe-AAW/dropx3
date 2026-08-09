@@ -14,7 +14,9 @@ async function readJson<T>(pathname: string, fallback: T): Promise<T> {
   try {
     const info = await head(pathname).catch(() => null)
     if (!info) return fallback
-    const res = await fetch(info.url, { cache: "no-store" })
+    // CDNエッジキャッシュが直後の上書きを反映しないことがあるため、毎回ユニークなURLで強制的にバイパスする
+    const bustedUrl = `${info.url}${info.url.includes("?") ? "&" : "?"}_=${Date.now()}`
+    const res = await fetch(bustedUrl, { cache: "no-store" })
     if (!res.ok) return fallback
     return (await res.json()) as T
   } catch {
