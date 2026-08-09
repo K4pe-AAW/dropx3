@@ -2,8 +2,7 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { getArticleBySlug, getRelatedArticles, getAllArticles } from "@/lib/storage"
-import { AffiliateCTA } from "@/components/AffiliateCTA"
-import { OfficialLinks } from "@/components/OfficialLinks"
+import { PurchaseLinks } from "@/components/PurchaseLinks"
 import { ArticleCard } from "@/components/ArticleCard"
 import { YouTubeEmbed } from "@/components/YouTubeEmbed"
 import { QuoteBlock } from "@/components/QuoteBlock"
@@ -75,7 +74,12 @@ export default async function ArticleDetailPage({
       )}
 
       <h1 className="text-2xl sm:text-3xl font-black leading-tight mb-3 text-balance">{article.title}</h1>
-      <p className="text-sm text-muted-foreground mb-6">{formatDate(article.publishedAt)}</p>
+      <p className={`text-sm text-muted-foreground ${article.affiliateLinks.length > 0 ? "mb-1" : "mb-6"}`}>
+        {formatDate(article.publishedAt)}
+      </p>
+      {article.affiliateLinks.length > 0 && (
+        <p className="text-xs text-muted-foreground/70 mb-6">本ページはプロモーションが含まれています</p>
+      )}
 
       {article.youtubeVideoId ? (
         <div className="mb-8">
@@ -107,9 +111,7 @@ export default async function ArticleDetailPage({
         </div>
       )}
 
-      <OfficialLinks links={article.officialLinks} />
-
-      <AffiliateCTA links={article.affiliateLinks} />
+      <PurchaseLinks officialLinks={article.officialLinks} affiliateLinks={article.affiliateLinks} />
 
       {article.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-8 pt-6 border-t border-border">
