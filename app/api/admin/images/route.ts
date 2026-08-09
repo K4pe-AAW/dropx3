@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import { readArticles, writeArticles } from "@/lib/storage"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const ids = req.nextUrl.searchParams.get("ids")?.split(",")
   const data = await readArticles()
+  const articles = ids ? data.articles.filter((a) => ids.includes(a.id)) : data.articles
   return NextResponse.json(
-    data.articles.map((a) => ({ id: a.id, title: a.title, coverImage: a.coverImage, coverImageAlt: a.coverImageAlt }))
+    articles.map((a) => ({
+      id: a.id,
+      title: a.title,
+      coverImage: a.coverImage,
+      coverImageAlt: a.coverImageAlt,
+      sourceRefs: a.sourceRefs,
+    }))
   )
 }
 
