@@ -28,3 +28,5 @@ npm-debug.log*
 
 # raw source assets (ロゴ/背景の元データ。書き出し済みのpublic/images配下だけで運用に足りる)
 /obj/
+.vercel
+.env*
