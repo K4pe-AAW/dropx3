@@ -2,6 +2,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { getPendingDrafts } from "@/lib/storage"
 import { CollectButton } from "@/components/admin/CollectButton"
+import { DeleteAllDraftsButton } from "@/components/admin/DeleteAllDraftsButton"
 import { LogoutButton } from "@/components/admin/LogoutButton"
 import { categoryLabel } from "@/lib/site-config"
 
@@ -18,7 +19,10 @@ export default async function AdminPage() {
       </div>
       <div className="flex items-center justify-between mb-8">
         <p className="text-sm text-muted-foreground">レビュー待ちの下書き: {drafts.length}件</p>
-        <CollectButton />
+        <div className="flex items-center gap-2">
+          <DeleteAllDraftsButton count={drafts.length} />
+          <CollectButton />
+        </div>
       </div>
 
       {drafts.length === 0 ? (
