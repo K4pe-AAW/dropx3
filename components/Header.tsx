@@ -2,6 +2,7 @@ import Link from "next/link"
 import { siteConfig } from "@/lib/site-config"
 import { SearchIcon } from "@/components/icons"
 import { Logo } from "@/components/Logo"
+import { MobileNav } from "@/components/MobileNav"
 
 export function Header() {
   return (
@@ -13,7 +14,7 @@ export function Header() {
         <Link href="/" className="text-accent w-[90%]" aria-label={siteConfig.name}>
           <Logo className="w-full h-auto" />
         </Link>
-        <nav className="flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm font-medium">
+        <nav className="hidden sm:flex flex-wrap items-center justify-center gap-2 text-sm font-medium">
           <Link
             href="/"
             className="rounded-full border border-accent px-3.5 py-1.5 text-primary-foreground/85 hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -36,6 +37,8 @@ export function Header() {
             About
           </Link>
         </nav>
+
+        <MobileNav />
         <form action="/search" method="get" className="flex items-center">
           <label className="sr-only" htmlFor="site-search">
             記事を探す
