@@ -1,18 +1,13 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import type { Metadata } from "next"
-import { getArticleBySlug, getRelatedArticles, getAllArticles } from "@/lib/storage"
+import { getArticleBySlug, getRelatedArticles } from "@/lib/storage"
 import { PurchaseLinks } from "@/components/PurchaseLinks"
 import { ArticleCard } from "@/components/ArticleCard"
 import { YouTubeEmbed } from "@/components/YouTubeEmbed"
 import { QuoteBlock } from "@/components/QuoteBlock"
 import { Badge } from "@/components/ui/badge"
 import { categoryLabel } from "@/lib/site-config"
-
-export async function generateStaticParams() {
-  const all = await getAllArticles()
-  return all.map((a) => ({ slug: a.slug }))
-}
 
 export async function generateMetadata({
   params,

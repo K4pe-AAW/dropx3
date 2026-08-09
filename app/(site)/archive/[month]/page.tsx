@@ -9,11 +9,6 @@ function monthLabel(key: string) {
   return `${y}年${Number(m)}月`
 }
 
-export async function generateStaticParams() {
-  const archive = await getArchiveMonths()
-  return archive.map((m) => ({ month: m.key }))
-}
-
 export async function generateMetadata({
   params,
 }: {

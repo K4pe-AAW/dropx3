@@ -8,10 +8,6 @@ import { siteConfig } from "@/lib/site-config"
 
 const PAGE_SIZE = 12
 
-export async function generateStaticParams() {
-  return siteConfig.categories.map((c) => ({ category: c.slug }))
-}
-
 export async function generateMetadata({
   params,
 }: {
