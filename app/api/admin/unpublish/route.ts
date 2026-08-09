@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { readArticles, writeArticles, readDrafts, writeDrafts } from "@/lib/storage"
 import { Draft } from "@/lib/types"
 
-// 重複記事の非公開化(一時ツール、使用後に削除する)。
+// 一時ツール。使用後に削除する。
 // POST: { ids: string[] } — 該当articleをarticles.jsonから除去し、
 // 削除はせずrejected状態のdraftとしてdrafts.jsonに保存する(単一トランザクション)。
 
