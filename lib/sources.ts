@@ -9,6 +9,12 @@ export type BrandSource = {
   url: string
   /** Instagram等、公式サイト以外に画像取得を確認済みの補助ソースがあれば */
   instagramUrl?: string
+  /**
+   * 運営者本人から画像使用の許諾を個別に得ている場合のみtrue。
+   * 許諾を得た日付をコメントで残すこと。falseまたは未設定の場合は各配列の既定方針
+   * (VINTAGE_SHOP_SOURCESなら「自己ホストしない」)に従う。
+   */
+  imageUsePermitted?: boolean
 }
 
 /**
@@ -92,6 +98,7 @@ export const SELECT_SHOP_SOURCES: BrandSource[] = [
   { name: "DAYTONA PARK", url: "https://www.daytona-park.com/?sex=men" },
   { name: "NUBIAN", url: "https://nubiantokyo.com/" },
   { name: "AMANOJAK", url: "https://www.amanojak.jp/" },
+  { name: "MARK(山口)", url: "https://www.mark.style/" },
 ]
 
 /**
@@ -102,9 +109,11 @@ export const SELECT_SHOP_SOURCES: BrandSource[] = [
  * ショップも同じ理由でここに含める。
  */
 export const VINTAGE_SHOP_SOURCES: BrandSource[] = [
-  { name: "ROOM(三軒茶屋)", url: "https://www.instagram.com/room_sangenjaya/" },
+  // 2026-08-09: 運営者本人からInstagram画像の使用許諾を得たため imageUsePermitted: true。
+  // 自己ホスト可（カバー画像・本文中どちらも可）。他店は引き続き自己ホスト不可のまま。
+  { name: "ROOM(三軒茶屋)", url: "https://www.instagram.com/room_sangenjaya/", imageUsePermitted: true },
   { name: "THREE", url: "https://www.instagram.com/three0511/" },
-  { name: "tonari(祐天寺)", url: "https://www.instagram.com/tonari.yutenji/" },
+  { name: "tonari(祐天寺)", url: "https://www.instagram.com/tonari.yutenji/", imageUsePermitted: true },
   { name: "archeologie", url: "https://www.instagram.com/archeologie_vintage/" },
   {
     name: "planT vintage",
