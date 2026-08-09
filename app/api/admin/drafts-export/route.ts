@@ -10,14 +10,6 @@ export async function GET(req: NextRequest) {
   const drafts = await getPendingDrafts()
   return NextResponse.json({
     count: drafts.length,
-    drafts: drafts.map((d) => ({
-      id: d.id,
-      title: d.title,
-      excerpt: d.excerpt,
-      category: d.category,
-      brands: d.brands,
-      sourceRefs: d.sourceRefs,
-      createdAt: d.createdAt,
-    })),
+    drafts,
   })
 }
