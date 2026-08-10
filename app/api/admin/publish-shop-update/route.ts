@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { readArticles, publishArticle, generateId, generateSlug } from "@/lib/storage"
-import { isSafeExternalUrl } from "@/lib/affiliate"
-import type { Article, GalleryImage } from "@/lib/types"
+import { isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
+import type { Article, AffiliateLink, GalleryImage } from "@/lib/types"
 
 /**
  * 画像使用許諾済みの古着屋(tonari/ROOM)のInstagram投稿を1記事として公開する専用API。
@@ -11,6 +11,13 @@ import type { Article, GalleryImage } from "@/lib/types"
 const SHOP_INFO: Record<string, { label: string; officialUrl: string }> = {
   tonari: { label: "tonari 公式Instagram", officialUrl: "https://www.instagram.com/tonari.yutenji/" },
   ROOM: { label: "ROOM 公式Instagram", officialUrl: "https://www.instagram.com/room_sangenjaya/" },
+}
+
+/** A8.net経由の実リンク(古着検索)。tonari/ROOMは一点物のため、売り切れ後の代替導線として全記事に付与する */
+const VINTAGE_AFFILIATE_LINK: AffiliateLink = {
+  label: "メルカリで探す",
+  retailer: "メルカリ",
+  url: "https://px.a8.net/svt/ejp?a8mat=4BA1PB+31JS36+5LNQ+BW8O2&a8ejpredirect=https%3A%2F%2Fjp.mercari.com%2Fsearch%3Fkeyword%3D%E5%8F%A4%E7%9D%80",
 }
 
 function isAllowedImageUrl(url: string): boolean {
@@ -86,7 +93,7 @@ export async function POST(req: NextRequest) {
     tags,
     publishedAt: new Date().toISOString(),
     featured: false,
-    affiliateLinks: [],
+    affiliateLinks: sanitizeAffiliateLinks([VINTAGE_AFFILIATE_LINK]),
     officialLinks: [{ label: shopInfo.label, url: shopInfo.officialUrl }],
     sourceRefs: [{ name: shopInfo.label, url: postUrl }],
   }
