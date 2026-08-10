@@ -78,6 +78,22 @@ export async function getArticleBySlug(slug: string): Promise<Article | undefine
   return articles.find((a) => a.slug === decoded)
 }
 
+export async function getArticleById(id: string): Promise<Article | undefined> {
+  const { articles } = await readArticles()
+  return articles.find((a) => a.id === id)
+}
+
+/** 公開済み記事を編集する。slugは変更しない(公開URL・外部からのリンクを壊さないため) */
+export async function updateArticle(id: string, patch: Partial<Omit<Article, "id" | "slug">>): Promise<Article> {
+  const data = await readArticles()
+  const article = data.articles.find((a) => a.id === id)
+  if (!article) throw new Error(`article not found: ${id}`)
+  Object.assign(article, patch, { updatedAt: new Date().toISOString() })
+  data.lastUpdated = new Date().toISOString()
+  await writeArticles(data)
+  return article
+}
+
 export async function getArticlesByCategory(category: string): Promise<Article[]> {
   const all = await getAllArticles()
   return all.filter((a) => a.category === category)

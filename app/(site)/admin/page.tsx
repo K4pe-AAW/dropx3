@@ -1,15 +1,16 @@
 import Link from "next/link"
 import type { Metadata } from "next"
-import { getPendingDrafts } from "@/lib/storage"
+import { getPendingDrafts, getAllArticles } from "@/lib/storage"
 import { CollectButton } from "@/components/admin/CollectButton"
 import { DeleteAllDraftsButton } from "@/components/admin/DeleteAllDraftsButton"
 import { LogoutButton } from "@/components/admin/LogoutButton"
+import { ArticleSearch } from "@/components/admin/ArticleSearch"
 import { categoryLabel } from "@/lib/site-config"
 
 export const metadata: Metadata = { title: "管理画面" }
 
 export default async function AdminPage() {
-  const drafts = await getPendingDrafts()
+  const [drafts, articles] = await Promise.all([getPendingDrafts(), getAllArticles()])
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -47,6 +48,11 @@ export default async function AdminPage() {
           ))}
         </ul>
       )}
+
+      <div className="mt-12 pt-8 border-t border-border">
+        <h2 className="text-sm font-bold mb-3">公開済み記事を編集</h2>
+        <ArticleSearch articles={articles.map((a) => ({ id: a.id, slug: a.slug, title: a.title }))} />
+      </div>
     </div>
   )
 }
