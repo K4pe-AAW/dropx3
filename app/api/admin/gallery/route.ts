@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   const data = await readArticles()
   const results = []
   for (const u of updates) {
-    const article = data.articles.find((a) => a.id === u.id)
+    const article = data.articles.find((a) => a.id === u.id || a.slug.endsWith(u.id))
     if (!article) {
       results.push({ id: u.id, ok: false, error: "article not found" })
       continue
