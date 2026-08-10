@@ -21,3 +21,24 @@ export function isSafeExternalUrl(url: string): boolean {
 export function sanitizeAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
   return links.filter((link) => isSafeExternalUrl(link.url))
 }
+
+/** カテゴリ名だけの検索語("スニーカー"等)は商品との関連性が薄いため使用禁止にする */
+const BANNED_GENERIC_QUERIES = new Set(["スニーカー", "靴", "シューズ", "ファッション", "服", "アパレル"])
+
+/**
+ * メルカリ検索アフィリエイトリンクを作る。queryは商品名・型番等、具体的な検索語であること。
+ * カテゴリ名単体("スニーカー"等)は関連性の低い検索結果しか返さないため明示的に拒否する
+ * (呼び出し側のバグで"スニーカー"がハードコードされ全記事に同じリンクが付いていた実例があるため)。
+ */
+export function buildMercariSearchLink(query: string): AffiliateLink {
+  const trimmed = query.trim()
+  if (!trimmed || BANNED_GENERIC_QUERIES.has(trimmed)) {
+    throw new Error(`buildMercariSearchLink: query is missing or too generic: ${JSON.stringify(query)}`)
+  }
+  const target = `https://jp.mercari.com/search?keyword=${encodeURIComponent(trimmed)}`
+  return {
+    label: "メルカリで探す",
+    retailer: "メルカリ",
+    url: `https://px.a8.net/svt/ejp?a8mat=4BA1PB+31JS36+5LNQ+BW8O2&a8ejpredirect=${encodeURIComponent(target)}`,
+  }
+}

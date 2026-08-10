@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getDraftById, removeDraft, publishArticle, generateSlug, generateId } from "@/lib/storage"
 import { sanitizeAffiliateLinks, isSafeExternalUrl } from "@/lib/affiliate"
+import { canonicalBrandNames } from "@/lib/brands"
 import { siteConfig } from "@/lib/site-config"
 import type { Article, AffiliateLink, Category, GalleryImage, OfficialLink } from "@/lib/types"
 
@@ -50,7 +51,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const category: Category = siteConfig.categories.some((c) => c.slug === body.category)
     ? (body.category as Category)
     : draft.category
-  const brands: string[] = Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string") : draft.brands
+  const brands: string[] = canonicalBrandNames(
+    Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string") : draft.brands
+  )
   const tags: string[] = Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : draft.tags
   const coverImageInput: string = typeof body.coverImage === "string" ? body.coverImage.trim() : ""
   const coverImageAlt: string = typeof body.coverImageAlt === "string" && body.coverImageAlt.trim() ? body.coverImageAlt : title

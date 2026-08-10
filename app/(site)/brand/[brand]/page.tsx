@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { getArticlesByBrand, getAllBrands, getArchiveMonths, getFeaturedArticles } from "@/lib/storage"
 import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
+import { siteConfig } from "@/lib/site-config"
 
 export async function generateMetadata({
   params,
@@ -10,7 +11,10 @@ export async function generateMetadata({
   params: Promise<{ brand: string }>
 }): Promise<Metadata> {
   const { brand } = await params
-  return { title: `${decodeURIComponent(brand)}の記事一覧` }
+  return {
+    title: `${decodeURIComponent(brand)}の記事一覧`,
+    alternates: { canonical: new URL(`/brand/${brand}`, siteConfig.url).toString() },
+  }
 }
 
 export default async function BrandPage({

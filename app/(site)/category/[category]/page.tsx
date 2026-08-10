@@ -16,7 +16,10 @@ export async function generateMetadata({
   const { category } = await params
   const found = siteConfig.categories.find((c) => c.slug === category)
   if (!found) return {}
-  return { title: `${found.label}の記事一覧` }
+  return {
+    title: `${found.label}の記事一覧`,
+    alternates: { canonical: new URL(`/category/${category}`, siteConfig.url).toString() },
+  }
 }
 
 export default async function CategoryPage({

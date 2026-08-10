@@ -7,7 +7,11 @@ import { ArticleCard } from "@/components/ArticleCard"
 import { YouTubeEmbed } from "@/components/YouTubeEmbed"
 import { QuoteBlock } from "@/components/QuoteBlock"
 import { Badge } from "@/components/ui/badge"
-import { categoryLabel } from "@/lib/site-config"
+import { categoryLabel, siteConfig } from "@/lib/site-config"
+
+function absoluteUrl(path: string): string {
+  return new URL(path, siteConfig.url).toString()
+}
 
 export async function generateMetadata({
   params,
@@ -17,15 +21,19 @@ export async function generateMetadata({
   const { slug } = await params
   const article = await getArticleBySlug(slug)
   if (!article) return {}
+  const url = absoluteUrl(`/articles/${article.slug}`)
   return {
     title: article.title,
     description: article.excerpt,
+    alternates: { canonical: url },
+    robots: { index: true, follow: true, "max-image-preview": "large" },
     openGraph: {
       title: article.title,
       description: article.excerpt,
       images: [article.coverImage],
       type: "article",
       publishedTime: article.publishedAt,
+      url,
     },
   }
 }
@@ -45,9 +53,42 @@ export default async function ArticleDetailPage({
   if (!article) notFound()
 
   const related = await getRelatedArticles(article, 4)
+  const articleUrl = absoluteUrl(`/articles/${article.slug}`)
+  const coverImageUrl = absoluteUrl(article.coverImage)
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: article.title,
+        description: article.excerpt,
+        image: [coverImageUrl],
+        datePublished: article.publishedAt,
+        dateModified: article.updatedAt || article.publishedAt,
+        author: { "@type": "Organization", name: siteConfig.name },
+        publisher: { "@type": "Organization", name: siteConfig.name },
+        mainEntityOfPage: articleUrl,
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "TOP", item: absoluteUrl("/") },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: categoryLabel(article.category),
+            item: absoluteUrl(`/category/${article.category}`),
+          },
+          { "@type": "ListItem", position: 3, name: article.title, item: articleUrl },
+        ],
+      },
+    ],
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <nav className="text-xs text-muted-foreground mb-4 flex flex-wrap gap-1.5 items-center">
         <Link href="/" className="hover:text-foreground">
           TOP

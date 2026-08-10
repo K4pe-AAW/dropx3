@@ -43,7 +43,8 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="お問い合わせ">
-          本ポリシーに関するお問い合わせは {siteConfig.contactEmail} までお願いいたします。
+          本ポリシーに関するお問い合わせは
+          {siteConfig.contactEmail ? ` ${siteConfig.contactEmail} まで` : "サイト運営者まで"}お願いいたします。
         </Section>
       </div>
     </div>

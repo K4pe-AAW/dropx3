@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { readArticles, writeArticles, generateId, generateSlug } from "@/lib/storage"
-import { isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
-import type { Article, AffiliateLink, GalleryImage } from "@/lib/types"
+import { isSafeExternalUrl, sanitizeAffiliateLinks, buildMercariSearchLink } from "@/lib/affiliate"
+import type { Article, GalleryImage } from "@/lib/types"
 
 /**
  * 画像使用許諾済みの古着屋(tonari/ROOM)のInstagram投稿を1記事として公開する専用API。
@@ -19,13 +19,6 @@ const SHOP_INFO: Record<string, { label: string; officialUrl: string }> = {
 function jstDateKey(iso: string): string {
   const d = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000)
   return d.toISOString().slice(0, 10)
-}
-
-/** A8.net経由の実リンク(古着検索)。tonari/ROOMは一点物のため、売り切れ後の代替導線として全記事に付与する */
-const VINTAGE_AFFILIATE_LINK: AffiliateLink = {
-  label: "メルカリで探す",
-  retailer: "メルカリ",
-  url: "https://px.a8.net/svt/ejp?a8mat=4BA1PB+31JS36+5LNQ+BW8O2&a8ejpredirect=https%3A%2F%2Fjp.mercari.com%2Fsearch%3Fkeyword%3D%E5%8F%A4%E7%9D%80",
 }
 
 function isAllowedImageUrl(url: string): boolean {
@@ -67,6 +60,8 @@ export async function POST(req: NextRequest) {
   const extraBrands: string[] = Array.isArray(body.extraBrands)
     ? body.extraBrands.filter((b: unknown) => typeof b === "string")
     : []
+  // 「スニーカー」のようなカテゴリ名だけの検索は関連性が低いため、具体的な商品名を呼び出し側に必須で渡させる
+  const mercariSearchQuery: string = typeof body.mercariSearchQuery === "string" ? body.mercariSearchQuery.trim() : ""
 
   if (!title || !excerpt || bodyParagraphs.length === 0) {
     return NextResponse.json({ error: "title/excerpt/bodyParagraphsは必須です" }, { status: 400 })
@@ -76,6 +71,18 @@ export async function POST(req: NextRequest) {
   }
   if (!postUrl || !isSafeExternalUrl(postUrl)) {
     return NextResponse.json({ error: "postUrl(Instagram投稿URL)が必須です" }, { status: 400 })
+  }
+  if (!mercariSearchQuery) {
+    return NextResponse.json(
+      { error: "mercariSearchQueryが必須です(例: 'HELMUT LANG デニムショーツ'。'古着'のようなカテゴリ名のみは不可)" },
+      { status: 400 }
+    )
+  }
+  let mercariLink
+  try {
+    mercariLink = buildMercariSearchLink(mercariSearchQuery)
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "mercariSearchQueryが不正です" }, { status: 400 })
   }
 
   const data = await readArticles()
@@ -96,6 +103,9 @@ export async function POST(req: NextRequest) {
     existingToday.galleryImages.push({ url: coverImage, alt: coverImageAlt }, ...galleryImages)
     existingToday.bodyParagraphs.push(...bodyParagraphs)
     existingToday.sourceRefs.push({ name: shopInfo.label, url: postUrl })
+    if (!existingToday.affiliateLinks.some((l) => l.url === mercariLink.url)) {
+      existingToday.affiliateLinks.push(...sanitizeAffiliateLinks([mercariLink]))
+    }
     existingToday.updatedAt = new Date().toISOString()
     await writeArticles(data)
     return NextResponse.json({ ok: true, merged: true, slug: existingToday.slug })
@@ -116,7 +126,7 @@ export async function POST(req: NextRequest) {
     tags,
     publishedAt: new Date().toISOString(),
     featured: false,
-    affiliateLinks: sanitizeAffiliateLinks([VINTAGE_AFFILIATE_LINK]),
+    affiliateLinks: sanitizeAffiliateLinks([mercariLink]),
     officialLinks: [{ label: shopInfo.label, url: shopInfo.officialUrl }],
     sourceRefs: [{ name: shopInfo.label, url: postUrl }],
   }

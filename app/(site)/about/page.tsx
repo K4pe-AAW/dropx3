@@ -17,7 +17,7 @@ export default function AboutPage() {
             <dt>運営者</dt>
             <dd>{siteConfig.operatorName}</dd>
             <dt>お問い合わせ</dt>
-            <dd>{siteConfig.contactEmail}</dd>
+            <dd>{siteConfig.contactEmail ?? "準備中"}</dd>
           </dl>
         </section>
         <section>

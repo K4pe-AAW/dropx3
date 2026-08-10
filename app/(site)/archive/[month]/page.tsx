@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { getAllArticles, getAllBrands, getArchiveMonths, getFeaturedArticles } from "@/lib/storage"
 import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
+import { siteConfig } from "@/lib/site-config"
 
 function monthLabel(key: string) {
   const [y, m] = key.split("-")
@@ -15,7 +16,10 @@ export async function generateMetadata({
   params: Promise<{ month: string }>
 }): Promise<Metadata> {
   const { month } = await params
-  return { title: `${monthLabel(month)}の記事一覧` }
+  return {
+    title: `${monthLabel(month)}の記事一覧`,
+    alternates: { canonical: new URL(`/archive/${month}`, siteConfig.url).toString() },
+  }
 }
 
 export default async function ArchiveMonthPage({
