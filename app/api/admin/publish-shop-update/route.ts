@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readArticles, publishArticle, generateId, generateSlug } from "@/lib/storage"
+import { readArticles, writeArticles, generateId, generateSlug } from "@/lib/storage"
 import { isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
 import type { Article, AffiliateLink, GalleryImage } from "@/lib/types"
 
 /**
  * 画像使用許諾済みの古着屋(tonari/ROOM)のInstagram投稿を1記事として公開する専用API。
- * 1日1ショップ1記事の運用を想定し、同じInstagram投稿URL(sourceRefs)からの重複公開を防ぐ。
+ * 1日1ショップにつき「その日の記事」を1本だけ保つ運用(1日2回、10:00/18:00に呼ばれる想定)。
+ * 同じ日(JST)にそのショップの記事が既にあれば、新しい投稿を既存記事へ追記(ギャラリー画像・本文・出典を追加)する。
+ * 同じInstagram投稿URL(sourceRefs)からの重複追加は防ぐ。
  * app/api/drafts/[id]/publish と違い下書きを経由せず直接記事化する(下書き一覧を汚さないため)。
  */
 const SHOP_INFO: Record<string, { label: string; officialUrl: string }> = {
   tonari: { label: "tonari 公式Instagram", officialUrl: "https://www.instagram.com/tonari.yutenji/" },
   ROOM: { label: "ROOM 公式Instagram", officialUrl: "https://www.instagram.com/room_sangenjaya/" },
+}
+
+/** JSTでのYYYY-MM-DDを返す(publishedAtの日付比較を日本時間基準で行うため) */
+function jstDateKey(iso: string): string {
+  const d = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000)
+  return d.toISOString().slice(0, 10)
 }
 
 /** A8.net経由の実リンク(古着検索)。tonari/ROOMは一点物のため、売り切れ後の代替導線として全記事に付与する */
@@ -72,10 +80,25 @@ export async function POST(req: NextRequest) {
 
   const data = await readArticles()
 
-  // 同じInstagram投稿からの重複公開を防ぐ
+  // 同じInstagram投稿からの重複公開・重複追記を防ぐ
   const dup = data.articles.find((a) => a.sourceRefs.some((r) => r.url === postUrl))
   if (dup) {
     return NextResponse.json({ error: "この投稿は既に記事化済みです", existingSlug: dup.slug }, { status: 409 })
+  }
+
+  const todayKey = jstDateKey(new Date().toISOString())
+  const existingToday = data.articles.find(
+    (a) => a.category === "vintage" && a.brands.includes(shop) && jstDateKey(a.publishedAt) === todayKey
+  )
+
+  if (existingToday) {
+    // 同じ日(JST)の同じショップの記事が既にある場合は、新しい投稿をその記事へ追記してまとめる
+    existingToday.galleryImages.push({ url: coverImage, alt: coverImageAlt }, ...galleryImages)
+    existingToday.bodyParagraphs.push(...bodyParagraphs)
+    existingToday.sourceRefs.push({ name: shopInfo.label, url: postUrl })
+    existingToday.updatedAt = new Date().toISOString()
+    await writeArticles(data)
+    return NextResponse.json({ ok: true, merged: true, slug: existingToday.slug })
   }
 
   const newId = generateId(`${shop}-${postUrl}-${Date.now()}`)
@@ -98,6 +121,8 @@ export async function POST(req: NextRequest) {
     sourceRefs: [{ name: shopInfo.label, url: postUrl }],
   }
 
-  await publishArticle(article)
-  return NextResponse.json({ ok: true, slug: article.slug })
+  data.articles.unshift(article)
+  data.lastUpdated = new Date().toISOString()
+  await writeArticles(data)
+  return NextResponse.json({ ok: true, merged: false, slug: article.slug })
 }
