@@ -22,6 +22,21 @@ export type GalleryImage = {
   alt: string
 }
 
+/**
+ * カラー展開ごとの商品スペック。UPTODATE等の競合メディアが商品カードで
+ * 表示している型番・価格・サイズ・発売日をカラー単位で構造化して持つ。
+ * 全て任意項目——情報源に無い値は空にする(捏造禁止)。
+ */
+export type ColorwayInfo = {
+  colorName: string // 例: "Black/Black"
+  image?: string
+  styleCode?: string // 例: "1203B064.001"
+  price?: string // 表示用の価格文字列。例: "38,500円（税込）"
+  size?: string // 例: "JP24.0 – JP29"
+  releaseDate?: string // 表示用の文字列。例: "2026年8月7日" "9月上旬" 等、確定日でなくてもよい
+  retailers?: string[] // 例: ["HOKA公式サイト", "mita sneakers", "UNITED ARROWS & SONS"]
+}
+
 export type Article = {
   id: string
   slug: string
@@ -46,6 +61,8 @@ export type Article = {
   publishedAt: string // ISO 8601
   updatedAt?: string
   featured: boolean
+  /** カラー展開ごとの型番・価格・サイズ・発売日。複数色を扱う記事のみ設定(任意) */
+  colorways?: ColorwayInfo[]
   affiliateLinks: AffiliateLink[]
   /** ブランド/店舗の公式サイトへの直リンク。紹介料が発生しないため"PR"表記は付けない */
   officialLinks: OfficialLink[]

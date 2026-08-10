@@ -3,6 +3,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { getArticleBySlug, getRelatedArticles } from "@/lib/storage"
 import { PurchaseLinks } from "@/components/PurchaseLinks"
+import { ColorwaySection } from "@/components/ColorwaySection"
 import { ArticleCard } from "@/components/ArticleCard"
 import { YouTubeEmbed } from "@/components/YouTubeEmbed"
 import { QuoteBlock } from "@/components/QuoteBlock"
@@ -83,6 +84,24 @@ export default async function ArticleDetailPage({
           { "@type": "ListItem", position: 3, name: article.title, item: articleUrl },
         ],
       },
+      ...(article.colorways ?? []).map((cw) => ({
+        "@type": "Product",
+        name: `${article.title} ${cw.colorName}`,
+        color: cw.colorName,
+        ...(cw.styleCode ? { sku: cw.styleCode, mpn: cw.styleCode } : {}),
+        ...(cw.image ? { image: [absoluteUrl(cw.image)] } : {}),
+        brand: article.brands.map((b) => ({ "@type": "Brand", name: b })),
+        ...(cw.price
+          ? {
+              offers: {
+                "@type": "Offer",
+                priceCurrency: "JPY",
+                price: (cw.price.match(/[\d,]+/)?.[0] ?? "").replace(/,/g, ""),
+                availability: "https://schema.org/PreOrder",
+              },
+            }
+          : {}),
+      })),
     ],
   }
 
@@ -145,6 +164,10 @@ export default async function ArticleDetailPage({
             </div>
           ))}
         </div>
+      )}
+
+      {article.colorways && article.colorways.length > 0 && (
+        <ColorwaySection colorways={article.colorways} productName={article.title} />
       )}
 
       <PurchaseLinks officialLinks={article.officialLinks} affiliateLinks={article.affiliateLinks} />

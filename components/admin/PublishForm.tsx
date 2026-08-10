@@ -8,6 +8,15 @@ import { siteConfig } from "@/lib/site-config"
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
 type GalleryImageDraft = { url: string; alt: string }
 type OfficialLinkDraft = { label: string; url: string }
+type ColorwayDraft = {
+  colorName: string
+  image: string
+  styleCode: string
+  price: string
+  size: string
+  releaseDate: string
+  retailersText: string
+}
 
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
@@ -26,6 +35,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
   const [links, setLinks] = useState<LinkDraft[]>([{ label: "", retailer: "", url: "", price: "" }])
   const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>([])
   const [officialLinks, setOfficialLinks] = useState<OfficialLinkDraft[]>([])
+  const [colorways, setColorways] = useState<ColorwayDraft[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,6 +51,12 @@ export function PublishForm({ draft }: { draft: Draft }) {
     setGalleryImages((prev) => prev.filter((_, idx) => idx !== i))
   }
 
+  function updateColorway(i: number, patch: Partial<ColorwayDraft>) {
+    setColorways((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
+  }
+  function removeColorway(i: number) {
+    setColorways((prev) => prev.filter((_, idx) => idx !== i))
+  }
   function updateOfficialLink(i: number, patch: Partial<OfficialLinkDraft>) {
     setOfficialLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
   }
@@ -82,6 +98,19 @@ export function PublishForm({ draft }: { draft: Draft }) {
         affiliateLinks,
         galleryImages: galleryImages.filter((g) => g.url.trim()),
         officialLinks: officialLinks.filter((l) => l.url.trim()),
+        colorways: colorways
+          .filter((c) => c.colorName.trim())
+          .map((c) => ({
+            colorName: c.colorName.trim(),
+            ...(c.image.trim() ? { image: c.image.trim() } : {}),
+            ...(c.styleCode.trim() ? { styleCode: c.styleCode.trim() } : {}),
+            ...(c.price.trim() ? { price: c.price.trim() } : {}),
+            ...(c.size.trim() ? { size: c.size.trim() } : {}),
+            ...(c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
+            ...(c.retailersText.trim()
+              ? { retailers: c.retailersText.split(",").map((r) => r.trim()).filter(Boolean) }
+              : {}),
+          })),
       }),
     })
 
@@ -195,6 +224,77 @@ export function PublishForm({ draft }: { draft: Draft }) {
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
           + 画像を追加
+        </button>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold mb-2">カラーバリエーション（任意・色ごとの型番/価格/サイズ/発売日）</p>
+        <div className="space-y-3">
+          {colorways.map((cw, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
+              <input
+                className={inputClass}
+                placeholder="カラー名（例: Black/Black）"
+                value={cw.colorName}
+                onChange={(e) => updateColorway(i, { colorName: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="画像URL（任意）"
+                value={cw.image}
+                onChange={(e) => updateColorway(i, { image: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="スタイルコード（任意）"
+                value={cw.styleCode}
+                onChange={(e) => updateColorway(i, { styleCode: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="販売価格（例: 38,500円（税込））"
+                value={cw.price}
+                onChange={(e) => updateColorway(i, { price: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="サイズ（例: JP24.0 – JP29）"
+                value={cw.size}
+                onChange={(e) => updateColorway(i, { size: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="発売予定日（例: 2026年8月7日）"
+                value={cw.releaseDate}
+                onChange={(e) => updateColorway(i, { releaseDate: e.target.value })}
+              />
+              <input
+                className={`${inputClass} col-span-2`}
+                placeholder="取扱店（カンマ区切り）"
+                value={cw.retailersText}
+                onChange={(e) => updateColorway(i, { retailersText: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removeColorway(i)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            setColorways((prev) => [
+              ...prev,
+              { colorName: "", image: "", styleCode: "", price: "", size: "", releaseDate: "", retailersText: "" },
+            ])
+          }
+          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          + カラーを追加
         </button>
       </div>
 

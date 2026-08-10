@@ -3,11 +3,34 @@ import { getArticleById, updateArticle } from "@/lib/storage"
 import { sanitizeAffiliateLinks, isSafeExternalUrl } from "@/lib/affiliate"
 import { canonicalBrandNames } from "@/lib/brands"
 import { siteConfig } from "@/lib/site-config"
-import type { AffiliateLink, Category, GalleryImage, OfficialLink } from "@/lib/types"
+import type { AffiliateLink, Category, ColorwayInfo, GalleryImage, OfficialLink } from "@/lib/types"
 
 function isAllowedImageUrl(url: string): boolean {
   if (url.startsWith("/") && !url.startsWith("//")) return true
   return isSafeExternalUrl(url)
+}
+
+function sanitizeColorways(input: unknown): ColorwayInfo[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)
+    .map((c) => {
+      const colorName = typeof c.colorName === "string" ? c.colorName.trim() : ""
+      const image = typeof c.image === "string" ? c.image.trim() : ""
+      const retailers = Array.isArray(c.retailers)
+        ? c.retailers.filter((r): r is string => typeof r === "string" && r.trim().length > 0)
+        : undefined
+      return {
+        colorName,
+        ...(image && isAllowedImageUrl(image) ? { image } : {}),
+        ...(typeof c.styleCode === "string" && c.styleCode.trim() ? { styleCode: c.styleCode.trim() } : {}),
+        ...(typeof c.price === "string" && c.price.trim() ? { price: c.price.trim() } : {}),
+        ...(typeof c.size === "string" && c.size.trim() ? { size: c.size.trim() } : {}),
+        ...(typeof c.releaseDate === "string" && c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
+        ...(retailers && retailers.length > 0 ? { retailers } : {}),
+      }
+    })
+    .filter((c) => c.colorName)
 }
 
 function sanitizeGalleryImages(input: unknown): GalleryImage[] {
@@ -72,6 +95,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const affiliateLinks: AffiliateLink[] = body.affiliateLinks
     ? sanitizeAffiliateLinks(body.affiliateLinks as AffiliateLink[])
     : existing.affiliateLinks
+  const colorways: ColorwayInfo[] = body.colorways ? sanitizeColorways(body.colorways) : existing.colorways ?? []
 
   if (!title || !excerpt || bodyParagraphs.length === 0) {
     return NextResponse.json({ error: "title/excerpt/bodyParagraphsは必須です" }, { status: 400 })
@@ -93,6 +117,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     galleryImages,
     officialLinks,
     affiliateLinks,
+    colorways,
   })
 
   return NextResponse.json({ ok: true, slug: updated.slug })
