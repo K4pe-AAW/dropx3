@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { readArticles } from "@/lib/storage"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const data = await readArticles()
-  const targets = data.articles.filter((a) => a.category === "sneaker" || a.category === "vintage")
+  const all = req.nextUrl.searchParams.get("all") === "1"
+  const targets = all
+    ? data.articles
+    : data.articles.filter((a) => a.category === "sneaker" || a.category === "vintage")
   return NextResponse.json(
     targets.map((a) => ({
       id: a.id,
