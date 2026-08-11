@@ -342,8 +342,13 @@ export async function crawlSource(source: Source): Promise<CrawlLog> {
   }
 
   try {
-    const origin = new URL(targetUrl).origin
-    const path = new URL(targetUrl).pathname
+    // robots.txtはSource.url(サイト本体)側で見る。feedUrlがsitemap.example.comのような
+    // 別サブドメイン(CDN等)の場合、そのサブドメイン自体はrobots.txtを持たない/403を返すことがあり
+    // (実例: Grailedのsitemap.grailed.comは403)、本体サイトのrobots.txtが明示的にSitemap:として
+    // 開示しているURLまで誤ってブロックしてしまうため。
+    const robotsCheckUrl = source.url ?? targetUrl
+    const origin = new URL(robotsCheckUrl).origin
+    const path = new URL(robotsCheckUrl).pathname
     const robots = await checkRobots(origin, path)
     robotsVerdict = robots.verdict
     if (!robots.allowed) {
