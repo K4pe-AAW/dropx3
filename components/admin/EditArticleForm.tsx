@@ -35,6 +35,7 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [unpublishing, setUnpublishing] = useState(false)
 
   function updateGalleryImage(i: number, patch: Partial<GalleryImage>) {
     setGalleryImages((prev) => prev.map((g, idx) => (idx === i ? { ...g, ...patch } : g)))
@@ -127,6 +128,21 @@ export function EditArticleForm({ article }: { article: Article }) {
     }
 
     setSaved(true)
+    router.refresh()
+  }
+
+  async function handleUnpublish() {
+    if (!confirm("この記事を非公開にしますか？(内容は下書き一覧に「却下」状態で残ります。公開ページからは見えなくなります)")) return
+    setUnpublishing(true)
+    setError(null)
+    const res = await fetch(`/api/admin/articles/${article.id}`, { method: "DELETE" })
+    setUnpublishing(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || "非公開化に失敗しました")
+      return
+    }
+    router.push("/admin")
     router.refresh()
   }
 
@@ -443,6 +459,14 @@ export function EditArticleForm({ article }: { article: Article }) {
           className="h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
         >
           {submitting ? "保存中..." : "保存する"}
+        </button>
+        <button
+          type="button"
+          onClick={handleUnpublish}
+          disabled={unpublishing}
+          className="h-11 px-6 rounded-full border border-border text-sm font-semibold hover:bg-secondary disabled:opacity-50"
+        >
+          {unpublishing ? "処理中..." : "非公開にする"}
         </button>
       </div>
     </form>

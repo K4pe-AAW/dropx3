@@ -156,6 +156,17 @@ export async function publishArticle(article: Article) {
   await writeArticles(data)
 }
 
+/** 公開済み記事を非公開にする(ハードデリートではなく除去のみ。呼び出し側でrejected draft化して残す運用) */
+export async function unpublishArticle(id: string): Promise<Article> {
+  const data = await readArticles()
+  const article = data.articles.find((a) => a.id === id)
+  if (!article) throw new Error(`article not found: ${id}`)
+  data.articles = data.articles.filter((a) => a.id !== id)
+  data.lastUpdated = new Date().toISOString()
+  await writeArticles(data)
+  return article
+}
+
 // --- Drafts (収集パイプラインの出力。人間のレビュー待ち) ---
 
 export async function readDrafts(): Promise<DraftsData> {

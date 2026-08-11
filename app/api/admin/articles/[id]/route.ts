@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getArticleById, updateArticle } from "@/lib/storage"
+import { getArticleById, updateArticle, unpublishArticle, addDrafts, generateId } from "@/lib/storage"
 import { sanitizeAffiliateLinks, isSafeExternalUrl } from "@/lib/affiliate"
 import { canonicalBrandNames } from "@/lib/brands"
 import { siteConfig } from "@/lib/site-config"
-import type { AffiliateLink, Category, ColorwayInfo, GalleryImage, OfficialLink, PurchaseChannelInfo } from "@/lib/types"
+import type { AffiliateLink, Category, ColorwayInfo, Draft, GalleryImage, OfficialLink, PurchaseChannelInfo } from "@/lib/types"
 
 function isAllowedImageUrl(url: string): boolean {
   if (url.startsWith("/") && !url.startsWith("//")) return true
@@ -146,4 +146,34 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   })
 
   return NextResponse.json({ ok: true, slug: updated.slug })
+}
+
+/**
+ * 公開済み記事を非公開にする。ハードデリートはせず、rejected状態のDraftとして
+ * drafts.jsonに残す(公開URLからは消えるが内容は失われない、既存の「一度不備がある記事は
+ * 削除」運用と同じreversibleな扱い)。
+ */
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const existing = await getArticleById(id)
+  if (!existing) return NextResponse.json({ error: "記事が見つかりません" }, { status: 404 })
+
+  const removed = await unpublishArticle(id)
+
+  const draft: Draft = {
+    id: generateId(`${removed.id}-unpublished-${Date.now()}`),
+    status: "rejected",
+    title: removed.title,
+    excerpt: removed.excerpt,
+    bodyParagraphs: removed.bodyParagraphs,
+    category: removed.category,
+    brands: removed.brands,
+    tags: removed.tags,
+    suggestedAffiliateSearch: [],
+    sourceRefs: removed.sourceRefs,
+    createdAt: new Date().toISOString(),
+  }
+  await addDrafts([draft])
+
+  return NextResponse.json({ ok: true })
 }
