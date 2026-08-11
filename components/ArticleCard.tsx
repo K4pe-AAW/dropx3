@@ -38,11 +38,6 @@ export function ArticleCard({ article, priority = false }: { article: Article; p
         <div className="absolute top-2 right-2 flex gap-1.5">
           {isNew(article.publishedAt) && <Badge variant="accent">NEW</Badge>}
         </div>
-        {article.affiliateLinks.length > 0 && (
-          <div className="absolute bottom-2 right-2">
-            <Badge variant="pr">PR</Badge>
-          </div>
-        )}
       </div>
       <p className="text-xs text-muted-foreground mb-1">{formatDate(article.publishedAt)}</p>
       <h3 className="text-sm font-bold leading-snug line-clamp-2 group-hover:underline decoration-2 underline-offset-2">
