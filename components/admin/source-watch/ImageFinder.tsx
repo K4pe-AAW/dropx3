@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils"
 import { imageStatusOf } from "@/lib/source-watch/image-rights"
 import { gradeImageAsset } from "@/lib/source-watch/image-quality"
 import { IMAGE_CATEGORY_BUCKET, IMAGE_SOURCE_TYPES, IMAGE_SOURCE_TYPE_LABEL, type ImageCategoryBucket } from "@/lib/source-watch/labels"
-import type { ImageAsset, ImageSourceType, Product, SourceLink } from "@/lib/source-watch/types"
+import type { ImageAsset, ImageSourceType, SourceLink } from "@/lib/source-watch/types"
+import type { ProductCard as ProductCardData } from "@/lib/source-watch/present"
 import { ImageStatusChip, QualityGradeBadge } from "./badges"
 import { resolvePublisher } from "./resolve-publisher"
 
@@ -76,7 +77,7 @@ function ImageCandidateCard({
   )
 }
 
-function ManualAddForm({ productId, onAdded }: { productId: string; onAdded: (asset: ImageAsset, product: Product) => void }) {
+function ManualAddForm({ productId, onAdded }: { productId: string; onAdded: (card: ProductCardData) => void }) {
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState("")
   const [sourceType, setSourceType] = useState<ImageSourceType>("affiliate_asset")
@@ -95,7 +96,7 @@ function ManualAddForm({ productId, onAdded }: { productId: string; onAdded: (as
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      onAdded(data.image, data.product)
+      onAdded(data as ProductCardData)
       setUrl("")
       setOpen(false)
     } catch (err) {
@@ -159,8 +160,8 @@ export function ImageFinder({
   productId: string
   images: ImageAsset[]
   sourceLinks: SourceLink[]
-  onAdopted: (asset: ImageAsset, product: Product) => void
-  onAdded: (asset: ImageAsset, product: Product) => void
+  onAdopted: (card: ProductCardData) => void
+  onAdded: (card: ProductCardData) => void
 }) {
   const [category, setCategory] = useState<"all" | ImageCategoryBucket>("all")
   const [adoptingId, setAdoptingId] = useState<string | null>(null)
@@ -198,7 +199,7 @@ export function ImageFinder({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      onAdopted(data.image, data.product)
+      onAdopted(data as ProductCardData)
     } catch (err) {
       setError(err instanceof Error ? err.message : "採用に失敗しました")
     } finally {

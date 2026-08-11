@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { isSafeExternalUrl } from "@/lib/affiliate"
-import { getProduct, listImageAssets, updateProduct } from "@/lib/source-watch/storage"
+import { getProduct, listImageAssets, listSourceLinks, listSources, updateProduct } from "@/lib/source-watch/storage"
 import { makeCandidate } from "@/lib/source-watch/purchase-links"
 import { recomputeReadiness } from "@/lib/source-watch/product-recompute"
+import { toProductCard } from "@/lib/source-watch/present"
 import type { PurchaseLinkKind } from "@/lib/source-watch/types"
 
 const KINDS: PurchaseLinkKind[] = ["official_product", "official_lottery", "domestic_retailer", "domestic_ec", "search", "brand_top"]
@@ -24,8 +25,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   const purchaseLinkCandidates = [...product.purchaseLinkCandidates, candidate]
 
-  const allImages = await listImageAssets(product.imageAssetIds)
-  const readiness = recomputeReadiness(product, allImages, { purchaseLinkCandidates })
+  const images = await listImageAssets(product.imageAssetIds)
+  const readiness = recomputeReadiness(product, images, { purchaseLinkCandidates })
   const updatedProduct = await updateProduct(id, {
     purchaseLinkCandidates,
     readiness: readiness.readiness,
@@ -34,5 +35,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     blockReasons: readiness.blockReasons,
   })
 
-  return NextResponse.json({ ok: true, candidate, product: updatedProduct })
+  const [sourceLinks, sources] = await Promise.all([listSourceLinks(updatedProduct.sourceLinkIds), listSources()])
+  return NextResponse.json(toProductCard(updatedProduct, sourceLinks, images, sources))
 }

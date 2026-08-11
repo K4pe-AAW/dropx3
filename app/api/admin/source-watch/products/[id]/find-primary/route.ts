@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { isSafeExternalUrl } from "@/lib/affiliate"
-import { getProduct, updateProduct, addSourceLink, listSourceLinks } from "@/lib/source-watch/storage"
-import { findOfficialSourcesForBrand } from "@/lib/source-watch/present"
+import { getProduct, updateProduct, addSourceLink, listSourceLinks, listImageAssets, listSources } from "@/lib/source-watch/storage"
+import { findOfficialSourcesForBrand, toProductCard } from "@/lib/source-watch/present"
 import { classifyTier, computeCorroboratedScore, computeReadiness } from "@/lib/source-watch/scoring"
 import { isWebSearchConfigured, searchWeb } from "@/lib/source-watch/web-search"
 
@@ -40,6 +40,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // officialConfirmedに加えdomesticConfirmedも立てる(従来のofficial確認だけの挙動はfalse時に維持)。
   const markDomestic = body.markDomestic === true
 
+  // SourceLinkを追加する前に既存分を読んでおく。追加後に同じファイルを読み直すとVercel Blobの
+  // CDN伝播遅延で古いデータが返ることがあるため、更新後の一覧は再読み込みせずこの配列 +
+  // addSourceLinkの戻り値(メモリ上で確定した最新値)をマージして作る。
+  const linksBefore = await listSourceLinks(product.sourceLinkIds)
+
   const link = await addSourceLink({
     publisher: typeof body.publisher === "string" && body.publisher.trim() ? body.publisher.trim() : new URL(url).hostname,
     url,
@@ -49,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   const sourceLinkIds = [...new Set([...product.sourceLinkIds, link.id])]
-  const allLinks = await listSourceLinks(sourceLinkIds)
+  const allLinks = linksBefore.some((l) => l.id === link.id) ? linksBefore : [...linksBefore, link]
   const distinctScores = [...new Set(allLinks.map((l) => l.sourceScore))]
 
   const tier = classifyTier({ hasOfficialOrAuthorizedRetailerLink: true, reliableSourceCount: allLinks.length })
@@ -85,5 +90,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     blockReasons: readiness.blockReasons,
   })
 
-  return NextResponse.json({ ok: true, product: updated })
+  const [images, sources] = await Promise.all([listImageAssets(updated.imageAssetIds), listSources()])
+  return NextResponse.json(toProductCard(updated, allLinks, images, sources))
 }

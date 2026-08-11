@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { isSafeExternalUrl } from "@/lib/affiliate"
-import { addImageAsset, getProduct, listImageAssets, updateProduct } from "@/lib/source-watch/storage"
+import { addImageAsset, getProduct, listImageAssets, listSourceLinks, listSources, updateProduct } from "@/lib/source-watch/storage"
 import { defaultRightsStatusFor } from "@/lib/source-watch/image-rights"
 import { recomputeReadiness } from "@/lib/source-watch/product-recompute"
+import { toProductCard } from "@/lib/source-watch/present"
 import { IMAGE_SOURCE_TYPES } from "@/lib/source-watch/labels"
 import type { ImageSourceType } from "@/lib/source-watch/types"
 
@@ -23,6 +24,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const sourceType: ImageSourceType = IMAGE_SOURCE_TYPES.includes(body?.sourceType) ? body.sourceType : "affiliate_asset"
   const sourceUrl = typeof body?.sourceUrl === "string" && isSafeExternalUrl(body.sourceUrl.trim()) ? body.sourceUrl.trim() : url
 
+  // 追加する前に一覧を読んでおく。追加後に同じファイルを読み直すとVercel BlobのCDN伝播遅延で
+  // 古いデータが返ることがあるため、更新後の一覧は再読み込みせずこの配列 + addImageAssetの戻り値
+  // (メモリ上で確定した最新値)をマージして作る。
+  const imagesBefore = await listImageAssets(product.imageAssetIds)
+
   const asset = await addImageAsset({
     productId: product.id,
     url,
@@ -33,8 +39,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   const imageAssetIds = [...new Set([...product.imageAssetIds, asset.id])]
-  const allImages = await listImageAssets(imageAssetIds)
-  const readiness = recomputeReadiness(product, allImages)
+  const imagesAfter = imagesBefore.some((a) => a.id === asset.id) ? imagesBefore : [...imagesBefore, asset]
+  const readiness = recomputeReadiness(product, imagesAfter)
   const updatedProduct = await updateProduct(id, {
     imageAssetIds,
     readiness: readiness.readiness,
@@ -43,5 +49,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     blockReasons: readiness.blockReasons,
   })
 
-  return NextResponse.json({ ok: true, image: asset, product: updatedProduct })
+  const [sourceLinks, sources] = await Promise.all([listSourceLinks(updatedProduct.sourceLinkIds), listSources()])
+  return NextResponse.json(toProductCard(updatedProduct, sourceLinks, imagesAfter, sources))
 }

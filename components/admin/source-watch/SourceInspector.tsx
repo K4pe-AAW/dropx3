@@ -12,16 +12,6 @@ import { CommerceStatus } from "./CommerceStatus"
 import { resolvePublisher } from "./resolve-publisher"
 import type { FocusTarget } from "./missing-actions"
 
-async function fetchFreshCard(productId: string): Promise<ProductCardData | null> {
-  try {
-    const res = await fetch(`/api/admin/source-watch/products/${productId}`)
-    if (!res.ok) return null
-    return (await res.json()) as ProductCardData
-  } catch {
-    return null
-  }
-}
-
 function SectionHeader({ label }: { label: string }) {
   return <h3 className="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground/70">{label}</h3>
 }
@@ -71,8 +61,7 @@ function ConfirmPrimaryPanel({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      const fresh = await fetchFreshCard(productId)
-      if (fresh) onConfirmed(fresh)
+      onConfirmed(data as ProductCardData)
       setManualUrl("")
     } catch (err) {
       setError(err instanceof Error ? err.message : "確定に失敗しました")
@@ -164,8 +153,7 @@ export function SourceInspector({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      const fresh = await fetchFreshCard(product.id)
-      if (fresh) onCardUpdated(fresh)
+      onCardUpdated(data as ProductCardData)
       setPurchaseUrl("")
       setPurchaseFormOpen(false)
     } catch (err) {
@@ -213,11 +201,6 @@ export function SourceInspector({
     } catch {
       /* noop */
     }
-  }
-
-  async function refreshAfterImageAction() {
-    const fresh = await fetchFreshCard(product.id)
-    if (fresh) onCardUpdated(fresh)
   }
 
   return (
@@ -316,8 +299,8 @@ export function SourceInspector({
                 productId={product.id}
                 images={card.images}
                 sourceLinks={card.sourceLinks}
-                onAdopted={refreshAfterImageAction}
-                onAdded={refreshAfterImageAction}
+                onAdopted={onCardUpdated}
+                onAdded={onCardUpdated}
               />
             </div>
           )}
