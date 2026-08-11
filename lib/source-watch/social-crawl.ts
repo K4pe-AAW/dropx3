@@ -1,4 +1,5 @@
 import { generateId } from "@/lib/storage"
+import { isSafeExternalUrl } from "@/lib/affiliate"
 import { canonicalBrandName } from "@/lib/brands"
 import { addSourceLink, createSourceItem, findProductByMatchKey, findSourceItemByUrl, listSourceLinks, updateSource, updateSourceItem, upsertProduct } from "./storage"
 import { extractSocialPostInfo } from "./social-extract"
@@ -69,7 +70,11 @@ export async function analyzeSocialPost(source: Source, url: string, caption: st
   if (existingItem) throw new DuplicatePostError()
 
   const extracted = await extractSocialPostInfo(caption, url)
-  const effectiveBrand = extracted.brand ?? extracted.artist
+  // キャプション本文が自分のブランド名を毎回名乗るとは限らない(例: INSTINCTOY公式が「新作ソフビ入荷」
+  // とだけ書く投稿)。本文からブランドが抽出できず、かつ投稿者自身が公式ブランド/アーティスト/イベント
+  // アカウントである場合に限り、そのアカウント名をブランドとして補う(本文の捏造ではなく、既に人間が
+  // ソース登録時に確認済みの事実を使うだけ)。
+  const effectiveBrand = extracted.brand ?? extracted.artist ?? (isOfficialSocialType(source.socialType) ? source.name : null)
   const effectiveName = extracted.productName ?? extracted.characterName ?? extracted.seriesName
   const matchKey = buildProductMatchKey({ styleCode: null, brand: effectiveBrand, modelName: effectiveName })
 
@@ -98,9 +103,13 @@ export async function analyzeSocialPost(source: Source, url: string, caption: st
   })
   const sourceLinks = sourceLinksBefore.some((l) => l.id === sourceLink.id) ? sourceLinksBefore : [...sourceLinksBefore, sourceLink]
 
+  // Instagramのキャプションは実URLの代わりに「プロフィールのリンクから」等の文言だけのことが多い。
+  // AI抽出がそれをそのままentryUrl/purchaseUrlに入れてしまうケースがあるため、実在するURLかどうかを
+  // ここでも二重に検証する(makeCandidate内のisBrandTopUrlはURL構文エラーを安全側で吸収するだけで、
+  // 「文字列としては保存してしまう」問題までは防げないため)。
   const newPurchaseLinks: PurchaseLinkCandidate[] = []
-  if (extracted.entryUrl) newPurchaseLinks.push(makeCandidate(extracted.entryUrl, "official_lottery", "応募ページへ"))
-  if (extracted.purchaseUrl) newPurchaseLinks.push(makeCandidate(extracted.purchaseUrl, "official_product"))
+  if (extracted.entryUrl && isSafeExternalUrl(extracted.entryUrl)) newPurchaseLinks.push(makeCandidate(extracted.entryUrl, "official_lottery", "応募ページへ"))
+  if (extracted.purchaseUrl && isSafeExternalUrl(extracted.purchaseUrl)) newPurchaseLinks.push(makeCandidate(extracted.purchaseUrl, "official_product"))
 
   const now = new Date().toISOString()
   const incomingSocial: SocialInfo = {
