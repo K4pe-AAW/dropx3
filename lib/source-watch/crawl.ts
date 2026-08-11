@@ -20,6 +20,7 @@ import { fetchHtmlListing, fetchPageText } from "./fetchers/html"
 import { extractProductInfo } from "./extract"
 import { buildProductMatchKey, normalizeUrl } from "./normalize"
 import { classifyTier, computeCorroboratedScore, computeReadiness, determineDomesticConfirmed, determineOfficialConfirmed } from "./scoring"
+import { makeCandidate } from "./purchase-links"
 import type {
   CrawlLog,
   ExtractedProductInfo,
@@ -241,6 +242,17 @@ export async function processSourceItem(source: Source, item: SourceItem, existi
   const isAuthorizedRetailer = source.category === "retailer"
   if (determineOfficialConfirmed(sourceLink.type, isAuthorizedRetailer)) product.officialConfirmed = true
   if (determineDomesticConfirmed(extracted.domesticReleaseDate, isAuthorizedRetailer)) product.domesticConfirmed = true
+
+  // --- 購入リンク候補: 販売店(retailer)カテゴリのソースはそのURL自体が購入導線なので自動候補化する。
+  // official/press等の個別記事URLは必ずしも購入ページとは限らないため対象外(誤って
+  // ニュース記事に「購入する」ラベルを付けないため)。makeCandidateはブランドTOPのみのURLを
+  // 自動判定してisBrandTopOnly:trueにする(purchase-links.ts)。
+  if (isAuthorizedRetailer) {
+    const candidate = makeCandidate(item.sourceUrl, "domestic_retailer")
+    if (!product.purchaseLinkCandidates.some((c) => c.url === candidate.url)) {
+      product.purchaseLinkCandidates = [...product.purchaseLinkCandidates, candidate]
+    }
+  }
 
   // --- Tier再計算: 寄与している distinct ソースを全て洗い出す ---
   const allItems = await listSourceItems()

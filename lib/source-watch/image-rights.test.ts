@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { detectPressAssetLinks, isEmbedOnly, isImageAutoUsable } from "./image-rights"
+import { detectPressAssetLinks, imageStatusOf, isEmbedOnly, isImageAutoUsable } from "./image-rights"
 import type { ImageAsset } from "./types"
 
 test("ImageAsset: Press AssetのrightsUrl(利用規約ページ)を保持できる", () => {
@@ -37,6 +37,26 @@ test("isImageAutoUsable: third_party_mediaはrightsStatusがapprovedでも自動
 test("isEmbedOnly: embed_onlyのみtrue", () => {
   assert.equal(isEmbedOnly({ rightsStatus: "embed_only" }), true)
   assert.equal(isEmbedOnly({ rightsStatus: "approved" }), false)
+})
+
+test("imageStatusOf: isImageAutoUsableがtrueならusable", () => {
+  assert.equal(imageStatusOf({ sourceType: "official_press", rightsStatus: "approved" }), "usable")
+})
+
+test("imageStatusOf: prohibitedはunusable", () => {
+  assert.equal(imageStatusOf({ sourceType: "official_press", rightsStatus: "prohibited" }), "unusable")
+})
+
+test("imageStatusOf: embed_onlyはembed_only", () => {
+  assert.equal(imageStatusOf({ sourceType: "official_social", rightsStatus: "embed_only" }), "embed_only")
+})
+
+test("imageStatusOf: review_requiredはreview", () => {
+  assert.equal(imageStatusOf({ sourceType: "affiliate_asset", rightsStatus: "review_required" }), "review")
+})
+
+test("imageStatusOf: third_party_mediaはapproved扱いにされていてもusableにならずreview", () => {
+  assert.equal(imageStatusOf({ sourceType: "third_party_media", rightsStatus: "approved" }), "review")
 })
 
 test("detectPressAssetLinks: Press Kit/Media Kit等のリンクテキストを検出する", () => {

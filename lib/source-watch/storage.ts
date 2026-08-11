@@ -134,6 +134,22 @@ export async function updateProduct(id: string, patch: Partial<Product>): Promis
   return product
 }
 
+/** 一括操作(無視/保留/保留解除)用。1件ずつupdateProductを呼ぶと書き込み回数分だけBlob伝播遅延・
+ * 競合リスクが増えるため、1回のread-modify-writeで複数件をまとめて更新する */
+export async function updateProductsBulk(ids: string[], patch: Partial<Product>): Promise<string[]> {
+  const data = await readJson<{ products: Product[] }>(PRODUCTS_PATH, { products: [] })
+  const idSet = new Set(ids)
+  const now = new Date().toISOString()
+  const updated: string[] = []
+  for (const product of data.products) {
+    if (!idSet.has(product.id)) continue
+    Object.assign(product, patch, { updatedAt: now })
+    updated.push(product.id)
+  }
+  if (updated.length > 0) await writeJson(PRODUCTS_PATH, data)
+  return updated
+}
+
 // --- SourceLinks ---
 
 export async function listSourceLinks(ids?: string[]): Promise<SourceLink[]> {

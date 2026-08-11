@@ -1,20 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import type { CrawlLog, ImagePolicy, MonitoringMethod, Source, SourceCategory } from "@/lib/source-watch/types"
+import type { CrawlLog, ImagePolicy, MonitoringMethod, Source } from "@/lib/source-watch/types"
+import { SOURCE_CATEGORY_LABEL, SOURCE_CATEGORY_ORDER } from "@/lib/source-watch/labels"
 
 type SourceWithLog = Source & { latestCrawlLog?: CrawlLog }
 
-const CATEGORY_LABEL: Record<SourceCategory, string> = {
-  official: "公式",
-  press: "プレス",
-  retailer: "販売店",
-  early_media: "海外速報",
-  domestic_media: "国内メディア",
-  resale: "二次流通",
-  social: "SNS",
-}
-const CATEGORY_ORDER: SourceCategory[] = ["official", "press", "retailer", "early_media", "domestic_media", "resale", "social"]
 const METHODS: MonitoringMethod[] = ["rss", "sitemap", "html", "api", "manual"]
 const IMAGE_POLICIES: ImagePolicy[] = ["press_assets_available", "affiliate_assets", "embed_only", "unknown", "do_not_use"]
 
@@ -50,7 +41,7 @@ export function SourceWatchSources({ initialSources }: { initialSources: SourceW
     setSources((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
   }
 
-  const grouped = CATEGORY_ORDER.map((cat) => ({ cat, items: sources.filter((s) => s.category === cat) })).filter(
+  const grouped = SOURCE_CATEGORY_ORDER.map((cat) => ({ cat, items: sources.filter((s) => s.category === cat) })).filter(
     (g) => g.items.length > 0
   )
 
@@ -71,7 +62,7 @@ export function SourceWatchSources({ initialSources }: { initialSources: SourceW
         {grouped.map(({ cat, items }) => (
           <div key={cat}>
             <h3 className="text-xs font-bold text-muted-foreground mb-2">
-              {CATEGORY_LABEL[cat]} ({items.length})
+              {SOURCE_CATEGORY_LABEL[cat]} ({items.length})
             </h3>
             <div className="space-y-2">
               {items.map((s) => (

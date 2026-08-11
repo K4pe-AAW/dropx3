@@ -18,6 +18,19 @@ export function isEmbedOnly(asset: Pick<ImageAsset, "rightsStatus">): boolean {
   return asset.rightsStatus === "embed_only"
 }
 
+export type ImageStatusLevel = "usable" | "embed_only" | "review" | "unusable"
+
+/**
+ * 管理画面が人間向けに表示する4状態(✓使用可能/Embedのみ/△確認必要/×使用不可)への変換。
+ * isImageAutoUsableと矛盾しないよう、usable判定はisImageAutoUsableへ委譲する(判定ロジックの二重管理を避ける)。
+ */
+export function imageStatusOf(asset: Pick<ImageAsset, "sourceType" | "rightsStatus">): ImageStatusLevel {
+  if (isImageAutoUsable(asset)) return "usable"
+  if (asset.rightsStatus === "prohibited") return "unusable"
+  if (asset.rightsStatus === "embed_only") return "embed_only"
+  return "review"
+}
+
 /** third_party_mediaは新規登録時、明示的な確認が入るまでreview_requiredより緩いステータスにしない */
 export function defaultRightsStatusFor(sourceType: ImageSourceType): ImageRightsStatus {
   if (sourceType === "third_party_media") return "review_required"

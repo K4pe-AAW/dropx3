@@ -1,10 +1,9 @@
 import Link from "next/link"
 import type { Metadata } from "next"
-import { listSources, seedSourcesIfMissing, listProducts, getLatestCrawlLog } from "@/lib/source-watch/storage"
+import { listSources, seedSourcesIfMissing, listProducts } from "@/lib/source-watch/storage"
 import { INITIAL_SOURCES } from "@/lib/source-watch/seed-sources"
-import { listProductCards } from "@/lib/source-watch/present"
-import { SourceWatchSources } from "@/components/admin/SourceWatchSources"
-import { SourceWatchCandidates } from "@/components/admin/SourceWatchCandidates"
+import { listProductCards, sortCardsByPriority } from "@/lib/source-watch/present"
+import { SourceWatchDashboard } from "@/components/admin/source-watch/SourceWatchDashboard"
 
 export const metadata: Metadata = { title: "SOURCE WATCH" }
 
@@ -20,23 +19,18 @@ export default async function SourceWatchPage() {
     // 次回の実アクセス時に再試行される(admin/page.tsx等、他の管理画面と同じ挙動)。
   }
   const sources = await listSources()
-  const sourcesWithLogs = await Promise.all(
-    sources.map(async (s) => ({ ...s, latestCrawlLog: await getLatestCrawlLog(s.id) }))
-  )
   const products = (await listProducts()).filter((p) => p.reviewStatus !== "ignored")
-  const cards = await listProductCards(products)
+  const cards = sortCardsByPriority(await listProductCards(products))
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-2">
+    <div className="max-w-[1600px] mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-1">
         <h1 className="text-xl font-black">SOURCE WATCH</h1>
         <div className="flex items-center gap-3">
-          <a
-            href={ADMIN_GUIDE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-muted-foreground hover:text-foreground underline"
-          >
+          <Link href="/admin/source-watch/sources" className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">
+            情報源を管理({sources.length})
+          </Link>
+          <a href={ADMIN_GUIDE_URL} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground underline">
             使い方ガイド
           </a>
           <Link href="/admin" className="text-xs text-muted-foreground hover:text-foreground underline">
@@ -44,20 +38,11 @@ export default async function SourceWatchPage() {
           </Link>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-        情報源を監視 → 新着検出 → 商品抽出 → 一次情報確認 → 画像権利判定 → 人間レビュー、の流れで記事候補を作ります。
+      <p className="text-xs text-muted-foreground leading-relaxed mb-6">
         自動公開はしません。CONFIRMED(公式/国内正規販売店で確認済み)のみ「記事候補を見る」から下書きを生成できます。
       </p>
 
-      <section className="mb-12">
-        <h2 className="text-sm font-bold mb-3">情報源(Source)一覧</h2>
-        <SourceWatchSources initialSources={sourcesWithLogs} />
-      </section>
-
-      <section>
-        <h2 className="text-sm font-bold mb-3">記事候補(Product)</h2>
-        <SourceWatchCandidates initialCards={cards} />
-      </section>
+      <SourceWatchDashboard initialCards={cards} />
     </div>
   )
 }

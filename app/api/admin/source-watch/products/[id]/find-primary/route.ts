@@ -36,6 +36,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const url = String(body.url).trim()
   if (!isSafeExternalUrl(url)) return NextResponse.json({ error: "urlが不正です" }, { status: 400 })
+  // Inspectorの「国内販売を探す」から呼ばれた場合はtrue。国内正規販売店URLの確定なので
+  // officialConfirmedに加えdomesticConfirmedも立てる(従来のofficial確認だけの挙動はfalse時に維持)。
+  const markDomestic = body.markDomestic === true
 
   const link = await addSourceLink({
     publisher: typeof body.publisher === "string" && body.publisher.trim() ? body.publisher.trim() : new URL(url).hostname,
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     hasStyleCode: Boolean(product.styleCode),
     hasReleaseDate: product.colorways.some((c) => c.releaseDate),
     hasPrice: product.colorways.some((c) => c.price),
-    domesticConfirmed: product.domesticConfirmed,
+    domesticConfirmed: product.domesticConfirmed || markDomestic,
     hasSafeImage: product.readinessBreakdown.safeImage > 0,
     hasUnresolvedImageRights: product.imageAssetIds.length > 0 && product.readinessBreakdown.safeImage === 0,
     hasAccuratePurchaseLink: product.purchaseLinkCandidates.some((c) => !c.isBrandTopOnly),
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const updated = await updateProduct(id, {
     sourceLinkIds,
     officialConfirmed: true,
+    ...(markDomestic ? { domesticConfirmed: true } : {}),
     tier,
     sourceScore,
     readiness: readiness.readiness,

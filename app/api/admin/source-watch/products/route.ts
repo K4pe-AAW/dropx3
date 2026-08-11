@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { listProducts } from "@/lib/source-watch/storage"
-import { listProductCards } from "@/lib/source-watch/present"
+import { listProductCards, sortCardsByPriority } from "@/lib/source-watch/present"
 
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams
@@ -36,9 +36,7 @@ export async function GET(req: NextRequest) {
   const minScore = params.get("minScore")
   if (minScore) filtered = filtered.filter((p) => p.sourceScore >= Number(minScore))
 
-  filtered.sort((a, b) => (a.firstDetectedAt < b.firstDetectedAt ? 1 : -1))
-
-  const cards = await listProductCards(filtered)
+  const cards = sortCardsByPriority(await listProductCards(filtered))
   const sourceFilter = params.get("source")
   const bySource = sourceFilter ? cards.filter((c) => c.sourceNames.includes(sourceFilter)) : cards
 
