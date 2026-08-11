@@ -490,7 +490,7 @@ export const INITIAL_SOURCES: Source[] = [
     monitoringIntervalMinutes: 600,
     enabled: true,
     imagePolicy: "do_not_use",
-    notes: "確認済み(2026-08-11): robots.txt(汎用UAブロックなし)・gzip圧縮sitemapとも200、fetcherがgzipに対応済み。画像は出品者個人の現物撮影のためdo_not_use(監視のみ)。",
+    notes: "確認済み(2026-08-11): robots.txt(汎用UAブロックなし)・gzip圧縮sitemapとも200、fetcherがgzipに対応済み。ただし本番(Vercel)からのcheckRobots呼び出しはrobotsVerdict:\"unknown\"で失敗する(atmos/BEAMS等と同様、datacenter IPを判別している可能性)。安全側でallowed:falseになりクロールは何もしない(害はないが機能もしない)。画像は出品者個人の現物撮影のためdo_not_use(監視のみ)。",
   }),
   src({
     id: "resale-stockx",
