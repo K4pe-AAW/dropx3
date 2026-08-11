@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSource, updateSource } from "@/lib/source-watch/storage"
 import { isSafeExternalUrl } from "@/lib/affiliate"
-import type { ImagePolicy, MonitoringMethod, Source } from "@/lib/source-watch/types"
+import type { ImagePolicy, MonitoringMethod, SocialPriority, Source } from "@/lib/source-watch/types"
 
 const MONITORING_METHODS: MonitoringMethod[] = ["rss", "sitemap", "html", "api", "manual"]
 const IMAGE_POLICIES: ImagePolicy[] = ["press_assets_available", "affiliate_assets", "embed_only", "unknown", "do_not_use"]
+const SOCIAL_PRIORITIES: SocialPriority[] = ["S", "A", "B", "C"]
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -44,6 +45,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (MONITORING_METHODS.includes(body.monitoringMethod)) patch.monitoringMethod = body.monitoringMethod
   if (IMAGE_POLICIES.includes(body.imagePolicy)) patch.imagePolicy = body.imagePolicy
   if (typeof body.notes === "string") patch.notes = body.notes
+  if (SOCIAL_PRIORITIES.includes(body.priority)) patch.priority = body.priority
 
   const updated = await updateSource(id, patch)
   return NextResponse.json(updated)

@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 import type { ProductCard as ProductCardData } from "@/lib/source-watch/present"
-import { ImageStatusChip, QualityGradeBadge, ReadinessBadge, TierBadge } from "./badges"
+import { formatCountdown, isUrgent, pickRelevantDeadline } from "@/lib/source-watch/countdown"
+import { ImageStatusChip, QualityGradeBadge, ReadinessBadge, SaleMethodBadge, TierBadge } from "./badges"
 import { ProductPipeline } from "./ProductPipeline"
 import { MissingInformation } from "./MissingInformation"
 import { ImageRoute } from "./ImageRoute"
@@ -11,6 +13,17 @@ import { ImageFinder } from "./ImageFinder"
 import { CommerceStatus } from "./CommerceStatus"
 import { resolvePublisher } from "./resolve-publisher"
 import type { FocusTarget } from "./missing-actions"
+
+const SOCIAL_DATE_FIELDS: { label: string; key: "entryStartAt" | "entryDeadlineAt" | "winnerAnnounceAt" | "saleStartAt" | "saleEndAt" | "eventStartAt" | "eventEndAt" | "shipAt" }[] = [
+  { label: "応募開始", key: "entryStartAt" },
+  { label: "応募締切", key: "entryDeadlineAt" },
+  { label: "当選発表", key: "winnerAnnounceAt" },
+  { label: "販売開始", key: "saleStartAt" },
+  { label: "販売終了", key: "saleEndAt" },
+  { label: "イベント開始", key: "eventStartAt" },
+  { label: "イベント終了", key: "eventEndAt" },
+  { label: "発送予定", key: "shipAt" },
+]
 
 function SectionHeader({ label }: { label: string }) {
   return <h3 className="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground/70">{label}</h3>
@@ -264,6 +277,15 @@ export function SourceInspector({
 
         <section className="border-t border-border pt-4">
           <SectionHeader label="IMAGE" />
+          {product.social && card.images.length === 0 && card.officialSourceLink && (
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              Instagram画像の自動転載はしません。
+              <a href={card.officialSourceLink.url} target="_blank" rel="noopener noreferrer" className="mx-1 underline hover:text-foreground">
+                投稿を見る
+              </a>
+              で内容を確認し、転載可能な公式画像が見つかったら下の「画像を探す」から登録してください。
+            </p>
+          )}
           <div className="mb-2 flex items-center gap-3">
             <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-secondary">
               {card.coverImage ? (
@@ -331,6 +353,72 @@ export function SourceInspector({
           )}
           {purchaseError && <p className="mt-1 text-[11px] text-destructive">{purchaseError}</p>}
         </section>
+
+        {product.social && (
+          <section className="border-t border-border pt-4">
+            <SectionHeader label="SOCIAL / EVENT" />
+            <div className="space-y-1 text-[12px]">
+              {product.social.characterName && (
+                <p>
+                  <span className="text-muted-foreground/70">キャラクター: </span>
+                  {product.social.characterName}
+                </p>
+              )}
+              {product.social.seriesName && (
+                <p>
+                  <span className="text-muted-foreground/70">シリーズ: </span>
+                  {product.social.seriesName}
+                </p>
+              )}
+              {product.social.eventName && (
+                <p>
+                  <span className="text-muted-foreground/70">イベント: </span>
+                  {product.social.eventName}
+                </p>
+              )}
+              {product.social.eventLocation && (
+                <p>
+                  <span className="text-muted-foreground/70">会場: </span>
+                  {product.social.eventLocation}
+                </p>
+              )}
+            </div>
+            {product.social.saleMethod && <SaleMethodBadge saleMethod={product.social.saleMethod} className="mt-2" />}
+
+            {SOCIAL_DATE_FIELDS.some((f) => product.social![f.key]) && (
+              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                {SOCIAL_DATE_FIELDS.filter((f) => product.social![f.key]).map((f) => (
+                  <div key={f.key}>
+                    <p className="text-muted-foreground/70">{f.label}</p>
+                    <p className="font-mono font-semibold">{product.social![f.key]}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {(() => {
+              const deadline = pickRelevantDeadline(product.social!)
+              if (!deadline) return null
+              return (
+                <p className={cn("mt-2 text-sm font-bold", isUrgent(deadline.at) ? "text-destructive" : "text-amber-700")}>
+                  {deadline.label}まで {formatCountdown(deadline.at)}
+                </p>
+              )
+            })()}
+
+            {(product.social.purchaseLimit || product.social.entryConditions || product.social.targetRegion) && (
+              <div className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+                {product.social.purchaseLimit && <p>購入制限: {product.social.purchaseLimit}</p>}
+                {product.social.entryConditions && <p>応募条件: {product.social.entryConditions}</p>}
+                {product.social.targetRegion && <p>対象地域: {product.social.targetRegion}</p>}
+              </div>
+            )}
+
+            {product.social.hashtags.length > 0 && (
+              <p className="mt-2 text-[11px] text-muted-foreground">{product.social.hashtags.map((h) => `#${h}`).join(" ")}</p>
+            )}
+          </section>
+        )}
 
         <section className="border-t border-border pt-4">
           <SectionHeader label="MISSING" />

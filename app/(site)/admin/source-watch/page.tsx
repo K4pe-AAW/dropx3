@@ -25,7 +25,15 @@ export default async function SourceWatchPage() {
   return (
     <div className="max-w-[1600px] mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-xl font-black">SOURCE WATCH</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-black">SOURCE WATCH</h1>
+          <div className="flex items-center rounded-full bg-secondary p-0.5">
+            <span className="rounded-full bg-foreground px-3 py-1 text-xs font-bold text-background">ファッション</span>
+            <Link href="/admin/source-watch/social" className="rounded-full px-3 py-1 text-xs font-bold text-muted-foreground hover:text-foreground">
+              SOCIAL WATCH
+            </Link>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <Link href="/admin/source-watch/sources" className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">
             情報源を管理({sources.length})

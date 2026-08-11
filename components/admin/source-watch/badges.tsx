@@ -1,7 +1,7 @@
-import type { ConfidenceTier, ProductReadiness } from "@/lib/source-watch/types"
+import type { ConfidenceTier, ProductReadiness, SaleMethod, SocialSourceType } from "@/lib/source-watch/types"
 import type { ImageStatusSummary } from "@/lib/source-watch/present"
 import type { ImageQualityGrade } from "@/lib/source-watch/image-quality"
-import { SOURCE_CATEGORY_SHORT_LABEL } from "@/lib/source-watch/labels"
+import { LOTTERY_LIKE_SALE_METHODS, SALE_METHOD_LABEL, SOCIAL_SOURCE_TYPE_SHORT_LABEL, SOURCE_CATEGORY_SHORT_LABEL } from "@/lib/source-watch/labels"
 import type { SourceCategory } from "@/lib/source-watch/types"
 import { cn } from "@/lib/utils"
 
@@ -82,6 +82,31 @@ export function QualityGradeBadge({ grade, className }: { grade: ImageQualityGra
   return (
     <span className={cn("inline-flex size-5 items-center justify-center rounded border font-mono text-[11px] font-bold", GRADE_STYLE[grade], className)}>
       {grade}
+    </span>
+  )
+}
+
+/** SOCIAL WATCHのアカウント種別バッジ(OFFICIAL BRAND/ARTIST/EVENT/STORE/MEDIA/COLLECTOR) */
+export function SocialSourceTypeBadge({ socialType, className }: { socialType: SocialSourceType | undefined; className?: string }) {
+  return (
+    <span className={cn("inline-flex items-center rounded border border-border px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-muted-foreground", className)}>
+      {socialType ? SOCIAL_SOURCE_TYPE_SHORT_LABEL[socialType] : "UNKNOWN"}
+    </span>
+  )
+}
+
+/** 抽選系(lottery/web_lottery/store_lottery/entry_lottery)は目立たせる */
+export function SaleMethodBadge({ saleMethod, className }: { saleMethod: SaleMethod; className?: string }) {
+  const isLottery = LOTTERY_LIKE_SALE_METHODS.includes(saleMethod)
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold tracking-wide",
+        isLottery ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground/80",
+        className
+      )}
+    >
+      {SALE_METHOD_LABEL[saleMethod]}
     </span>
   )
 }

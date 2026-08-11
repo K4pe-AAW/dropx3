@@ -39,6 +39,15 @@ export async function seedSourcesIfMissing(newSources: Source[]): Promise<{ adde
   return { added }
 }
 
+/** 管理画面の「Instagramアカウントを追加」等、1件だけを即座に登録するための単体追加。既存idと衝突する場合はエラー */
+export async function addSource(input: Source): Promise<Source> {
+  const data = await readJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] })
+  if (data.sources.some((s) => s.id === input.id)) throw new Error(`source already exists: ${input.id}`)
+  data.sources.push(input)
+  await writeJson(SOURCES_PATH, data)
+  return input
+}
+
 export async function updateSource(id: string, patch: Partial<Omit<Source, "id" | "createdAt">>): Promise<Source> {
   const data = await readJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] })
   const source = data.sources.find((s) => s.id === id)

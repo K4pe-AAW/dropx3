@@ -35,6 +35,36 @@ export const DEFAULT_SOURCE_SCORE_BY_CATEGORY: Record<SourceCategory, number> = 
   social: 30, // SOCIAL RUMOR
 }
 
+// --- SOCIAL WATCH (Instagram等) ---
+// Meta公式APIには第三者アカウントの新着投稿を継続監視できる仕組みが実質無い(Business Discoveryは
+// App Review必須・対象もBusiness/Creatorアカウント限定で「新着取得」用途に向かない)ため、
+// monitoringMethodは実質的に"manual"(人間がURL+本文を貼って解析)が標準運用になる。
+// スクレイピング/ログイン回避は行わない。
+
+export type SocialPlatform = "instagram" | "x" | "threads" | "youtube" | "tiktok"
+
+export type SocialSourceType =
+  | "official_brand"
+  | "official_artist"
+  | "official_event"
+  | "official_store"
+  | "media"
+  | "collector"
+  | "unknown"
+
+export type SocialPriority = "S" | "A" | "B" | "C"
+
+/** SocialSourceType別の初期SOURCE SCORE目安(ユーザー指定値) */
+export const DEFAULT_SOURCE_SCORE_BY_SOCIAL_TYPE: Record<SocialSourceType, number> = {
+  official_brand: 95,
+  official_artist: 95,
+  official_event: 95,
+  official_store: 90,
+  media: 70,
+  collector: 50,
+  unknown: 30,
+}
+
 export type Source = {
   id: string
   name: string
@@ -53,6 +83,15 @@ export type Source = {
   notes?: string
   createdAt: string
   updatedAt: string
+  // --- SOCIAL WATCH拡張。category:"social"のソースで使う(それ以外はundefinedのまま) ---
+  platform?: SocialPlatform
+  handle?: string
+  socialType?: SocialSourceType
+  priority?: SocialPriority
+  /** FOLLOWING SOURCESのグルーピング用タグ(SOFUBI/ART_TOY/FIGURE/FASHION/SNEAKER/EVENT等) */
+  topics?: string[]
+  /** このソースに対して最後に「解析」を実行した時刻(CrawlLogとは別。手動解析の実行記録) */
+  lastCheckedAt?: string
 }
 
 export type SourceItemStatus = "new" | "analyzing" | "processed" | "duplicate" | "ignored" | "error"
@@ -187,6 +226,58 @@ export type ProductColorwayCandidate = {
   imageAssetIds: string[]
 }
 
+export type SaleMethod =
+  | "general" // 一般販売
+  | "first_come" // 先着
+  | "lottery" // 抽選(方式不明)
+  | "web_lottery" // WEB抽選
+  | "store_lottery" // 店頭抽選
+  | "entry_lottery" // 入場抽選
+  | "made_to_order" // 受注
+  | "preorder" // 予約
+  | "event_limited" // イベント限定
+  | "online_limited" // オンライン限定
+  | "venue_limited" // 会場限定
+
+export type SocialPostType =
+  | "raffle"
+  | "release"
+  | "restock"
+  | "preorder"
+  | "made_to_order"
+  | "event"
+  | "popup"
+  | "collab"
+  | "teaser"
+  | "sold_out"
+  | "result"
+  | "other"
+
+/**
+ * SOCIAL WATCH(Instagram等)経由でのみ埋まる追加情報。日時は全てJSTのISO文字列に正規化する
+ * (本文に明記が無ければ必ずnull — 捏造しない、extract.tsと同じ規律)。
+ */
+export type SocialInfo = {
+  characterName: string | null
+  seriesName: string | null
+  eventName: string | null
+  eventLocation: string | null
+  saleMethod: SaleMethod | null
+  postTypes: SocialPostType[]
+  entryStartAt: string | null
+  entryDeadlineAt: string | null
+  winnerAnnounceAt: string | null
+  saleStartAt: string | null
+  saleEndAt: string | null
+  eventStartAt: string | null
+  eventEndAt: string | null
+  shipAt: string | null
+  purchaseLimit: string | null
+  entryConditions: string | null
+  targetRegion: string | null
+  hashtags: string[]
+}
+
 export type ProductReadiness = "READY" | "REVIEW" | "HOLD"
 export type ProductReviewStatus = "pending" | "held" | "ignored" | "drafted"
 
@@ -218,6 +309,8 @@ export type Product = {
   updatedAt: string
   /** 「記事候補を見る」でDraftを生成した後、そのDraft.idを覚えておく(二重生成防止) */
   draftId?: string
+  /** SOCIAL WATCH(Instagram等)から解析された場合のみ設定される */
+  social?: SocialInfo
 }
 
 export type RobotsVerdict = "allowed" | "disallowed" | "unknown" | "not_found"

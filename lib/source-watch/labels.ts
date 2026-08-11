@@ -1,7 +1,7 @@
 // 管理画面(SOURCE WATCH編集デスク)向けの表示ラベル/バケット分類を1箇所に集約する。
 // サーバー・クライアント両方から安全にimportできる純粋な定数のみを置く。
 
-import type { ImageSourceType, PurchaseLinkKind, SourceCategory } from "./types"
+import type { ImageSourceType, PurchaseLinkKind, SaleMethod, SocialPlatform, SocialPostType, SocialPriority, SocialSourceType, SourceCategory } from "./types"
 
 export const SOURCE_CATEGORY_LABEL: Record<SourceCategory, string> = {
   official: "公式",
@@ -87,4 +87,108 @@ export const PURCHASE_LINK_KIND_LABEL: Record<PurchaseLinkKind, string> = {
   domestic_ec: "ECサイト・購入ページ",
   search: "検索リンク",
   brand_top: "公式サイト(TOP)",
+}
+
+// --- SOCIAL WATCH ---
+
+export const SOCIAL_PLATFORM_LABEL: Record<SocialPlatform, string> = {
+  instagram: "Instagram",
+  x: "X",
+  threads: "Threads",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+}
+
+export const SOCIAL_SOURCE_TYPE_LABEL: Record<SocialSourceType, string> = {
+  official_brand: "公式ブランド",
+  official_artist: "公式アーティスト",
+  official_event: "公式イベント",
+  official_store: "公式販売店",
+  media: "メディア",
+  collector: "コレクター",
+  unknown: "不明",
+}
+
+export const SOCIAL_SOURCE_TYPE_SHORT_LABEL: Record<SocialSourceType, string> = {
+  official_brand: "OFFICIAL BRAND",
+  official_artist: "OFFICIAL ARTIST",
+  official_event: "OFFICIAL EVENT",
+  official_store: "OFFICIAL STORE",
+  media: "MEDIA",
+  collector: "COLLECTOR",
+  unknown: "UNKNOWN",
+}
+
+export const SOCIAL_PRIORITY_ORDER: SocialPriority[] = ["S", "A", "B", "C"]
+
+export const SALE_METHOD_LABEL: Record<SaleMethod, string> = {
+  general: "一般販売",
+  first_come: "先着",
+  lottery: "抽選",
+  web_lottery: "WEB抽選",
+  store_lottery: "店頭抽選",
+  entry_lottery: "入場抽選",
+  made_to_order: "受注",
+  preorder: "予約",
+  event_limited: "イベント限定",
+  online_limited: "オンライン限定",
+  venue_limited: "会場限定",
+}
+
+export const SALE_METHODS: SaleMethod[] = [
+  "general",
+  "first_come",
+  "lottery",
+  "web_lottery",
+  "store_lottery",
+  "entry_lottery",
+  "made_to_order",
+  "preorder",
+  "event_limited",
+  "online_limited",
+  "venue_limited",
+]
+
+/** 抽選/締切系ほど優先度を上げる対象(SmartQueue的な並び替えで使う) */
+export const LOTTERY_LIKE_SALE_METHODS: SaleMethod[] = ["lottery", "web_lottery", "store_lottery", "entry_lottery"]
+
+export const SOCIAL_POST_TYPE_LABEL: Record<SocialPostType, string> = {
+  raffle: "抽選",
+  release: "発売",
+  restock: "再販",
+  preorder: "予約",
+  made_to_order: "受注",
+  event: "イベント",
+  popup: "POP UP",
+  collab: "コラボ",
+  teaser: "予告",
+  sold_out: "完売",
+  result: "抽選結果",
+  other: "その他",
+}
+
+export const SOCIAL_POST_TYPES: SocialPostType[] = [
+  "raffle",
+  "release",
+  "restock",
+  "preorder",
+  "made_to_order",
+  "event",
+  "popup",
+  "collab",
+  "teaser",
+  "sold_out",
+  "result",
+  "other",
+]
+
+export const SOCIAL_TOPICS = ["SOFUBI", "ART_TOY", "FIGURE", "FASHION", "SNEAKER", "EVENT"] as const
+export type SocialTopic = (typeof SOCIAL_TOPICS)[number]
+export const SOCIAL_TOPIC_LABEL: Record<SocialTopic, string> = {
+  SOFUBI: "ソフビ",
+  ART_TOY: "アートトイ",
+  FIGURE: "フィギュア",
+  FASHION: "ファッション",
+  SNEAKER: "スニーカー",
+  EVENT: "イベント",
 }
