@@ -8,6 +8,9 @@ import { SourceWatchCandidates } from "@/components/admin/SourceWatchCandidates"
 
 export const metadata: Metadata = { title: "SOURCE WATCH" }
 
+/** 運用ガイド(Artifact)。同じfile_pathで再公開すればURLは変わらない */
+const ADMIN_GUIDE_URL = "https://claude.ai/code/artifact/643aaaf7-ac93-4cc5-8924-29896976591c"
+
 export default async function SourceWatchPage() {
   try {
     await seedSourcesIfMissing(INITIAL_SOURCES)
@@ -27,9 +30,19 @@ export default async function SourceWatchPage() {
     <div className="max-w-5xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-xl font-black">SOURCE WATCH</h1>
-        <Link href="/admin" className="text-xs text-muted-foreground hover:text-foreground underline">
-          管理画面トップへ
-        </Link>
+        <div className="flex items-center gap-3">
+          <a
+            href={ADMIN_GUIDE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            使い方ガイド
+          </a>
+          <Link href="/admin" className="text-xs text-muted-foreground hover:text-foreground underline">
+            管理画面トップへ
+          </Link>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground leading-relaxed mb-8">
         情報源を監視 → 新着検出 → 商品抽出 → 一次情報確認 → 画像権利判定 → 人間レビュー、の流れで記事候補を作ります。

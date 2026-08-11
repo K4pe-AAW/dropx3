@@ -9,6 +9,9 @@ import { categoryLabel } from "@/lib/site-config"
 
 export const metadata: Metadata = { title: "管理画面" }
 
+/** 運用ガイド(Artifact)。同じfile_pathで再公開すればURLは変わらない */
+const ADMIN_GUIDE_URL = "https://claude.ai/code/artifact/643aaaf7-ac93-4cc5-8924-29896976591c"
+
 export default async function AdminPage() {
   const [drafts, articles] = await Promise.all([getPendingDrafts(), getAllArticles()])
 
@@ -17,6 +20,14 @@ export default async function AdminPage() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-xl font-black">管理画面</h1>
         <div className="flex items-center gap-3">
+          <a
+            href={ADMIN_GUIDE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline"
+          >
+            使い方ガイド
+          </a>
           <Link href="/admin/source-watch" className="text-xs font-semibold text-accent-foreground hover:underline">
             SOURCE WATCH
           </Link>
