@@ -35,6 +35,10 @@ import type {
 } from "./types"
 
 const RELIABLE_CATEGORIES = new Set(["official", "press", "retailer", "early_media", "domestic_media"])
+// 1回の巡回で処理する新着件数の上限。sitemapは過去URLも一度に返すため、上限が無いと
+// 初回巡回だけでOpenAI抽出コールが大量発生し時間・コストの両方で問題になる。新しい順に
+// 優先して処理し、残りは間隔を空けて次回以降の巡回で徐々に消化する(バックプレッシャー)。
+const MAX_ITEMS_PER_CRAWL = 15
 
 function isSourceDue(source: Source, latestLog: CrawlLog | undefined): boolean {
   if (!latestLog) return true
@@ -361,7 +365,16 @@ export async function crawlSource(source: Source): Promise<CrawlLog> {
 
     const existingArticleSignature = await buildExistingArticleSignature()
 
-    for (const fetched of fetchResult.items) {
+    const sortedItems = [...fetchResult.items].sort((a, b) => {
+      if (!a.publishedAt && !b.publishedAt) return 0
+      if (!a.publishedAt) return 1
+      if (!b.publishedAt) return -1
+      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    })
+
+    let processedThisRun = 0
+    for (const fetched of sortedItems) {
+      if (processedThisRun >= MAX_ITEMS_PER_CRAWL) break
       const existing = await findSourceItemByUrl(fetched.url)
       if (existing) continue // 同じURLは何度も登録しない
 
@@ -383,6 +396,7 @@ export async function crawlSource(source: Source): Promise<CrawlLog> {
         processingStatus: "new",
       })
       newCount++
+      processedThisRun++
 
       try {
         await processSourceItem(source, item, existingArticleSignature)
