@@ -19,7 +19,8 @@ export default async function SourceWatchPage() {
     // 次回の実アクセス時に再試行される(admin/page.tsx等、他の管理画面と同じ挙動)。
   }
   const sources = await listSources()
-  const products = (await listProducts()).filter((p) => p.reviewStatus !== "ignored")
+  // SOCIAL WATCH(Instagram等)由来の商品はそちら専用タブでのみ扱う(こちらに混在させない)
+  const products = (await listProducts()).filter((p) => p.reviewStatus !== "ignored" && !p.social)
   const cards = sortCardsByPriority(await listProductCards(products))
 
   return (
