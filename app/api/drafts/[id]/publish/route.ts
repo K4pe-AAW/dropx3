@@ -3,7 +3,7 @@ import { getDraftById, removeDraft, publishArticle, generateSlug, generateId } f
 import { sanitizeAffiliateLinks, isSafeExternalUrl } from "@/lib/affiliate"
 import { canonicalBrandNames } from "@/lib/brands"
 import { siteConfig } from "@/lib/site-config"
-import type { Article, AffiliateLink, Category, ColorwayInfo, GalleryImage, OfficialLink } from "@/lib/types"
+import type { Article, AffiliateLink, Category, ColorwayInfo, GalleryImage, OfficialLink, PurchaseChannelInfo } from "@/lib/types"
 
 /** ローカルパス(/images/xxx.jpg)か、http(s)の絶対URLのみ許可する（//host/pathのprotocol-relativeは除外） */
 function isAllowedImageUrl(url: string): boolean {
@@ -32,6 +32,27 @@ function sanitizeColorways(input: unknown): ColorwayInfo[] {
       }
     })
     .filter((c) => c.colorName)
+}
+
+const CHANNEL_TYPES = new Set(["official", "secondary"])
+const SALE_METHODS = new Set(["regular", "lottery", "unknown"])
+
+function sanitizePurchaseChannels(input: unknown): PurchaseChannelInfo[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)
+    .map((c) => {
+      const retailerName = typeof c.retailerName === "string" ? c.retailerName.trim() : ""
+      const url = typeof c.url === "string" ? c.url.trim() : ""
+      return {
+        retailerName,
+        channelType: CHANNEL_TYPES.has(c.channelType as string) ? (c.channelType as PurchaseChannelInfo["channelType"]) : "official",
+        saleMethod: SALE_METHODS.has(c.saleMethod as string) ? (c.saleMethod as PurchaseChannelInfo["saleMethod"]) : "unknown",
+        ...(typeof c.date === "string" && c.date.trim() ? { date: c.date.trim() } : {}),
+        ...(url && isSafeExternalUrl(url) ? { url } : {}),
+      }
+    })
+    .filter((c) => c.retailerName)
 }
 
 function sanitizeGalleryImages(input: unknown): GalleryImage[] {
@@ -86,6 +107,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const galleryImages: GalleryImage[] = sanitizeGalleryImages(body.galleryImages)
   const officialLinks: OfficialLink[] = sanitizeOfficialLinks(body.officialLinks)
   const colorways: ColorwayInfo[] = sanitizeColorways(body.colorways)
+  const purchaseChannels: PurchaseChannelInfo[] = sanitizePurchaseChannels(body.purchaseChannels)
 
   if (!coverImageInput) {
     return NextResponse.json({ error: "カバー画像URLは必須です" }, { status: 400 })
@@ -114,6 +136,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     publishedAt: new Date().toISOString(),
     featured: Boolean(body.featured),
     ...(colorways.length > 0 ? { colorways } : {}),
+    ...(purchaseChannels.length > 0 ? { purchaseChannels } : {}),
     affiliateLinks,
     officialLinks,
     sourceRefs: draft.sourceRefs,

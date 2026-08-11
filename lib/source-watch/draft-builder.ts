@@ -32,6 +32,27 @@ function isConfirmedLinkType(type: SourceLink["type"]): boolean {
   return type === "official_news" || type === "official_product" || type === "official_social" || type === "press_release" || type === "retailer"
 }
 
+/**
+ * FULLRESS形式の「抽選情報・販売方法」欄の初期候補。colorwaysに集まった店名を、確認済みSourceLinkの
+ * 発行元と突き合わせて公式/セレクト店に振り分ける。抽選か通常かはlotteryInfoの有無だけで判定し、
+ * 断定できない場合は"unknown"のままにする(捏造しない)。
+ */
+export function buildSuggestedPurchaseChannels(product: Product, sourceLinks: SourceLink[]) {
+  const retailerNames = [...new Set(product.colorways.flatMap((c) => c.retailers))]
+  if (retailerNames.length === 0) return []
+
+  const officialPublishers = new Set(sourceLinks.filter((l) => isConfirmedLinkType(l.type)).map((l) => l.publisher))
+  const saleMethod: "lottery" | "unknown" = product.lotteryInfo ? "lottery" : "unknown"
+  const fallbackDate = product.colorways.find((c) => c.releaseDate)?.releaseDate ?? undefined
+
+  return retailerNames.map((name) => ({
+    retailerName: name,
+    channelType: (officialPublishers.has(name) ? "official" : "secondary") as "official" | "secondary",
+    saleMethod,
+    ...(product.lotteryInfo ? { date: product.lotteryInfo } : fallbackDate ? { date: fallbackDate } : {}),
+  }))
+}
+
 const SYSTEM_PROMPT = `あなたはストリートファッション/スニーカーニュースメディア「${siteConfig.name}」の編集者です。
 渡されるのはSOURCE WATCH(情報収集システム)が確認済み情報源から集めた構造化データです。
 これを元に${siteConfig.name}らしい文章の記事下書きを書いてください。
@@ -138,6 +159,7 @@ export async function buildDraftFromProduct(product: Product): Promise<Draft> {
   const officialLinks = sourceLinks
     .filter((l) => isConfirmedLinkType(l.type))
     .map((l) => ({ label: `${l.publisher}で見る`, url: l.url }))
+  const suggestedPurchaseChannels = buildSuggestedPurchaseChannels(product, sourceLinks)
 
   const draft: Draft = {
     id: generateId(`sw-draft-${product.id}-${Date.now()}`),
@@ -156,6 +178,7 @@ export async function buildDraftFromProduct(product: Product): Promise<Draft> {
     suggestedGalleryImages,
     suggestedColorways,
     suggestedOfficialLinks: officialLinks,
+    ...(suggestedPurchaseChannels.length > 0 ? { suggestedPurchaseChannels } : {}),
   }
 
   const { saved } = await addDrafts([draft])

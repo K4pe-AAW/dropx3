@@ -3,10 +3,12 @@ import { isSafeExternalUrl } from "@/lib/affiliate"
 import { getProduct, updateProduct, addSourceLink, listSourceLinks } from "@/lib/source-watch/storage"
 import { findOfficialSourcesForBrand } from "@/lib/source-watch/present"
 import { classifyTier, computeCorroboratedScore, computeReadiness } from "@/lib/source-watch/scoring"
+import { isWebSearchConfigured, searchWeb } from "@/lib/source-watch/web-search"
 
 /**
- * 一次情報の確認を支援する。汎用Web検索APIキーが無いため全自動検索はできない —
- * (a) bodyにurlが無い場合: 検索の出発点(登録済み公式ソースのURL、Google検索URL)を返すだけ(fetchしない)。
+ * 一次情報の確認を支援する。
+ * (a) bodyにurlが無い場合: GOOGLE_CSE_API_KEY/GOOGLE_CSE_CXが設定されていれば実際に検索し実URLを返す。
+ *     未設定の場合は登録済み公式Source一覧+検索エンジンへのリンクを返すだけ(fetchしない)にフォールバックする。
  * (b) 人間がその情報源を開いて確認し、見つかった公式URLをurlとして渡すと、SourceLinkとして保存し
  *     tier/readinessを再計算する(spec:「一次情報が見つかったら、記事のメインSourceを公式へ変更してください」)。
  */
@@ -20,11 +22,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!body.url) {
     const query = [product.brand, product.productName, product.styleCode].filter(Boolean).join(" ")
     const officialSources = await findOfficialSourcesForBrand(product.brand)
+    const webSearchConfigured = isWebSearchConfigured()
+    const realResults = webSearchConfigured ? await searchWeb(`${query} 公式`) : []
     const searchUrls = [
       ...officialSources.map((s) => ({ label: s.name, url: s.url as string })),
-      { label: "Google検索", url: `https://www.google.com/search?q=${encodeURIComponent(`${query} 公式 site:${product.brand ?? ""}`)}` },
+      ...realResults,
+      ...(webSearchConfigured
+        ? []
+        : [{ label: "Google検索", url: `https://www.google.com/search?q=${encodeURIComponent(`${query} 公式 site:${product.brand ?? ""}`)}` }]),
     ]
-    return NextResponse.json({ searchUrls })
+    return NextResponse.json({ searchUrls, webSearchConfigured })
   }
 
   const url = String(body.url).trim()

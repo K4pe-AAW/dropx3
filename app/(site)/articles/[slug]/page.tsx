@@ -3,6 +3,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { getArticleBySlug, getRelatedArticles } from "@/lib/storage"
 import { PurchaseLinks } from "@/components/PurchaseLinks"
+import { PurchaseChannelsSection } from "@/components/PurchaseChannelsSection"
 import { ColorwaySection } from "@/components/ColorwaySection"
 import { ArticleCard } from "@/components/ArticleCard"
 import { YouTubeEmbed } from "@/components/YouTubeEmbed"
@@ -168,6 +169,10 @@ export default async function ArticleDetailPage({
 
       {article.colorways && article.colorways.length > 0 && (
         <ColorwaySection colorways={article.colorways} productName={article.title} />
+      )}
+
+      {article.purchaseChannels && article.purchaseChannels.length > 0 && (
+        <PurchaseChannelsSection channels={article.purchaseChannels} />
       )}
 
       <PurchaseLinks officialLinks={article.officialLinks} affiliateLinks={article.affiliateLinks} />

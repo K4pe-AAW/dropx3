@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import type { Article, Category, AffiliateLink, GalleryImage, OfficialLink, ColorwayInfo } from "@/lib/types"
+import type { Article, Category, AffiliateLink, GalleryImage, OfficialLink, ColorwayInfo, PurchaseChannelInfo } from "@/lib/types"
 
 type ColorwayDraft = ColorwayInfo & { retailersText: string }
 
@@ -27,6 +27,7 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [featured, setFeatured] = useState(article.featured)
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(article.galleryImages)
   const [colorways, setColorways] = useState<ColorwayDraft[]>((article.colorways ?? []).map(toColorwayDraft))
+  const [purchaseChannels, setPurchaseChannels] = useState<PurchaseChannelInfo[]>(article.purchaseChannels ?? [])
   const [officialLinks, setOfficialLinks] = useState<OfficialLink[]>(article.officialLinks)
   const [links, setLinks] = useState<(AffiliateLink & { price?: string })[]>(
     article.affiliateLinks.length > 0 ? article.affiliateLinks : [{ label: "", retailer: "", url: "", price: "" }]
@@ -46,6 +47,12 @@ export function EditArticleForm({ article }: { article: Article }) {
   }
   function removeColorway(i: number) {
     setColorways((prev) => prev.filter((_, idx) => idx !== i))
+  }
+  function updatePurchaseChannel(i: number, patch: Partial<PurchaseChannelInfo>) {
+    setPurchaseChannels((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
+  }
+  function removePurchaseChannel(i: number) {
+    setPurchaseChannels((prev) => prev.filter((_, idx) => idx !== i))
   }
   function updateOfficialLink(i: number, patch: Partial<OfficialLink>) {
     setOfficialLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
@@ -107,6 +114,7 @@ export function EditArticleForm({ article }: { article: Article }) {
               ? { retailers: c.retailersText.split(",").map((r) => r.trim()).filter(Boolean) }
               : {}),
           })),
+        purchaseChannels: purchaseChannels.filter((c) => c.retailerName.trim()),
       }),
     })
 
@@ -277,6 +285,67 @@ export function EditArticleForm({ article }: { article: Article }) {
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
           + カラーを追加
+        </button>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold mb-2">抽選情報・販売方法（任意・店舗ごとの抽選/通常販売と日程）</p>
+        <div className="space-y-3">
+          {purchaseChannels.map((c, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
+              <input
+                className={inputClass}
+                placeholder="店舗名（例: mita sneakers）"
+                value={c.retailerName}
+                onChange={(e) => updatePurchaseChannel(i, { retailerName: e.target.value })}
+              />
+              <select
+                className={inputClass}
+                value={c.channelType}
+                onChange={(e) => updatePurchaseChannel(i, { channelType: e.target.value as PurchaseChannelInfo["channelType"] })}
+              >
+                <option value="official">公式・正規販売店</option>
+                <option value="secondary">セレクト店・二次流通</option>
+              </select>
+              <select
+                className={inputClass}
+                value={c.saleMethod}
+                onChange={(e) => updatePurchaseChannel(i, { saleMethod: e.target.value as PurchaseChannelInfo["saleMethod"] })}
+              >
+                <option value="regular">通常販売</option>
+                <option value="lottery">抽選</option>
+                <option value="unknown">販売方法未確認</option>
+              </select>
+              <input
+                className={inputClass}
+                placeholder="日程（例: 9月1日〜9月7日 応募）"
+                value={c.date ?? ""}
+                onChange={(e) => updatePurchaseChannel(i, { date: e.target.value })}
+              />
+              <input
+                className={`${inputClass} col-span-2`}
+                placeholder="店舗URL（任意）"
+                value={c.url ?? ""}
+                onChange={(e) => updatePurchaseChannel(i, { url: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removePurchaseChannel(i)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            setPurchaseChannels((prev) => [...prev, { retailerName: "", channelType: "official", saleMethod: "unknown" }])
+          }
+          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          + 店舗を追加
         </button>
       </div>
 

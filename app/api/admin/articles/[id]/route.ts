@@ -3,7 +3,7 @@ import { getArticleById, updateArticle } from "@/lib/storage"
 import { sanitizeAffiliateLinks, isSafeExternalUrl } from "@/lib/affiliate"
 import { canonicalBrandNames } from "@/lib/brands"
 import { siteConfig } from "@/lib/site-config"
-import type { AffiliateLink, Category, ColorwayInfo, GalleryImage, OfficialLink } from "@/lib/types"
+import type { AffiliateLink, Category, ColorwayInfo, GalleryImage, OfficialLink, PurchaseChannelInfo } from "@/lib/types"
 
 function isAllowedImageUrl(url: string): boolean {
   if (url.startsWith("/") && !url.startsWith("//")) return true
@@ -31,6 +31,27 @@ function sanitizeColorways(input: unknown): ColorwayInfo[] {
       }
     })
     .filter((c) => c.colorName)
+}
+
+const CHANNEL_TYPES = new Set(["official", "secondary"])
+const SALE_METHODS = new Set(["regular", "lottery", "unknown"])
+
+function sanitizePurchaseChannels(input: unknown): PurchaseChannelInfo[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)
+    .map((c) => {
+      const retailerName = typeof c.retailerName === "string" ? c.retailerName.trim() : ""
+      const url = typeof c.url === "string" ? c.url.trim() : ""
+      return {
+        retailerName,
+        channelType: CHANNEL_TYPES.has(c.channelType as string) ? (c.channelType as PurchaseChannelInfo["channelType"]) : "official",
+        saleMethod: SALE_METHODS.has(c.saleMethod as string) ? (c.saleMethod as PurchaseChannelInfo["saleMethod"]) : "unknown",
+        ...(typeof c.date === "string" && c.date.trim() ? { date: c.date.trim() } : {}),
+        ...(url && isSafeExternalUrl(url) ? { url } : {}),
+      }
+    })
+    .filter((c) => c.retailerName)
 }
 
 function sanitizeGalleryImages(input: unknown): GalleryImage[] {
@@ -96,6 +117,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     ? sanitizeAffiliateLinks(body.affiliateLinks as AffiliateLink[])
     : existing.affiliateLinks
   const colorways: ColorwayInfo[] = body.colorways ? sanitizeColorways(body.colorways) : existing.colorways ?? []
+  const purchaseChannels: PurchaseChannelInfo[] = body.purchaseChannels
+    ? sanitizePurchaseChannels(body.purchaseChannels)
+    : existing.purchaseChannels ?? []
 
   if (!title || !excerpt || bodyParagraphs.length === 0) {
     return NextResponse.json({ error: "title/excerpt/bodyParagraphsは必須です" }, { status: 400 })
@@ -118,6 +142,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     officialLinks,
     affiliateLinks,
     colorways,
+    purchaseChannels,
   })
 
   return NextResponse.json({ ok: true, slug: updated.slug })

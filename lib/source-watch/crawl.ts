@@ -208,6 +208,7 @@ export async function processSourceItem(source: Source, item: SourceItem, existi
       sourceScore: 0,
       officialConfirmed: false,
       domesticConfirmed: false,
+      lotteryInfo: null,
       colorways: [],
       sourceItemIds: [],
       sourceLinkIds: [],
@@ -234,6 +235,7 @@ export async function processSourceItem(source: Source, item: SourceItem, existi
   product.productName = product.productName ?? extracted.productName
   product.brand = product.brand ?? (extracted.brand ? canonicalBrandName(extracted.brand) : null)
   product.category = product.category ?? extracted.category
+  product.lotteryInfo = extracted.lotteryInfo ?? product.lotteryInfo
 
   // --- 確認状態の再計算 ---
   const isAuthorizedRetailer = source.category === "retailer"

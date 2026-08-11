@@ -17,6 +17,13 @@ type ColorwayDraft = {
   releaseDate: string
   retailersText: string
 }
+type PurchaseChannelDraft = {
+  retailerName: string
+  channelType: "official" | "secondary"
+  saleMethod: "regular" | "lottery" | "unknown"
+  date: string
+  url: string
+}
 
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
@@ -50,6 +57,15 @@ export function PublishForm({ draft }: { draft: Draft }) {
       retailersText: (c.retailers ?? []).join(", "),
     }))
   )
+  const [purchaseChannels, setPurchaseChannels] = useState<PurchaseChannelDraft[]>(
+    (draft.suggestedPurchaseChannels ?? []).map((c) => ({
+      retailerName: c.retailerName,
+      channelType: c.channelType,
+      saleMethod: c.saleMethod,
+      date: c.date ?? "",
+      url: c.url ?? "",
+    }))
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,6 +93,13 @@ export function PublishForm({ draft }: { draft: Draft }) {
 
   function removeOfficialLink(i: number) {
     setOfficialLinks((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  function updatePurchaseChannel(i: number, patch: Partial<PurchaseChannelDraft>) {
+    setPurchaseChannels((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
+  }
+  function removePurchaseChannel(i: number) {
+    setPurchaseChannels((prev) => prev.filter((_, idx) => idx !== i))
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -124,6 +147,15 @@ export function PublishForm({ draft }: { draft: Draft }) {
             ...(c.retailersText.trim()
               ? { retailers: c.retailersText.split(",").map((r) => r.trim()).filter(Boolean) }
               : {}),
+          })),
+        purchaseChannels: purchaseChannels
+          .filter((c) => c.retailerName.trim())
+          .map((c) => ({
+            retailerName: c.retailerName.trim(),
+            channelType: c.channelType,
+            saleMethod: c.saleMethod,
+            ...(c.date.trim() ? { date: c.date.trim() } : {}),
+            ...(c.url.trim() ? { url: c.url.trim() } : {}),
           })),
       }),
     })
@@ -309,6 +341,70 @@ export function PublishForm({ draft }: { draft: Draft }) {
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
           + カラーを追加
+        </button>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold mb-2">抽選情報・販売方法（任意・店舗ごとの抽選/通常販売と日程）</p>
+        <div className="space-y-3">
+          {purchaseChannels.map((c, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
+              <input
+                className={inputClass}
+                placeholder="店舗名（例: mita sneakers）"
+                value={c.retailerName}
+                onChange={(e) => updatePurchaseChannel(i, { retailerName: e.target.value })}
+              />
+              <select
+                className={inputClass}
+                value={c.channelType}
+                onChange={(e) => updatePurchaseChannel(i, { channelType: e.target.value as PurchaseChannelDraft["channelType"] })}
+              >
+                <option value="official">公式・正規販売店</option>
+                <option value="secondary">セレクト店・二次流通</option>
+              </select>
+              <select
+                className={inputClass}
+                value={c.saleMethod}
+                onChange={(e) => updatePurchaseChannel(i, { saleMethod: e.target.value as PurchaseChannelDraft["saleMethod"] })}
+              >
+                <option value="regular">通常販売</option>
+                <option value="lottery">抽選</option>
+                <option value="unknown">販売方法未確認</option>
+              </select>
+              <input
+                className={inputClass}
+                placeholder="日程（例: 9月1日〜9月7日 応募）"
+                value={c.date}
+                onChange={(e) => updatePurchaseChannel(i, { date: e.target.value })}
+              />
+              <input
+                className={`${inputClass} col-span-2`}
+                placeholder="店舗URL（任意）"
+                value={c.url}
+                onChange={(e) => updatePurchaseChannel(i, { url: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removePurchaseChannel(i)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            setPurchaseChannels((prev) => [
+              ...prev,
+              { retailerName: "", channelType: "official", saleMethod: "unknown", date: "", url: "" },
+            ])
+          }
+          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          + 店舗を追加
         </button>
       </div>
 

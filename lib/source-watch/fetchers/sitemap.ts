@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio"
+import { gunzipSync } from "node:zlib"
 import type { Source } from "../types"
 import type { FetchResult } from "./types"
 
@@ -6,10 +7,17 @@ const UA = "Mozilla/5.0 (compatible; DropwireSourceWatch/1.0; +https://dropx3.co
 const MAX_CHILD_SITEMAPS = 2
 const MAX_URLS_PER_SITEMAP = 50
 
+/** Grailed等、sitemapがgzip圧縮(.xml.gz)で配信されているサイトに対応する */
 async function fetchXml(url: string): Promise<string> {
-  const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(10000) })
+  const res = await fetch(url, {
+    headers: { "User-Agent": UA, "Accept-Encoding": "identity" },
+    signal: AbortSignal.timeout(10000),
+  })
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`)
-  return res.text()
+  const isGzip = url.endsWith(".gz") || (res.headers.get("content-type") ?? "").includes("gzip")
+  if (!isGzip) return res.text()
+  const buf = Buffer.from(await res.arrayBuffer())
+  return gunzipSync(buf).toString("utf-8")
 }
 
 /**

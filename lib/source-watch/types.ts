@@ -202,6 +202,8 @@ export type Product = {
   sourceScore: number
   officialConfirmed: boolean
   domesticConfirmed: boolean
+  /** 抽選情報(応募期間・条件等)。情報源に記載が無ければnull(捏造しない) */
+  lotteryInfo: string | null
   colorways: ProductColorwayCandidate[]
   sourceItemIds: string[]
   sourceLinkIds: string[]

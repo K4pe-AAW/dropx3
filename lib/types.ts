@@ -37,6 +37,19 @@ export type ColorwayInfo = {
   retailers?: string[] // 例: ["HOKA公式サイト", "mita sneakers", "UNITED ARROWS & SONS"]
 }
 
+/**
+ * FULLRESS等の競合メディアが「取り扱い店舗」ブロックで見せている、店舗ごとの販売方法(抽選/通常)と
+ * 日程の一覧。ColorwayInfo.retailersが単純な店名配列なのに対し、こちらは店舗を公式/二次流通で
+ * 分け、店舗ごとに抽選か通常販売かと日程まで持たせる。全項目情報源に無ければ空にする(捏造禁止)。
+ */
+export type PurchaseChannelInfo = {
+  retailerName: string // 例: "mita sneakers"
+  channelType: "official" | "secondary" // official=ブランド公式/正規販売店、secondary=セレクト店・二次流通
+  saleMethod: "regular" | "lottery" | "unknown" // regular=通常販売、lottery=抽選、unknown=情報源に記載なし
+  date?: string // 発売日 or 応募期間等の表示用文字列。例: "2026年9月1日〜9月7日 応募"
+  url?: string
+}
+
 export type Article = {
   id: string
   slug: string
@@ -63,6 +76,8 @@ export type Article = {
   featured: boolean
   /** カラー展開ごとの型番・価格・サイズ・発売日。複数色を扱う記事のみ設定(任意) */
   colorways?: ColorwayInfo[]
+  /** 店舗ごとの抽選/通常販売と日程一覧(FULLRESS形式)。抽選が絡む発売記事のみ設定(任意) */
+  purchaseChannels?: PurchaseChannelInfo[]
   affiliateLinks: AffiliateLink[]
   /** ブランド/店舗の公式サイトへの直リンク。紹介料が発生しないため"PR"表記は付けない */
   officialLinks: OfficialLink[]
@@ -115,6 +130,7 @@ export type Draft = {
   suggestedGalleryImages?: GalleryImage[]
   suggestedColorways?: ColorwayInfo[]
   suggestedOfficialLinks?: OfficialLink[]
+  suggestedPurchaseChannels?: PurchaseChannelInfo[]
 }
 
 export type DraftsData = {
