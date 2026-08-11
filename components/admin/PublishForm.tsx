@@ -29,13 +29,27 @@ export function PublishForm({ draft }: { draft: Draft }) {
   const [category, setCategory] = useState<Category>(draft.category)
   const [brandsText, setBrandsText] = useState(draft.brands.join(", "))
   const [tagsText, setTagsText] = useState(draft.tags.join(", "))
-  const [coverImage, setCoverImage] = useState("")
+  const [coverImage, setCoverImage] = useState(draft.suggestedCoverImage ?? "")
   const [coverImageAlt, setCoverImageAlt] = useState(draft.title)
   const [featured, setFeatured] = useState(false)
   const [links, setLinks] = useState<LinkDraft[]>([{ label: "", retailer: "", url: "", price: "" }])
-  const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>([])
-  const [officialLinks, setOfficialLinks] = useState<OfficialLinkDraft[]>([])
-  const [colorways, setColorways] = useState<ColorwayDraft[]>([])
+  const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>(
+    (draft.suggestedGalleryImages ?? []).map((g) => ({ url: g.url, alt: g.alt }))
+  )
+  const [officialLinks, setOfficialLinks] = useState<OfficialLinkDraft[]>(
+    (draft.suggestedOfficialLinks ?? []).map((l) => ({ label: l.label, url: l.url }))
+  )
+  const [colorways, setColorways] = useState<ColorwayDraft[]>(
+    (draft.suggestedColorways ?? []).map((c) => ({
+      colorName: c.colorName,
+      image: c.image ?? "",
+      styleCode: c.styleCode ?? "",
+      price: c.price ?? "",
+      size: c.size ?? "",
+      releaseDate: c.releaseDate ?? "",
+      retailersText: (c.retailers ?? []).join(", "),
+    }))
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

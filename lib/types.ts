@@ -105,6 +105,16 @@ export type Draft = {
   suggestedAffiliateSearch: string[]
   sourceRefs: SourceRef[]
   createdAt: string
+  /**
+   * SOURCE WATCH(lib/source-watch/)がCONFIRMED商品から生成したDraftにのみ設定される。
+   * PublishForm側でこれらを初期値として使うと、画像/リンク/カラー展開を毎回ゼロから
+   * 手入力しなくて済む(ただしすべて人間が公開前に確認・編集できる=自動公開ではない)。
+   */
+  sourceWatchProductId?: string
+  suggestedCoverImage?: string
+  suggestedGalleryImages?: GalleryImage[]
+  suggestedColorways?: ColorwayInfo[]
+  suggestedOfficialLinks?: OfficialLink[]
 }
 
 export type DraftsData = {

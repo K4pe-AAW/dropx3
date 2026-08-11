@@ -172,6 +172,26 @@ export default async function ArticleDetailPage({
 
       <PurchaseLinks officialLinks={article.officialLinks} affiliateLinks={article.affiliateLinks} />
 
+      {article.sourceRefs.length > 0 && (
+        <div className="mt-8 rounded-xl border border-border p-4">
+          <h2 className="text-xs font-bold text-muted-foreground mb-2">情報元・参考</h2>
+          <ul className="space-y-1">
+            {article.sourceRefs.map((ref, i) => (
+              <li key={i}>
+                <a
+                  href={ref.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  {ref.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {article.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-8 pt-6 border-t border-border">
           {article.tags.map((t) => (

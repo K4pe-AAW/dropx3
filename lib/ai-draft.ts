@@ -1,17 +1,7 @@
-import OpenAI from "openai"
 import { RawItem, Draft, Category } from "./types"
 import { generateId } from "./storage"
 import { siteConfig } from "./site-config"
-
-let client: OpenAI | null = null
-
-function getClient(): OpenAI {
-  if (!client) {
-    if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set")
-    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  }
-  return client
-}
+import { getOpenAIClient } from "./openai-client"
 
 const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
 const DEFAULT_CATEGORY: Category = "sneaker"
@@ -76,7 +66,7 @@ function buildUserPrompt(item: RawItem): string {
 }
 
 export async function draftFromRawItem(item: RawItem): Promise<Draft> {
-  const openai = getClient()
+  const openai = getOpenAIClient()
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",

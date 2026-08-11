@@ -1,0 +1,78 @@
+import { NextRequest, NextResponse } from "next/server"
+import { isSafeExternalUrl } from "@/lib/affiliate"
+import { getProduct, updateProduct, addSourceLink, listSourceLinks } from "@/lib/source-watch/storage"
+import { findOfficialSourcesForBrand } from "@/lib/source-watch/present"
+import { classifyTier, computeCorroboratedScore, computeReadiness } from "@/lib/source-watch/scoring"
+
+/**
+ * 一次情報の確認を支援する。汎用Web検索APIキーが無いため全自動検索はできない —
+ * (a) bodyにurlが無い場合: 検索の出発点(登録済み公式ソースのURL、Google検索URL)を返すだけ(fetchしない)。
+ * (b) 人間がその情報源を開いて確認し、見つかった公式URLをurlとして渡すと、SourceLinkとして保存し
+ *     tier/readinessを再計算する(spec:「一次情報が見つかったら、記事のメインSourceを公式へ変更してください」)。
+ */
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const product = await getProduct(id)
+  if (!product) return NextResponse.json({ error: "商品が見つかりません" }, { status: 404 })
+
+  const body = await req.json().catch(() => ({}))
+
+  if (!body.url) {
+    const query = [product.brand, product.productName, product.styleCode].filter(Boolean).join(" ")
+    const officialSources = await findOfficialSourcesForBrand(product.brand)
+    const searchUrls = [
+      ...officialSources.map((s) => ({ label: s.name, url: s.url as string })),
+      { label: "Google検索", url: `https://www.google.com/search?q=${encodeURIComponent(`${query} 公式 site:${product.brand ?? ""}`)}` },
+    ]
+    return NextResponse.json({ searchUrls })
+  }
+
+  const url = String(body.url).trim()
+  if (!isSafeExternalUrl(url)) return NextResponse.json({ error: "urlが不正です" }, { status: 400 })
+
+  const link = await addSourceLink({
+    publisher: typeof body.publisher === "string" && body.publisher.trim() ? body.publisher.trim() : new URL(url).hostname,
+    url,
+    type: "official_product",
+    sourceScore: 100,
+    checkedAt: new Date().toISOString(),
+  })
+
+  const sourceLinkIds = [...new Set([...product.sourceLinkIds, link.id])]
+  const allLinks = await listSourceLinks(sourceLinkIds)
+  const distinctScores = [...new Set(allLinks.map((l) => l.sourceScore))]
+
+  const tier = classifyTier({ hasOfficialOrAuthorizedRetailerLink: true, reliableSourceCount: allLinks.length })
+  const sourceScore = computeCorroboratedScore([100, ...distinctScores])
+  const readiness = computeReadiness({
+    tier,
+    officialConfirmed: true,
+    hasProductName: Boolean(product.productName),
+    hasBrand: Boolean(product.brand),
+    hasStyleCode: Boolean(product.styleCode),
+    hasReleaseDate: product.colorways.some((c) => c.releaseDate),
+    hasPrice: product.colorways.some((c) => c.price),
+    domesticConfirmed: product.domesticConfirmed,
+    hasSafeImage: product.readinessBreakdown.safeImage > 0,
+    hasUnresolvedImageRights: product.imageAssetIds.length > 0 && product.readinessBreakdown.safeImage === 0,
+    hasAccuratePurchaseLink: product.purchaseLinkCandidates.some((c) => !c.isBrandTopOnly),
+    hasRelatedArticle: product.readinessBreakdown.relatedArticles > 0,
+    sourceLinkCount: sourceLinkIds.length,
+    isDuplicate: false,
+    domesticClaimedWithoutConfirmation: false,
+    priceGuessedWithoutSource: false,
+  })
+
+  const updated = await updateProduct(id, {
+    sourceLinkIds,
+    officialConfirmed: true,
+    tier,
+    sourceScore,
+    readiness: readiness.readiness,
+    readinessScore: readiness.score,
+    readinessBreakdown: readiness.breakdown,
+    blockReasons: readiness.blockReasons,
+  })
+
+  return NextResponse.json({ ok: true, product: updated })
+}

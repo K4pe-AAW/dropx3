@@ -1,4 +1,5 @@
 import type { ColorwayInfo } from "@/lib/types"
+import { EditorialPlaceholder } from "@/components/EditorialPlaceholder"
 
 /**
  * カラー展開ごとの商品スペックカード。UPTODATE等の競合メディアの商品カード表示を参考に、
@@ -13,7 +14,7 @@ export function ColorwaySection({ colorways, productName }: { colorways: Colorwa
       <div className="grid gap-4 sm:grid-cols-2">
         {colorways.map((cw, i) => (
           <div key={i} className="overflow-hidden rounded-xl border border-border">
-            {cw.image && (
+            {cw.image ? (
               <div className="relative aspect-square bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -22,6 +23,8 @@ export function ColorwaySection({ colorways, productName }: { colorways: Colorwa
                   className="h-full w-full object-cover"
                 />
               </div>
+            ) : (
+              <EditorialPlaceholder productName={productName} styleCode={cw.styleCode} releaseDate={cw.releaseDate} />
             )}
             <div className="space-y-1.5 bg-secondary/40 px-4 py-3 text-xs">
               <p className="mb-1.5 text-sm font-bold text-foreground">{productName}</p>

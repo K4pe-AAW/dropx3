@@ -17,9 +17,15 @@ export default async function DraftReviewPage({
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       <h1 className="text-xl font-black mb-1">下書きレビュー</h1>
-      <p className="text-xs text-muted-foreground mb-8">
+      <p className="text-xs text-muted-foreground mb-2">
         出典: {draft.sourceRefs.map((r) => `${r.name} (${r.url})`).join(", ")}
       </p>
+      {draft.sourceWatchProductId && (
+        <p className="text-xs text-accent-foreground bg-accent/60 inline-block px-2 py-1 rounded mb-6">
+          SOURCE WATCH由来(CONFIRMED) — 画像・リンク・カラー展開は自動入力された候補です。公開前に必ず内容を確認してください。
+        </p>
+      )}
+      {!draft.sourceWatchProductId && <div className="mb-6" />}
       <PublishForm draft={draft} />
     </div>
   )

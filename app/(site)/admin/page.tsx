@@ -16,7 +16,12 @@ export default async function AdminPage() {
     <div className="max-w-3xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-xl font-black">管理画面</h1>
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+          <Link href="/admin/source-watch" className="text-xs font-semibold text-accent-foreground hover:underline">
+            SOURCE WATCH
+          </Link>
+          <LogoutButton />
+        </div>
       </div>
       <div className="flex items-center justify-between mb-8">
         <p className="text-sm text-muted-foreground">レビュー待ちの下書き: {drafts.length}件</p>

@@ -5,7 +5,8 @@ import { Article, ArticlesData, Draft, DraftsData } from "./types"
 const ARTICLES_PATH = "data/articles.json"
 const DRAFTS_PATH = "data/drafts.json"
 
-async function readJson<T>(pathname: string, fallback: T): Promise<T> {
+/** SOURCE WATCH等、他モジュールからも同じBlob read-modify-write規約を使うためexportする */
+export async function readJson<T>(pathname: string, fallback: T): Promise<T> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error(
       "BLOB_READ_WRITE_TOKEN が設定されていません。VercelダッシュボードのStorageタブでBlobを作成し、.env.localに追加してください。"
@@ -24,7 +25,7 @@ async function readJson<T>(pathname: string, fallback: T): Promise<T> {
   }
 }
 
-async function writeJson(pathname: string, data: unknown) {
+export async function writeJson(pathname: string, data: unknown) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error(
       "BLOB_READ_WRITE_TOKEN が設定されていません。VercelダッシュボードのStorageタブでBlobを作成し、.env.localに追加してください。"
