@@ -3,7 +3,16 @@ import { getArticleById, updateArticle, unpublishArticle, addDrafts, generateId 
 import { sanitizeAffiliateLinks, isSafeExternalUrl } from "@/lib/affiliate"
 import { canonicalBrandNames } from "@/lib/brands"
 import { siteConfig } from "@/lib/site-config"
-import type { AffiliateLink, Category, ColorwayInfo, Draft, GalleryImage, OfficialLink, PurchaseChannelInfo } from "@/lib/types"
+import type {
+  AffiliateLink,
+  Category,
+  ColorwayInfo,
+  Draft,
+  GalleryImage,
+  OfficialLink,
+  PurchaseChannelInfo,
+  RelatedArticleLink,
+} from "@/lib/types"
 
 function isAllowedImageUrl(url: string): boolean {
   if (url.startsWith("/") && !url.startsWith("//")) return true
@@ -65,6 +74,18 @@ function sanitizeGalleryImages(input: unknown): GalleryImage[] {
     .filter((img) => img.url && isAllowedImageUrl(img.url))
 }
 
+function sanitizeRelatedArticles(input: unknown): RelatedArticleLink[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((l): l is Record<string, unknown> => typeof l === "object" && l !== null)
+    .map((l) => ({
+      title: typeof l.title === "string" ? l.title.trim() : "",
+      slug: typeof l.slug === "string" ? l.slug.trim() : "",
+      ...(typeof l.note === "string" && l.note.trim() ? { note: l.note.trim() } : {}),
+    }))
+    .filter((l) => l.title && l.slug)
+}
+
 function sanitizeOfficialLinks(input: unknown): OfficialLink[] {
   if (!Array.isArray(input)) return []
   return input
@@ -120,6 +141,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const purchaseChannels: PurchaseChannelInfo[] = body.purchaseChannels
     ? sanitizePurchaseChannels(body.purchaseChannels)
     : existing.purchaseChannels ?? []
+  const relatedArticles: RelatedArticleLink[] = body.relatedArticles
+    ? sanitizeRelatedArticles(body.relatedArticles)
+    : existing.relatedArticles ?? []
 
   if (!title || !excerpt || bodyParagraphs.length === 0) {
     return NextResponse.json({ error: "title/excerpt/bodyParagraphsは必須です" }, { status: 400 })
@@ -143,6 +167,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     affiliateLinks,
     colorways,
     purchaseChannels,
+    relatedArticles,
   })
 
   return NextResponse.json({ ok: true, slug: updated.slug })

@@ -2,7 +2,16 @@
 
 import { useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import type { Article, Category, AffiliateLink, GalleryImage, OfficialLink, ColorwayInfo, PurchaseChannelInfo } from "@/lib/types"
+import type {
+  Article,
+  Category,
+  AffiliateLink,
+  GalleryImage,
+  OfficialLink,
+  ColorwayInfo,
+  PurchaseChannelInfo,
+  RelatedArticleLink,
+} from "@/lib/types"
 
 type ColorwayDraft = ColorwayInfo & { retailersText: string }
 
@@ -29,6 +38,7 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [colorways, setColorways] = useState<ColorwayDraft[]>((article.colorways ?? []).map(toColorwayDraft))
   const [purchaseChannels, setPurchaseChannels] = useState<PurchaseChannelInfo[]>(article.purchaseChannels ?? [])
   const [officialLinks, setOfficialLinks] = useState<OfficialLink[]>(article.officialLinks)
+  const [relatedArticles, setRelatedArticles] = useState<RelatedArticleLink[]>(article.relatedArticles ?? [])
   const [links, setLinks] = useState<(AffiliateLink & { price?: string })[]>(
     article.affiliateLinks.length > 0 ? article.affiliateLinks : [{ label: "", retailer: "", url: "", price: "" }]
   )
@@ -60,6 +70,12 @@ export function EditArticleForm({ article }: { article: Article }) {
   }
   function removeOfficialLink(i: number) {
     setOfficialLinks((prev) => prev.filter((_, idx) => idx !== i))
+  }
+  function updateRelatedArticle(i: number, patch: Partial<RelatedArticleLink>) {
+    setRelatedArticles((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
+  }
+  function removeRelatedArticle(i: number) {
+    setRelatedArticles((prev) => prev.filter((_, idx) => idx !== i))
   }
   function updateLink(i: number, patch: Partial<AffiliateLink & { price?: string }>) {
     setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
@@ -102,6 +118,7 @@ export function EditArticleForm({ article }: { article: Article }) {
         affiliateLinks,
         galleryImages: galleryImages.filter((g) => g.url.trim()),
         officialLinks: officialLinks.filter((l) => l.url.trim()),
+        relatedArticles: relatedArticles.filter((l) => l.title.trim() && l.slug.trim()),
         colorways: colorways
           .filter((c) => c.colorName.trim())
           .map((c) => ({
@@ -398,6 +415,50 @@ export function EditArticleForm({ article }: { article: Article }) {
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
           + リンクを追加
+        </button>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold mb-2">
+          この記事で紹介した商品・記事（任意・BUY/GUIDE型記事の内部リンク用）
+        </p>
+        <div className="space-y-3">
+          {relatedArticles.map((l, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
+              <input
+                className={inputClass}
+                placeholder="リンク先記事のタイトル"
+                value={l.title}
+                onChange={(e) => updateRelatedArticle(i, { title: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="リンク先記事のslug"
+                value={l.slug}
+                onChange={(e) => updateRelatedArticle(i, { slug: e.target.value })}
+              />
+              <input
+                className={`${inputClass} col-span-2`}
+                placeholder="補足（任意）"
+                value={l.note ?? ""}
+                onChange={(e) => updateRelatedArticle(i, { note: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removeRelatedArticle(i)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setRelatedArticles((prev) => [...prev, { title: "", slug: "" }])}
+          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          + 記事を追加
         </button>
       </div>
 

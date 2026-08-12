@@ -17,6 +17,17 @@ export type OfficialLink = {
   url: string
 }
 
+/**
+ * 本文(bodyParagraphs)はXSS対策でプレーンテキストのためリンクを埋め込めない。
+ * BUY/GUIDE型記事のように既存記事へ内部リンクしたい場合、この構造化フィールドで
+ * 「この記事で紹介した商品・記事」ブロックとして表示する(ColorwaySection等と同じ設計方針)。
+ */
+export type RelatedArticleLink = {
+  title: string
+  slug: string
+  note?: string // 例: "定価・詳細な発売情報はこちら"
+}
+
 export type GalleryImage = {
   url: string
   alt: string
@@ -78,6 +89,8 @@ export type Article = {
   colorways?: ColorwayInfo[]
   /** 店舗ごとの抽選/通常販売と日程一覧(FULLRESS形式)。抽選が絡む発売記事のみ設定(任意) */
   purchaseChannels?: PurchaseChannelInfo[]
+  /** 内部リンクしたい既存記事(BUY/GUIDE型記事向け)。本文には埋め込めないため構造化フィールドで持つ */
+  relatedArticles?: RelatedArticleLink[]
   affiliateLinks: AffiliateLink[]
   /** ブランド/店舗の公式サイトへの直リンク。紹介料が発生しないため"PR"表記は付けない */
   officialLinks: OfficialLink[]
