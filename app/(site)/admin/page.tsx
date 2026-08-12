@@ -31,6 +31,9 @@ export default async function AdminPage() {
           <Link href="/admin/source-watch" className="text-xs font-semibold text-accent-foreground hover:underline">
             SOURCE WATCH
           </Link>
+          <Link href="/admin/vintage-shop" className="text-xs font-semibold text-accent-foreground hover:underline">
+            古着屋投稿
+          </Link>
           <LogoutButton />
         </div>
       </div>

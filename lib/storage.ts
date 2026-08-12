@@ -38,6 +38,25 @@ export async function writeJson(pathname: string, data: unknown) {
   })
 }
 
+/**
+ * 画像等バイナリファイルをBlobへ保存し公開URLを返す。古着屋(tonari/ROOM)手動投稿フォーム等、
+ * git commit/pushを経由せずランタイムのadmin APIから直接画像を受け付けたい用途向け
+ * (従来の`public/images/`へのgit経由の画像は編集記事のカバー画像等では引き続き使用可)。
+ */
+export async function putBlobFile(pathname: string, data: Buffer, contentType: string): Promise<string> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN が設定されていません。VercelダッシュボードのStorageタブでBlobを作成し、.env.localに追加してください。"
+    )
+  }
+  const blob = await put(pathname, data, {
+    access: "public",
+    contentType,
+    addRandomSuffix: true,
+  })
+  return blob.url
+}
+
 export function generateId(seed: string): string {
   return crypto.createHash("md5").update(seed).digest("hex")
 }
