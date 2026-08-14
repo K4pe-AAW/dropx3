@@ -42,3 +42,22 @@ export function buildMercariSearchLink(query: string): AffiliateLink {
     url: `https://px.a8.net/svt/ejp?a8mat=4BA1PB+31JS36+5LNQ+BW8O2&a8ejpredirect=${encodeURIComponent(target)}`,
   }
 }
+
+/**
+ * Yahoo!ショッピング検索アフィリエイトリンクを作る(ValueCommerce、プログラムID2025875に提携済み)。
+ * sid/pidはARKnets検索リンク発行時にValueCommerce管理画面から実際に取得済みの値を再利用する
+ * (このsid+pidの組み合わせはサイト+プログラム単位で固定、vc_urlの飛び先だけがリンクごとに変わる
+ * ——buildMercariSearchLinkのa8matと同じ考え方)。
+ */
+export function buildYahooShoppingSearchLink(query: string): AffiliateLink {
+  const trimmed = query.trim()
+  if (!trimmed || BANNED_GENERIC_QUERIES.has(trimmed)) {
+    throw new Error(`buildYahooShoppingSearchLink: query is missing or too generic: ${JSON.stringify(query)}`)
+  }
+  const target = `https://shopping.yahoo.co.jp/search?p=${encodeURIComponent(trimmed)}`
+  return {
+    label: "Yahoo!ショッピングで探す",
+    retailer: "Yahoo!ショッピング",
+    url: `https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=3778012&pid=892676774&vc_url=${encodeURIComponent(target)}`,
+  }
+}

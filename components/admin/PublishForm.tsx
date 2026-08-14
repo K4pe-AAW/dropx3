@@ -4,7 +4,8 @@ import { useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import type { Draft, Category } from "@/lib/types"
 import { siteConfig } from "@/lib/site-config"
-import { buildMercariSearchLink } from "@/lib/affiliate"
+import { buildMercariSearchLink, buildYahooShoppingSearchLink } from "@/lib/affiliate"
+import type { AffiliateLink } from "@/lib/types"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
 type GalleryImageDraft = { url: string; alt: string }
@@ -52,17 +53,19 @@ function suggestedLinksFrom(queries: string[]): LinkDraft[] {
 
 /**
  * ワンクリックでアフィリエイトリンクの行を追加するための販売店クイックボタン。
- * メルカリだけは実際のURLまで自動生成できる(buildMercariSearchLinkが常に実在する検索結果
- * ページを返すため)。他のASPは実トラッキングURLをA8.net/バリューコマース管理画面から
- * 都度発行してもらう必要があるため、ボタン文言・店舗名だけ自動入力しURLは空欄のまま渡す
+ * メルカリ・Yahoo!ショッピングは実際のURLまで自動生成できる(どちらも「サイト+プログラム単位で
+ * 固定のトラッキングコード + 検索キーワードだけ変わる飛び先URL」という同じ形の既に取得済みの
+ * リンクのため)。楽天市場は楽天アフィリエイト固有のID、ZOZOTOWNは提携プログラム自体が
+ * 見当たらない、スニダンは審査中(2026-08-10時点)——いずれも実トラッキングURLをこちらで
+ * 生成する手段が無いため、ボタン文言・店舗名だけ自動入力しURLは空欄のまま渡す
  * (存在しないURLを勝手に作らない、という既存方針を守るため)。
  */
-const QUICK_RETAILERS: { label: string; retailer: string; isMercari?: boolean }[] = [
-  { label: "メルカリで探す", retailer: "メルカリ", isMercari: true },
+const QUICK_RETAILERS: { label: string; retailer: string; build?: (query: string) => AffiliateLink }[] = [
+  { label: "メルカリで探す", retailer: "メルカリ", build: buildMercariSearchLink },
+  { label: "Yahoo!ショッピングで探す", retailer: "Yahoo!ショッピング", build: buildYahooShoppingSearchLink },
   { label: "楽天市場で見る", retailer: "楽天市場" },
   { label: "ZOZOTOWNで見る", retailer: "ZOZOTOWN" },
   { label: "スニダンで見る", retailer: "SNKRDUNK" },
-  { label: "Yahoo!ショッピングで見る", retailer: "Yahoo!ショッピング" },
 ]
 
 export function PublishForm({ draft }: { draft: Draft }) {
@@ -115,14 +118,14 @@ export function PublishForm({ draft }: { draft: Draft }) {
   }
 
   function addQuickLink(item: (typeof QUICK_RETAILERS)[number]) {
-    if (item.isMercari) {
+    if (item.build) {
       const query = window.prompt(
-        "メルカリの検索キーワードを入力してください（具体的な商品名。カテゴリ名のみは不可）",
+        `${item.retailer}の検索キーワードを入力してください（具体的な商品名。カテゴリ名のみは不可）`,
         draft.suggestedAffiliateSearch[0] ?? ""
       )
       if (!query || !query.trim()) return
       try {
-        const link = buildMercariSearchLink(query.trim())
+        const link = item.build(query.trim())
         setLinks((prev) => [...prev, { label: link.label, retailer: link.retailer, url: link.url, price: "" }])
       } catch (err) {
         window.alert(err instanceof Error ? err.message : "リンクの作成に失敗しました")
