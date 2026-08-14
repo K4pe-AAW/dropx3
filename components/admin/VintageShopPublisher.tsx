@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ClipboardEvent, type ReactNode } from "react"
 
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
@@ -10,10 +10,32 @@ const SHOPS = [
   { key: "ROOM", label: "ROOM(三軒茶屋)" },
 ]
 
+/** クリップボードに乗っている画像(Instagramで「画像をコピー」した場合など)をFileの配列として取り出す */
+function imagesFromClipboard(e: ClipboardEvent): File[] {
+  const items = Array.from(e.clipboardData?.items ?? [])
+  return items
+    .filter((item) => item.type.startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter((f): f is File => f !== null)
+}
+
+/** 画像プレビュー用のobject URL。fileが変わるたびに古いURLを解放する */
+function useObjectUrl(file: File | null): string | null {
+  const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+  useEffect(() => {
+    return () => {
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [url])
+  return url
+}
+
 /**
  * クラウド自動化ルーティンがInstagramへ到達できない(egressプロキシでブロック、2026-08-12確認)ため、
  * 人間がInstagramを見てURL+キャプション+写真を貼る半自動フローに切り替えた画面。
  * AIはキャプション本文から下書き文章を提案するのみで、画像の取得・公開の最終判断は必ず人間が行う。
+ * 画像はInstagramの署名URLを直リンクせず必ず自己ホストする(既存の画像方針を踏襲)ため、
+ * ファイル選択に加えて「Instagramで画像をコピー→ここに貼り付け」でも取り込めるようにしてある。
  */
 export function VintageShopPublisher() {
   const [shop, setShop] = useState(SHOPS[0].key)
@@ -34,6 +56,8 @@ export function VintageShopPublisher() {
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [result, setResult] = useState<{ merged: boolean; slug: string } | null>(null)
+
+  const coverPreviewUrl = useObjectUrl(coverImageFile)
 
   async function generateDraft() {
     if (!postUrl.trim() || !caption.trim()) return
@@ -61,7 +85,7 @@ export function VintageShopPublisher() {
 
   async function publish() {
     if (!coverImageFile) {
-      setPublishError("カバー画像を選択してください")
+      setPublishError("カバー画像を選択・貼り付けしてください")
       return
     }
     setPublishing(true)
@@ -176,22 +200,62 @@ export function VintageShopPublisher() {
         <Field label="カバー画像の代替テキスト（任意）">
           <input className={inputClass} value={coverImageAlt} onChange={(e) => setCoverImageAlt(e.target.value)} />
         </Field>
+
         <Field label="カバー画像（必須・1枚目のカット）">
-          <input
-            type="file"
-            accept="image/*"
-            className="text-xs"
-            onChange={(e) => setCoverImageFile(e.target.files?.[0] ?? null)}
-          />
+          <div
+            tabIndex={0}
+            onPaste={(e) => {
+              const imgs = imagesFromClipboard(e)
+              if (imgs[0]) setCoverImageFile(imgs[0])
+            }}
+            className="rounded-lg border border-dashed border-border p-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+          >
+            <p className="text-muted-foreground mb-2">
+              Instagramで画像を右クリック→「画像をコピー」→ここをクリックして貼り付け(Ctrl+V / Cmd+V)。
+              またはファイルを選択:
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                accept="image/*"
+                className="text-xs"
+                onChange={(e) => setCoverImageFile(e.target.files?.[0] ?? null)}
+              />
+              {coverPreviewUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverPreviewUrl} alt="" className="h-14 w-14 rounded-md object-cover border border-border" />
+              )}
+            </div>
+          </div>
         </Field>
-        <Field label="追加の画像（カルーセルの残りカット。複数選択可）">
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="text-xs"
-            onChange={(e) => setGalleryFiles(Array.from(e.target.files ?? []))}
-          />
+
+        <Field label="追加の画像（カルーセルの残りカット。複数選択可・貼り付けも複数回できます）">
+          <div
+            tabIndex={0}
+            onPaste={(e) => {
+              const imgs = imagesFromClipboard(e)
+              if (imgs.length > 0) setGalleryFiles((prev) => [...prev, ...imgs])
+            }}
+            className="rounded-lg border border-dashed border-border p-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+          >
+            <p className="text-muted-foreground mb-2">
+              1枚ずつコピー→ここをクリックして貼り付け、を繰り返せば複数枚追加できます。またはファイルを選択:
+            </p>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="text-xs"
+              onChange={(e) => setGalleryFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])}
+            />
+            {galleryFiles.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {galleryFiles.map((f, i) => (
+                  <GalleryThumb key={i} file={f} onRemove={() => setGalleryFiles((prev) => prev.filter((_, idx) => idx !== i))} />
+                ))}
+              </div>
+            )}
+          </div>
         </Field>
 
         {publishError && <p className="text-sm text-destructive">{publishError}</p>}
@@ -213,6 +277,24 @@ export function VintageShopPublisher() {
           {publishing ? "公開中..." : "公開する"}
         </button>
       </div>
+    </div>
+  )
+}
+
+function GalleryThumb({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const url = useObjectUrl(file)
+  return (
+    <div className="relative">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {url && <img src={url} alt="" className="h-14 w-14 rounded-md object-cover border border-border" />}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground"
+        aria-label="削除"
+      >
+        ×
+      </button>
     </div>
   )
 }
