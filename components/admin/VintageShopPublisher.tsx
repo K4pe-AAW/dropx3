@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ClipboardEvent, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type ReactNode } from "react"
 
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
@@ -36,8 +36,44 @@ function useObjectUrl(file: File | null): string | null {
  * AIはキャプション本文から下書き文章を提案するのみで、画像の取得・公開の最終判断は必ず人間が行う。
  * 画像はInstagramの署名URLを直リンクせず必ず自己ホストする(既存の画像方針を踏襲)ため、
  * ファイル選択に加えて「Instagramで画像をコピー→ここに貼り付け」でも取り込めるようにしてある。
+ *
+ * 複数の投稿を1画面でまとめて扱えるよう、投稿ごとにカードを追加できる(「+ 別の投稿を追加」)。
+ * 各カードは独立して「AI下書き生成」「公開する」を実行する——1クリックで全件まとめて送信する
+ * ような一括処理はあえて作っていない(同一ファイルへの連続書き込みでデータが消える既知のBlob
+ * 競合バグがあるため)。同じ日・同じショップの投稿は、publishShopUpdate側の既存ロジックにより
+ * サーバー側で自動的に1つの記事へ統合される(1件ずつ、公開が完了してから次を送る運用なら安全)。
  */
 export function VintageShopPublisher() {
+  const nextId = useRef(1)
+  const [entryIds, setEntryIds] = useState<number[]>([0])
+
+  function addEntry() {
+    setEntryIds((prev) => [...prev, nextId.current++])
+  }
+  function removeEntry(id: number) {
+    setEntryIds((prev) => prev.filter((x) => x !== id))
+  }
+
+  return (
+    <div className="space-y-8">
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        新着投稿が複数あれば「+ 別の投稿を追加」でカードを増やせます。同じ日・同じショップの投稿は公開時に自動で1つの記事へまとめられるので、投稿ごとに1枚ずつ、順番に「公開する」を押してください(まとめて一括送信はできません)。
+      </p>
+      {entryIds.map((id, i) => (
+        <PostEntryCard key={id} index={i} onRemove={() => removeEntry(id)} removable={entryIds.length > 1} />
+      ))}
+      <button
+        type="button"
+        onClick={addEntry}
+        className="h-9 rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
+      >
+        + 別の投稿を追加
+      </button>
+    </div>
+  )
+}
+
+function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove: () => void; removable: boolean }) {
   const [shop, setShop] = useState(SHOPS[0].key)
   const [postUrl, setPostUrl] = useState("")
   const [caption, setCaption] = useState("")
@@ -116,16 +152,6 @@ export function VintageShopPublisher() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setResult({ merged: data.merged, slug: data.slug })
-      setPostUrl("")
-      setCaption("")
-      setTitle("")
-      setExcerpt("")
-      setBodyText("")
-      setMercariSearchQuery("")
-      setTagsText("古着")
-      setCoverImageAlt("")
-      setCoverImageFile(null)
-      setGalleryFiles([])
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : "公開に失敗しました")
     } finally {
@@ -133,55 +159,62 @@ export function VintageShopPublisher() {
     }
   }
 
+  const published = !!result
+
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-          Instagramで新着投稿を見たら、そのショップ・投稿URL・キャプション本文をここに貼り付けてください
-          (自動取得はしません)。AIが下書き文章を提案するので、内容を確認・修正してから画像をアップロードし公開します。
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="ショップ">
-            <select className={inputClass} value={shop} onChange={(e) => setShop(e.target.value)}>
-              {SHOPS.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="投稿URL">
-            <input
-              className={inputClass}
-              placeholder="https://www.instagram.com/.../p/xxxxx/"
-              value={postUrl}
-              onChange={(e) => setPostUrl(e.target.value)}
-            />
-          </Field>
-        </div>
-        <div className="mt-3">
-          <Field label="キャプション本文">
-            <textarea
-              className={inputClass}
-              rows={4}
-              placeholder="Instagramで見たキャプションをそのまま貼り付け"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-            />
-          </Field>
-        </div>
-        <button
-          type="button"
-          onClick={generateDraft}
-          disabled={drafting || !postUrl.trim() || !caption.trim()}
-          className="mt-3 h-9 rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50"
-        >
-          {drafting ? "生成中..." : "AI下書き生成"}
-        </button>
-        {draftError && <p className="mt-2 text-[11px] text-destructive">{draftError}</p>}
+    <div className={`rounded-xl border p-4 ${published ? "border-emerald-300 bg-emerald-50/40" : "border-border bg-card"}`}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-bold text-muted-foreground">投稿 {index + 1}</p>
+        {removable && !published && (
+          <button type="button" onClick={onRemove} className="text-xs text-muted-foreground hover:text-destructive">
+            このカードを削除
+          </button>
+        )}
       </div>
 
-      <div className="space-y-4">
+      <fieldset disabled={published} className="space-y-4 disabled:opacity-60">
+        <div className="rounded-lg border border-border bg-background/50 p-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="ショップ">
+              <select className={inputClass} value={shop} onChange={(e) => setShop(e.target.value)}>
+                {SHOPS.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="投稿URL">
+              <input
+                className={inputClass}
+                placeholder="https://www.instagram.com/.../p/xxxxx/"
+                value={postUrl}
+                onChange={(e) => setPostUrl(e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="mt-3">
+            <Field label="キャプション本文">
+              <textarea
+                className={inputClass}
+                rows={4}
+                placeholder="Instagramで見たキャプションをそのまま貼り付け"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+              />
+            </Field>
+          </div>
+          <button
+            type="button"
+            onClick={generateDraft}
+            disabled={drafting || !postUrl.trim() || !caption.trim()}
+            className="mt-3 h-9 rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50"
+          >
+            {drafting ? "生成中..." : "AI下書き生成"}
+          </button>
+          {draftError && <p className="mt-2 text-[11px] text-destructive">{draftError}</p>}
+        </div>
+
         <Field label="タイトル">
           <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
@@ -257,26 +290,28 @@ export function VintageShopPublisher() {
             )}
           </div>
         </Field>
+      </fieldset>
 
-        {publishError && <p className="text-sm text-destructive">{publishError}</p>}
-        {result && (
-          <p className="text-sm text-emerald-700">
-            {result.merged ? "本日の既存記事に追記しました: " : "新規記事として公開しました: "}
-            <a href={`/articles/${result.slug}`} target="_blank" rel="noopener noreferrer" className="underline">
-              /articles/{result.slug}
-            </a>
-          </p>
-        )}
+      {publishError && <p className="mt-3 text-sm text-destructive">{publishError}</p>}
+      {result && (
+        <p className="mt-3 text-sm text-emerald-700">
+          {result.merged ? "本日の既存記事に追記しました: " : "新規記事として公開しました: "}
+          <a href={`/articles/${result.slug}`} target="_blank" rel="noopener noreferrer" className="underline">
+            /articles/{result.slug}
+          </a>
+        </p>
+      )}
 
+      {!published && (
         <button
           type="button"
           onClick={publish}
           disabled={publishing || !title.trim() || !excerpt.trim() || !bodyText.trim() || !coverImageFile}
-          className="h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
+          className="mt-4 h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
         >
           {publishing ? "公開中..." : "公開する"}
         </button>
-      </div>
+      )}
     </div>
   )
 }
