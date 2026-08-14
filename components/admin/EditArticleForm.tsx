@@ -20,6 +20,7 @@ function toColorwayDraft(cw: ColorwayInfo): ColorwayDraft {
   return { ...cw, retailersText: (cw.retailers ?? []).join(", ") }
 }
 import { siteConfig } from "@/lib/site-config"
+import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
@@ -44,6 +45,7 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [links, setLinks] = useState<(AffiliateLink & { price?: string })[]>(
     article.affiliateLinks.length > 0 ? article.affiliateLinks : [{ label: "", retailer: "", url: "", price: "" }]
   )
+  const [autoLinkQuery, setAutoLinkQuery] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -90,6 +92,34 @@ export function EditArticleForm({ article }: { article: Article }) {
   }
   function removeLink(i: number) {
     setLinks((prev) => prev.filter((_, idx) => idx !== i))
+  }
+  /** 商品名を1回入力するだけで、自動生成できる店舗のリンクをまとめて追加する(PublishFormと同じ挙動) */
+  function addAutoLinks() {
+    const query = autoLinkQuery.trim()
+    if (!query) {
+      window.alert("商品名やキーワードを入力してください（例: Nike Air Max 90 IM9616-001）")
+      return
+    }
+    const added: (AffiliateLink & { price?: string })[] = []
+    const failed: string[] = []
+    for (const item of QUICK_AFFILIATE_RETAILERS) {
+      if (!item.build) continue
+      try {
+        const link = item.build(query)
+        added.push({ label: link.label, retailer: link.retailer, url: link.url, price: "" })
+      } catch {
+        failed.push(item.retailer)
+      }
+    }
+    if (added.length > 0) {
+      setLinks((prev) => [...prev, ...added])
+    }
+    if (failed.length > 0) {
+      window.alert(`${failed.join("・")}のリンクは作成できませんでした（キーワードが具体的か確認してください）`)
+    }
+  }
+  function addManualLink(item: (typeof QUICK_AFFILIATE_RETAILERS)[number]) {
+    setLinks((prev) => [...prev, { label: item.label, retailer: item.retailer, url: "", price: "" }])
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -530,6 +560,42 @@ export function EditArticleForm({ article }: { article: Article }) {
 
       <div>
         <p className="text-xs font-semibold mb-2">アフィリエイトリンク</p>
+
+        <div className="flex flex-wrap gap-2 mb-1.5">
+          <input
+            className={`${inputClass} flex-1 min-w-[220px]`}
+            placeholder="商品名・型番を入力（例: Nike Air Max 90 IM9616-001）"
+            value={autoLinkQuery}
+            onChange={(e) => setAutoLinkQuery(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={addAutoLinks}
+            className="shrink-0 rounded-full bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:opacity-90"
+          >
+            自動でリンクを追加
+          </button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mb-3">
+          メルカリ・Yahoo!ショッピングの検索リンクを、このキーワードでまとめて追加します。
+        </p>
+
+        <div className="flex flex-wrap gap-2 mb-1.5">
+          {QUICK_AFFILIATE_RETAILERS.filter((item) => !item.build).map((item) => (
+            <button
+              key={item.retailer}
+              type="button"
+              onClick={() => addManualLink(item)}
+              className="h-8 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary"
+            >
+              + {item.retailer}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground mb-3">
+          上のボタンは文言・店舗名だけ自動入力します。URLはA8.net/バリューコマースの管理画面で発行してコピペしてください。
+        </p>
+
         <div className="space-y-3">
           {links.map((link, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">

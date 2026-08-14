@@ -4,8 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import type { Draft, Category } from "@/lib/types"
 import { siteConfig } from "@/lib/site-config"
-import { buildMercariSearchLink, buildYahooShoppingSearchLink } from "@/lib/affiliate"
-import type { AffiliateLink } from "@/lib/types"
+import { buildMercariSearchLink, QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
 type GalleryImageDraft = { url: string; alt: string }
@@ -51,23 +50,6 @@ function suggestedLinksFrom(queries: string[]): LinkDraft[] {
   return suggested.length > 0 ? suggested : [{ label: "", retailer: "", url: "", price: "" }]
 }
 
-/**
- * ワンクリックでアフィリエイトリンクの行を追加するための販売店クイックボタン。
- * メルカリ・Yahoo!ショッピングは実際のURLまで自動生成できる(どちらも「サイト+プログラム単位で
- * 固定のトラッキングコード + 検索キーワードだけ変わる飛び先URL」という同じ形の既に取得済みの
- * リンクのため)。楽天市場は楽天アフィリエイト固有のID、ZOZOTOWNは提携プログラム自体が
- * 見当たらない、スニダンは審査中(2026-08-10時点)——いずれも実トラッキングURLをこちらで
- * 生成する手段が無いため、ボタン文言・店舗名だけ自動入力しURLは空欄のまま渡す
- * (存在しないURLを勝手に作らない、という既存方針を守るため)。
- */
-const QUICK_RETAILERS: { label: string; retailer: string; build?: (query: string) => AffiliateLink }[] = [
-  { label: "メルカリで探す", retailer: "メルカリ", build: buildMercariSearchLink },
-  { label: "Yahoo!ショッピングで探す", retailer: "Yahoo!ショッピング", build: buildYahooShoppingSearchLink },
-  { label: "楽天市場で見る", retailer: "楽天市場" },
-  { label: "ZOZOTOWNで見る", retailer: "ZOZOTOWN" },
-  { label: "スニダンで見る", retailer: "SNKRDUNK" },
-]
-
 export function PublishForm({ draft }: { draft: Draft }) {
   const router = useRouter()
   const [title, setTitle] = useState(draft.title)
@@ -80,6 +62,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
   const [coverImageAlt, setCoverImageAlt] = useState(draft.title)
   const [featured, setFeatured] = useState(false)
   const [links, setLinks] = useState<LinkDraft[]>(() => suggestedLinksFrom(draft.suggestedAffiliateSearch))
+  const [autoLinkQuery, setAutoLinkQuery] = useState(draft.suggestedAffiliateSearch[0] ?? "")
   const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>(
     (draft.suggestedGalleryImages ?? []).map((g) => ({ url: g.url, alt: g.alt }))
   )
@@ -117,21 +100,36 @@ export function PublishForm({ draft }: { draft: Draft }) {
     setLinks((prev) => prev.filter((_, idx) => idx !== i))
   }
 
-  function addQuickLink(item: (typeof QUICK_RETAILERS)[number]) {
-    if (item.build) {
-      const query = window.prompt(
-        `${item.retailer}の検索キーワードを入力してください（具体的な商品名。カテゴリ名のみは不可）`,
-        draft.suggestedAffiliateSearch[0] ?? ""
-      )
-      if (!query || !query.trim()) return
-      try {
-        const link = item.build(query.trim())
-        setLinks((prev) => [...prev, { label: link.label, retailer: link.retailer, url: link.url, price: "" }])
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : "リンクの作成に失敗しました")
-      }
+  /**
+   * 商品名を1回入力するだけで、自動生成できる店舗(メルカリ・Yahoo!ショッピング等)のリンクを
+   * まとめて追加する。店舗ごとにプロンプトで聞き直す必要をなくし、非技術者でも迷わず使える形にする。
+   */
+  function addAutoLinks() {
+    const query = autoLinkQuery.trim()
+    if (!query) {
+      window.alert("商品名やキーワードを入力してください（例: Nike Air Max 90 IM9616-001）")
       return
     }
+    const added: LinkDraft[] = []
+    const failed: string[] = []
+    for (const item of QUICK_AFFILIATE_RETAILERS) {
+      if (!item.build) continue
+      try {
+        const link = item.build(query)
+        added.push({ label: link.label, retailer: link.retailer, url: link.url, price: "" })
+      } catch {
+        failed.push(item.retailer)
+      }
+    }
+    if (added.length > 0) {
+      setLinks((prev) => [...prev, ...added])
+    }
+    if (failed.length > 0) {
+      window.alert(`${failed.join("・")}のリンクは作成できませんでした（キーワードが具体的か確認してください）`)
+    }
+  }
+
+  function addManualLink(item: (typeof QUICK_AFFILIATE_RETAILERS)[number]) {
     setLinks((prev) => [...prev, { label: item.label, retailer: item.retailer, url: "", price: "" }])
   }
 
@@ -511,24 +509,48 @@ export function PublishForm({ draft }: { draft: Draft }) {
 
       {draft.suggestedAffiliateSearch.length > 0 && (
         <p className="text-xs text-muted-foreground leading-relaxed">
-          AIが提案した検索キーワード({draft.suggestedAffiliateSearch.join(" / ")})から、下にメルカリ検索リンクを自動で入力しています。内容を確認し、ZOZOTOWN/楽天等より適したASPのリンクがA8.net/バリューコマースの管理画面で見つかれば差し替えてください。
+          AIが提案したキーワード({draft.suggestedAffiliateSearch.join(" / ")})でメルカリ検索リンクを下に自動入力済みです。内容を確認してください。
         </p>
       )}
 
       <div>
         <p className="text-xs font-semibold mb-2">アフィリエイトリンク（複数可）</p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {QUICK_RETAILERS.map((item) => (
+
+        <div className="flex flex-wrap gap-2 mb-1.5">
+          <input
+            className={`${inputClass} flex-1 min-w-[220px]`}
+            placeholder="商品名・型番を入力（例: Nike Air Max 90 IM9616-001）"
+            value={autoLinkQuery}
+            onChange={(e) => setAutoLinkQuery(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={addAutoLinks}
+            className="shrink-0 rounded-full bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:opacity-90"
+          >
+            自動でリンクを追加
+          </button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mb-3">
+          メルカリ・Yahoo!ショッピングの検索リンクを、このキーワードでまとめて追加します。
+        </p>
+
+        <div className="flex flex-wrap gap-2 mb-1.5">
+          {QUICK_AFFILIATE_RETAILERS.filter((item) => !item.build).map((item) => (
             <button
               key={item.retailer}
               type="button"
-              onClick={() => addQuickLink(item)}
+              onClick={() => addManualLink(item)}
               className="h-8 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary"
             >
               + {item.retailer}
             </button>
           ))}
         </div>
+        <p className="text-[11px] text-muted-foreground mb-3">
+          上のボタンは文言・店舗名だけ自動入力します。URLはA8.net/バリューコマースの管理画面で発行してコピペしてください。
+        </p>
+
         <div className="space-y-3">
           {links.map((link, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">

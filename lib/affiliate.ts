@@ -61,3 +61,18 @@ export function buildYahooShoppingSearchLink(query: string): AffiliateLink {
     url: `https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=3778012&pid=892676774&vc_url=${encodeURIComponent(target)}`,
   }
 }
+
+/**
+ * 記事編集画面(PublishForm/EditArticleForm)で共有するクイック追加店舗リスト。1箇所にまとめておき、
+ * 自動化できる店舗が増えた際に両フォームを個別に直す必要が無いようにする。
+ * buildを持つ店舗は実際のトラッキングURLまで自動生成できる(検索キーワードだけ変わる固定コードの
+ * リンクを再利用しているため)。buildが無い店舗は文言・店舗名のみ自動入力し、URLは各ASP管理画面で
+ * 発行して手動で貼ってもらう(実在しないトラッキングコードを捏造しないため)。
+ */
+export const QUICK_AFFILIATE_RETAILERS: { label: string; retailer: string; build?: (query: string) => AffiliateLink }[] = [
+  { label: "メルカリで探す", retailer: "メルカリ", build: buildMercariSearchLink },
+  { label: "Yahoo!ショッピングで探す", retailer: "Yahoo!ショッピング", build: buildYahooShoppingSearchLink },
+  { label: "楽天市場で見る", retailer: "楽天市場" },
+  { label: "ZOZOTOWNで見る", retailer: "ZOZOTOWN" },
+  { label: "スニダンで見る", retailer: "SNKRDUNK" },
+]
