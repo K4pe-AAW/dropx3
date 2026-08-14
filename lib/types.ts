@@ -61,6 +61,19 @@ export type PurchaseChannelInfo = {
   url?: string
 }
 
+/**
+ * ブランド公式サイトの他の実売商品(写真+商品名+価格+リンク)。UPTODATE等の競合メディアが記事内に
+ * 置いている「ブランド公式のおすすめ商品」ウィジェットに相当。ColorwayInfoが同一商品の色違いを
+ * 表すのに対し、こちらは同ブランドの別商品を並べる。情報源(ブランド公式サイト)に無い値は
+ * 空にする(捏造禁止、他のstructured fieldと同じ方針)。
+ */
+export type OfficialProductLink = {
+  name: string // 例: "メンズ Clifton PRO クリフトン プロ"
+  image: string
+  price?: string // 表示用の価格文字列。例: "¥22,000"
+  url: string // ブランド公式サイトの商品ページ
+}
+
 export type Article = {
   id: string
   slug: string
@@ -91,6 +104,8 @@ export type Article = {
   purchaseChannels?: PurchaseChannelInfo[]
   /** 内部リンクしたい既存記事(BUY/GUIDE型記事向け)。本文には埋め込めないため構造化フィールドで持つ */
   relatedArticles?: RelatedArticleLink[]
+  /** 同ブランドの他の実売商品(写真+商品名+価格+公式リンク)。記事本文の商品とは別物のクロスセル枠 */
+  officialProducts?: OfficialProductLink[]
   affiliateLinks: AffiliateLink[]
   /** ブランド/店舗の公式サイトへの直リンク。紹介料が発生しないため"PR"表記は付けない */
   officialLinks: OfficialLink[]

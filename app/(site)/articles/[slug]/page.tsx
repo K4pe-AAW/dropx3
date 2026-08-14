@@ -6,6 +6,7 @@ import { PurchaseLinks } from "@/components/PurchaseLinks"
 import { PurchaseChannelsSection } from "@/components/PurchaseChannelsSection"
 import { ColorwaySection } from "@/components/ColorwaySection"
 import { RelatedArticleLinks } from "@/components/RelatedArticleLinks"
+import { OfficialProductWidget } from "@/components/OfficialProductWidget"
 import { ArticleCard } from "@/components/ArticleCard"
 import { YouTubeEmbed } from "@/components/YouTubeEmbed"
 import { QuoteBlock } from "@/components/QuoteBlock"
@@ -174,6 +175,10 @@ export default async function ArticleDetailPage({
 
       {article.purchaseChannels && article.purchaseChannels.length > 0 && (
         <PurchaseChannelsSection channels={article.purchaseChannels} />
+      )}
+
+      {article.officialProducts && article.officialProducts.length > 0 && (
+        <OfficialProductWidget products={article.officialProducts} brand={article.brands[0]} />
       )}
 
       {article.relatedArticles && article.relatedArticles.length > 0 && (

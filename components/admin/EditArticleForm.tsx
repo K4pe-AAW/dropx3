@@ -8,6 +8,7 @@ import type {
   AffiliateLink,
   GalleryImage,
   OfficialLink,
+  OfficialProductLink,
   ColorwayInfo,
   PurchaseChannelInfo,
   RelatedArticleLink,
@@ -39,6 +40,7 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [purchaseChannels, setPurchaseChannels] = useState<PurchaseChannelInfo[]>(article.purchaseChannels ?? [])
   const [officialLinks, setOfficialLinks] = useState<OfficialLink[]>(article.officialLinks)
   const [relatedArticles, setRelatedArticles] = useState<RelatedArticleLink[]>(article.relatedArticles ?? [])
+  const [officialProducts, setOfficialProducts] = useState<OfficialProductLink[]>(article.officialProducts ?? [])
   const [links, setLinks] = useState<(AffiliateLink & { price?: string })[]>(
     article.affiliateLinks.length > 0 ? article.affiliateLinks : [{ label: "", retailer: "", url: "", price: "" }]
   )
@@ -76,6 +78,12 @@ export function EditArticleForm({ article }: { article: Article }) {
   }
   function removeRelatedArticle(i: number) {
     setRelatedArticles((prev) => prev.filter((_, idx) => idx !== i))
+  }
+  function updateOfficialProduct(i: number, patch: Partial<OfficialProductLink>) {
+    setOfficialProducts((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)))
+  }
+  function removeOfficialProduct(i: number) {
+    setOfficialProducts((prev) => prev.filter((_, idx) => idx !== i))
   }
   function updateLink(i: number, patch: Partial<AffiliateLink & { price?: string }>) {
     setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
@@ -119,6 +127,14 @@ export function EditArticleForm({ article }: { article: Article }) {
         galleryImages: galleryImages.filter((g) => g.url.trim()),
         officialLinks: officialLinks.filter((l) => l.url.trim()),
         relatedArticles: relatedArticles.filter((l) => l.title.trim() && l.slug.trim()),
+        officialProducts: officialProducts
+          .filter((p) => p.name.trim() && p.image.trim() && p.url.trim())
+          .map((p) => ({
+            name: p.name.trim(),
+            image: p.image.trim(),
+            url: p.url.trim(),
+            ...(p.price?.trim() ? { price: p.price.trim() } : {}),
+          })),
         colorways: colorways
           .filter((c) => c.colorName.trim())
           .map((c) => ({
@@ -459,6 +475,56 @@ export function EditArticleForm({ article }: { article: Article }) {
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
           + 記事を追加
+        </button>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold mb-2">
+          ブランド公式のおすすめ商品（任意・写真+商品名+価格でカード表示、「PR」表記なしの公式直リンク）
+        </p>
+        <div className="space-y-3">
+          {officialProducts.map((p, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
+              <input
+                className={`${inputClass} col-span-2`}
+                placeholder="商品名（例: メンズ Clifton PRO クリフトン プロ）"
+                value={p.name}
+                onChange={(e) => updateOfficialProduct(i, { name: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="商品画像URL（ブランド公式サイトから）"
+                value={p.image}
+                onChange={(e) => updateOfficialProduct(i, { image: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="価格（任意、例: ¥22,000）"
+                value={p.price ?? ""}
+                onChange={(e) => updateOfficialProduct(i, { price: e.target.value })}
+              />
+              <input
+                className={`${inputClass} col-span-2`}
+                placeholder="商品ページURL（ブランド公式サイト）"
+                value={p.url}
+                onChange={(e) => updateOfficialProduct(i, { url: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removeOfficialProduct(i)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOfficialProducts((prev) => [...prev, { name: "", image: "", url: "" }])}
+          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          + 商品を追加
         </button>
       </div>
 

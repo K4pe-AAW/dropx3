@@ -10,6 +10,7 @@ import type {
   Draft,
   GalleryImage,
   OfficialLink,
+  OfficialProductLink,
   PurchaseChannelInfo,
   RelatedArticleLink,
 } from "@/lib/types"
@@ -86,6 +87,24 @@ function sanitizeRelatedArticles(input: unknown): RelatedArticleLink[] {
     .filter((l) => l.title && l.slug)
 }
 
+function sanitizeOfficialProducts(input: unknown): OfficialProductLink[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((p): p is Record<string, unknown> => typeof p === "object" && p !== null)
+    .map((p) => {
+      const name = typeof p.name === "string" ? p.name.trim() : ""
+      const image = typeof p.image === "string" ? p.image.trim() : ""
+      const url = typeof p.url === "string" ? p.url.trim() : ""
+      return {
+        name,
+        ...(image && isAllowedImageUrl(image) ? { image } : {}),
+        ...(typeof p.price === "string" && p.price.trim() ? { price: p.price.trim() } : {}),
+        ...(url && isSafeExternalUrl(url) ? { url } : {}),
+      }
+    })
+    .filter((p): p is OfficialProductLink => Boolean(p.name && p.image && p.url))
+}
+
 function sanitizeOfficialLinks(input: unknown): OfficialLink[] {
   if (!Array.isArray(input)) return []
   return input
@@ -144,6 +163,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const relatedArticles: RelatedArticleLink[] = body.relatedArticles
     ? sanitizeRelatedArticles(body.relatedArticles)
     : existing.relatedArticles ?? []
+  const officialProducts: OfficialProductLink[] = body.officialProducts
+    ? sanitizeOfficialProducts(body.officialProducts)
+    : existing.officialProducts ?? []
 
   if (!title || !excerpt || bodyParagraphs.length === 0) {
     return NextResponse.json({ error: "title/excerpt/bodyParagraphsは必須です" }, { status: 400 })
@@ -168,6 +190,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     colorways,
     purchaseChannels,
     relatedArticles,
+    officialProducts,
   })
 
   return NextResponse.json({ ok: true, slug: updated.slug })
