@@ -235,60 +235,57 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
         </Field>
 
         <Field label="カバー画像（必須・1枚目のカット）">
-          <div
-            tabIndex={0}
-            onPaste={(e) => {
-              const imgs = imagesFromClipboard(e)
-              if (imgs[0]) setCoverImageFile(imgs[0])
-            }}
-            className="rounded-lg border border-dashed border-border p-3 text-xs outline-none focus:ring-2 focus:ring-ring"
-          >
-            <p className="text-muted-foreground mb-2">
-              Instagramで画像を右クリック→「画像をコピー」→ここをクリックして貼り付け(Ctrl+V / Cmd+V)。
-              またはファイルを選択:
-            </p>
-            <div className="flex items-center gap-3">
+          <div className="grid grid-cols-2 gap-2">
+            <PasteZone
+              onPasteImages={(imgs) => {
+                if (imgs[0]) setCoverImageFile(imgs[0])
+              }}
+            />
+            <label className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border p-3 text-xs text-muted-foreground cursor-pointer hover:bg-secondary">
+              <span>📁 ファイルを選択</span>
               <input
                 type="file"
                 accept="image/*"
-                className="text-xs"
+                className="sr-only"
                 onChange={(e) => setCoverImageFile(e.target.files?.[0] ?? null)}
               />
-              {coverPreviewUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverPreviewUrl} alt="" className="h-14 w-14 rounded-md object-cover border border-border" />
-              )}
-            </div>
+            </label>
           </div>
+          {coverPreviewUrl && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={coverPreviewUrl} alt="" className="h-14 w-14 rounded-md object-cover border border-border" />
+              設定済み
+            </div>
+          )}
         </Field>
 
         <Field label="追加の画像（カルーセルの残りカット。複数選択可・貼り付けも複数回できます）">
-          <div
-            tabIndex={0}
-            onPaste={(e) => {
-              const imgs = imagesFromClipboard(e)
-              if (imgs.length > 0) setGalleryFiles((prev) => [...prev, ...imgs])
-            }}
-            className="rounded-lg border border-dashed border-border p-3 text-xs outline-none focus:ring-2 focus:ring-ring"
-          >
-            <p className="text-muted-foreground mb-2">
-              1枚ずつコピー→ここをクリックして貼り付け、を繰り返せば複数枚追加できます。またはファイルを選択:
-            </p>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="text-xs"
-              onChange={(e) => setGalleryFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])}
+          <div className="grid grid-cols-2 gap-2">
+            <PasteZone
+              hint="1枚ずつ繰り返し貼り付け可"
+              onPasteImages={(imgs) => {
+                if (imgs.length > 0) setGalleryFiles((prev) => [...prev, ...imgs])
+              }}
             />
-            {galleryFiles.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {galleryFiles.map((f, i) => (
-                  <GalleryThumb key={i} file={f} onRemove={() => setGalleryFiles((prev) => prev.filter((_, idx) => idx !== i))} />
-                ))}
-              </div>
-            )}
+            <label className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border p-3 text-xs text-muted-foreground cursor-pointer hover:bg-secondary">
+              <span>📁 ファイルを選択(複数可)</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="sr-only"
+                onChange={(e) => setGalleryFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])}
+              />
+            </label>
           </div>
+          {galleryFiles.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {galleryFiles.map((f, i) => (
+                <GalleryThumb key={i} file={f} onRemove={() => setGalleryFiles((prev) => prev.filter((_, idx) => idx !== i))} />
+              ))}
+            </div>
+          )}
         </Field>
       </fieldset>
 
@@ -312,6 +309,24 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
           {publishing ? "公開中..." : "公開する"}
         </button>
       )}
+    </div>
+  )
+}
+
+/**
+ * ファイル選択ボタンとは別に独立させた貼り付け専用エリア。同じ枠内に重ねると
+ * クリックが常にファイル選択側に奪われてしまう(実際に報告のあった不具合)ため、
+ * この要素はクリックでは何も起きず、フォーカスした状態でCtrl+V/Cmd+Vを押すことだけを想定している。
+ */
+function PasteZone({ onPasteImages, hint }: { onPasteImages: (files: File[]) => void; hint?: string }) {
+  return (
+    <div
+      tabIndex={0}
+      onPaste={(e) => onPasteImages(imagesFromClipboard(e))}
+      className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground outline-none focus:border-solid focus:border-ring focus:bg-secondary/50 focus:ring-2 focus:ring-ring"
+    >
+      <span>📋 クリックして貼り付け</span>
+      <span className="text-[10px] text-muted-foreground/70">(Instagramで画像をコピー→Ctrl+V / Cmd+V{hint ? `・${hint}` : ""})</span>
     </div>
   )
 }
