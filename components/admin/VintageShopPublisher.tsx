@@ -234,22 +234,17 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
           <input className={inputClass} value={coverImageAlt} onChange={(e) => setCoverImageAlt(e.target.value)} />
         </Field>
 
-        <Field label="カバー画像（必須・1枚目のカット）">
+        <FieldGroup label="カバー画像（必須・1枚目のカット）">
           <div className="grid grid-cols-2 gap-2">
             <PasteZone
               onPasteImages={(imgs) => {
                 if (imgs[0]) setCoverImageFile(imgs[0])
               }}
             />
-            <label className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border p-3 text-xs text-muted-foreground cursor-pointer hover:bg-secondary">
-              <span>📁 ファイルを選択</span>
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(e) => setCoverImageFile(e.target.files?.[0] ?? null)}
-              />
-            </label>
+            <FilePickerButton
+              text="📁 ファイルを選択"
+              onFiles={(files) => setCoverImageFile(files[0] ?? null)}
+            />
           </div>
           {coverPreviewUrl && (
             <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -258,9 +253,9 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
               設定済み
             </div>
           )}
-        </Field>
+        </FieldGroup>
 
-        <Field label="追加の画像（カルーセルの残りカット。複数選択可・貼り付けも複数回できます）">
+        <FieldGroup label="追加の画像（カルーセルの残りカット。複数選択可・貼り付けも複数回できます）">
           <div className="grid grid-cols-2 gap-2">
             <PasteZone
               hint="1枚ずつ繰り返し貼り付け可"
@@ -268,16 +263,11 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
                 if (imgs.length > 0) setGalleryFiles((prev) => [...prev, ...imgs])
               }}
             />
-            <label className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border p-3 text-xs text-muted-foreground cursor-pointer hover:bg-secondary">
-              <span>📁 ファイルを選択(複数可)</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="sr-only"
-                onChange={(e) => setGalleryFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])}
-              />
-            </label>
+            <FilePickerButton
+              text="📁 ファイルを選択(複数可)"
+              multiple
+              onFiles={(files) => setGalleryFiles((prev) => [...prev, ...files])}
+            />
           </div>
           {galleryFiles.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
@@ -286,7 +276,7 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
               ))}
             </div>
           )}
-        </Field>
+        </FieldGroup>
       </fieldset>
 
       {publishError && <p className="mt-3 text-sm text-destructive">{publishError}</p>}
@@ -342,6 +332,27 @@ function PasteZone({ onPasteImages, hint }: { onPasteImages: (files: File[]) => 
   )
 }
 
+/**
+ * 貼り付け欄とは別の、単独のファイル選択ボタン。この`<label>`にはinput以外の
+ * 要素を絶対に入れない——labelはクリックされた位置に関わらず内部の最初のフォーム
+ * 部品を発火させる仕様なので、隣のPasteZoneと同じlabel/親labelに同居させると
+ * 貼り付け欄をクリックしただけでファイル選択が開いてしまう(実際に起きた不具合)。
+ */
+function FilePickerButton({ text, multiple, onFiles }: { text: string; multiple?: boolean; onFiles: (files: File[]) => void }) {
+  return (
+    <label className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border p-3 text-xs text-muted-foreground cursor-pointer hover:bg-secondary">
+      <span>{text}</span>
+      <input
+        type="file"
+        accept="image/*"
+        multiple={multiple}
+        className="sr-only"
+        onChange={(e) => onFiles(Array.from(e.target.files ?? []))}
+      />
+    </label>
+  )
+}
+
 function GalleryThumb({ file, onRemove }: { file: File; onRemove: () => void }) {
   const url = useObjectUrl(file)
   return (
@@ -366,5 +377,19 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="block text-xs font-semibold mb-1.5">{label}</span>
       {children}
     </label>
+  )
+}
+
+/**
+ * Fieldの`<label>`版と違い、中に複数の独立したフォーム部品(貼り付け欄+ファイル選択等)を
+ * 入れる箇所専用。`<label>`にしないのは、labelの「内部の最初のフォーム部品を暗黙に指す」
+ * 仕様により、無関係な部品(貼り付け欄)のクリックまでファイル選択に奪われてしまうため。
+ */
+function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="block text-xs font-semibold mb-1.5">{label}</p>
+      {children}
+    </div>
   )
 }
