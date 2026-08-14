@@ -4,6 +4,7 @@ import "./globals.css"
 import { siteConfig } from "@/lib/site-config"
 import { FluidBackground } from "@/components/FluidBackground"
 import { Analytics } from "@/components/Analytics"
+import { AdsenseAutoAds } from "@/components/AdsenseAutoAds"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="ja" className={`${geistSans.variable} antialiased`}>
       <body className="min-h-screen flex flex-col">
         <Analytics />
+        <AdsenseAutoAds />
         <FluidBackground />
         {children}
       </body>

@@ -63,6 +63,47 @@ export function buildYahooShoppingSearchLink(query: string): AffiliateLink {
 }
 
 /**
+ * スニダン(SNKRDUNK)検索アフィリエイトリンクを作る(A8.net、プログラムID s00000021512002に提携済み)。
+ * a8matはA8.netの「商品リンク作成」→「テキスト生成」で実際に発行した値をそのまま使う
+ * (buildMercariSearchLinkと同じ、サイト+プログラム単位で固定のコード+検索キーワードだけ変わる
+ * a8ejpredirect、という構造)。
+ */
+export function buildSnkrdunkSearchLink(query: string): AffiliateLink {
+  const trimmed = query.trim()
+  if (!trimmed || BANNED_GENERIC_QUERIES.has(trimmed)) {
+    throw new Error(`buildSnkrdunkSearchLink: query is missing or too generic: ${JSON.stringify(query)}`)
+  }
+  const target = `https://snkrdunk.com/search?keywords=${encodeURIComponent(trimmed)}`
+  return {
+    label: "スニダンで探す",
+    retailer: "SNKRDUNK",
+    url: `https://px.a8.net/svt/ejp?a8mat=4BA1PB+28DJG2+4LZK+HUKPU&a8ejpredirect=${encodeURIComponent(target)}`,
+  }
+}
+
+/**
+ * 楽天市場検索アフィリエイトリンクを作る(A8.net経由の「楽天アフィリエイト」プログラム、
+ * プログラムID s00000011623001に提携済み)。他の店舗と違い、A8.net(rpx.a8.net)から
+ * 楽天自身の中継ドメイン(hb.afl.rakuten.co.jp)へさらにリダイレクトする2段構造。
+ * hb.afl.rakuten.co.jp以下のパス("hgc/{id}/{メディアID}_{a8mat}")とa8mat・rakuten=yは
+ * サイト+プログラム単位で固定(A8.netの「商品リンク作成」→「テキスト生成」で実際に発行した
+ * 値をそのまま使用)、pc=/m=パラメータの飛び先URLだけがリンクごとに変わる。
+ */
+export function buildRakutenSearchLink(query: string): AffiliateLink {
+  const trimmed = query.trim()
+  if (!trimmed || BANNED_GENERIC_QUERIES.has(trimmed)) {
+    throw new Error(`buildRakutenSearchLink: query is missing or too generic: ${JSON.stringify(query)}`)
+  }
+  const target = `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(trimmed)}/`
+  const rakutenRedirect = `http://hb.afl.rakuten.co.jp/hgc/0ea62065.34400275.0ea62066.204f04c0/a26080942703_4BA1PA_CFPZOY_2HOM_BW8O1?pc=${encodeURIComponent(target)}&m=${encodeURIComponent(target)}`
+  return {
+    label: "楽天市場で探す",
+    retailer: "楽天市場",
+    url: `https://rpx.a8.net/svt/ejp?a8mat=4BA1PA+CFPZOY+2HOM+BW8O1&rakuten=y&a8ejpredirect=${encodeURIComponent(rakutenRedirect)}`,
+  }
+}
+
+/**
  * 記事編集画面(PublishForm/EditArticleForm)で共有するクイック追加店舗リスト。1箇所にまとめておき、
  * 自動化できる店舗が増えた際に両フォームを個別に直す必要が無いようにする。
  * buildを持つ店舗は実際のトラッキングURLまで自動生成できる(検索キーワードだけ変わる固定コードの
@@ -72,7 +113,7 @@ export function buildYahooShoppingSearchLink(query: string): AffiliateLink {
 export const QUICK_AFFILIATE_RETAILERS: { label: string; retailer: string; build?: (query: string) => AffiliateLink }[] = [
   { label: "メルカリで探す", retailer: "メルカリ", build: buildMercariSearchLink },
   { label: "Yahoo!ショッピングで探す", retailer: "Yahoo!ショッピング", build: buildYahooShoppingSearchLink },
-  { label: "楽天市場で見る", retailer: "楽天市場" },
+  { label: "スニダンで探す", retailer: "SNKRDUNK", build: buildSnkrdunkSearchLink },
+  { label: "楽天市場で探す", retailer: "楽天市場", build: buildRakutenSearchLink },
   { label: "ZOZOTOWNで見る", retailer: "ZOZOTOWN" },
-  { label: "スニダンで見る", retailer: "SNKRDUNK" },
 ]
