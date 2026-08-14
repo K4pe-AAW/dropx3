@@ -10,6 +10,10 @@ const SHOPS = [
   { key: "ROOM", label: "ROOM(三軒茶屋)" },
 ]
 
+function shopLabel(key: string): string {
+  return SHOPS.find((s) => s.key === key)?.label ?? key
+}
+
 /** クリップボードに乗っている画像(Instagramで「画像をコピー」した場合など)をFileの配列として取り出す */
 function imagesFromClipboard(e: ClipboardEvent): File[] {
   const items = Array.from(e.clipboardData?.items ?? [])
@@ -63,6 +67,22 @@ function useObjectUrl(file: File | null): string | null {
   return url
 }
 
+/** サーバーからのレスポンスをJSONとして読む。413等プラットフォームのプレーンテキストエラーにも対応する */
+async function readJsonResponse(res: Response): Promise<Record<string, unknown>> {
+  const raw = await res.text()
+  try {
+    return JSON.parse(raw)
+  } catch {
+    throw new Error(
+      res.status === 413 || /entity too large/i.test(raw)
+        ? "画像の合計サイズが大きすぎます(自動圧縮後もこの状態なら、画像の枚数を減らして分けて送ってください)"
+        : `サーバーエラー(${res.status}): ${raw.slice(0, 100)}`
+    )
+  }
+}
+
+type ViewTab = "compose" | "drafts" | "published"
+
 /**
  * クラウド自動化ルーティンがInstagramへ到達できない(egressプロキシでブロック、2026-08-12確認)ため、
  * 人間がInstagramを見てURL+キャプション+写真を貼る半自動フローに切り替えた画面。
@@ -70,15 +90,19 @@ function useObjectUrl(file: File | null): string | null {
  * 画像はInstagramの署名URLを直リンクせず必ず自己ホストする(既存の画像方針を踏襲)ため、
  * ファイル選択に加えて「Instagramで画像をコピー→ここに貼り付け」でも取り込めるようにしてある。
  *
- * 複数の投稿を1画面でまとめて扱えるよう、投稿ごとにカードを追加できる(「+ 別の投稿を追加」)。
- * 各カードは独立して「AI下書き生成」「公開する」を実行する——1クリックで全件まとめて送信する
- * ような一括処理はあえて作っていない(同一ファイルへの連続書き込みでデータが消える既知のBlob
- * 競合バグがあるため)。同じ日・同じショップの投稿は、publishShopUpdate側の既存ロジックにより
- * サーバー側で自動的に1つの記事へ統合される(1件ずつ、公開が完了してから次を送る運用なら安全)。
+ * 新規投稿(作成中)・下書き(保存済み・未公開)・投稿済みの3つを切り替えられる構成にしてある。
+ * 複数の投稿を1画面でまとめて扱えるよう、新規投稿タブでは投稿ごとにカードを追加できる
+ * (「+ 別の投稿を追加」)。各カードは独立して「AI下書き生成」「公開する」「下書き保存」を
+ * 実行する——1クリックで全件まとめて送信するような一括処理はあえて作っていない
+ * (同一ファイルへの連続書き込みでデータが消える既知のBlob競合バグがあるため)。
+ * 同じ日・同じショップの投稿は、publishShopUpdate側の既存ロジックによりサーバー側で
+ * 自動的に1つの記事へ統合される(1件ずつ、公開が完了してから次を送る運用なら安全)。
  */
 export function VintageShopPublisher() {
+  const [view, setView] = useState<ViewTab>("compose")
   const nextId = useRef(1)
   const [entryIds, setEntryIds] = useState<number[]>([0])
+  const [draftsRefreshKey, setDraftsRefreshKey] = useState(0)
 
   function addEntry() {
     setEntryIds((prev) => [...prev, nextId.current++])
@@ -87,26 +111,70 @@ export function VintageShopPublisher() {
     setEntryIds((prev) => prev.filter((x) => x !== id))
   }
 
+  const tabs: { key: ViewTab; label: string }[] = [
+    { key: "compose", label: "新規投稿" },
+    { key: "drafts", label: "下書き" },
+    { key: "published", label: "投稿済み" },
+  ]
+
   return (
-    <div className="space-y-8">
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        新着投稿が複数あれば「+ 別の投稿を追加」でカードを増やせます。同じ日・同じショップの投稿は公開時に自動で1つの記事へまとめられるので、投稿ごとに1枚ずつ、順番に「公開する」を押してください(まとめて一括送信はできません)。
-      </p>
-      {entryIds.map((id, i) => (
-        <PostEntryCard key={id} index={i} onRemove={() => removeEntry(id)} removable={entryIds.length > 1} />
-      ))}
-      <button
-        type="button"
-        onClick={addEntry}
-        className="h-9 rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
-      >
-        + 別の投稿を追加
-      </button>
+    <div className="space-y-6">
+      <div className="flex gap-1 rounded-full bg-secondary p-1 w-fit">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setView(t.key)}
+            className={`h-8 rounded-full px-4 text-xs font-semibold ${
+              view === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "compose" && (
+        <div className="space-y-8">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            新着投稿が複数あれば「+ 別の投稿を追加」でカードを増やせます。同じ日・同じショップの投稿は公開時に自動で1つの記事へまとめられるので、投稿ごとに1枚ずつ、順番に「公開する」を押してください(まとめて一括送信はできません)。まだ確定できない場合は「下書き保存」で一旦保存できます。
+          </p>
+          {entryIds.map((id, i) => (
+            <PostEntryCard
+              key={id}
+              index={i}
+              onRemove={() => removeEntry(id)}
+              removable={entryIds.length > 1}
+              onSavedAsDraft={() => setDraftsRefreshKey((k) => k + 1)}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={addEntry}
+            className="h-9 rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
+          >
+            + 別の投稿を追加
+          </button>
+        </div>
+      )}
+
+      {view === "drafts" && <DraftsTab refreshKey={draftsRefreshKey} />}
+      {view === "published" && <PublishedTab />}
     </div>
   )
 }
 
-function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove: () => void; removable: boolean }) {
+function PostEntryCard({
+  index,
+  onRemove,
+  removable,
+  onSavedAsDraft,
+}: {
+  index: number
+  onRemove: () => void
+  removable: boolean
+  onSavedAsDraft: () => void
+}) {
   const [shop, setShop] = useState(SHOPS[0].key)
   const [postUrl, setPostUrl] = useState("")
   const [caption, setCaption] = useState("")
@@ -122,9 +190,11 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null)
   const [galleryFiles, setGalleryFiles] = useState<File[]>([])
 
-  const [publishing, setPublishing] = useState(false)
-  const [publishError, setPublishError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ merged: boolean; slug: string; id: string } | null>(null)
+  const [submitting, setSubmitting] = useState<"publish" | "draft" | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [outcome, setOutcome] = useState<
+    { type: "published"; merged: boolean; slug: string; id: string } | { type: "draft" } | null
+  >(null)
 
   const coverPreviewUrl = useObjectUrl(coverImageFile)
 
@@ -152,53 +222,67 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
     }
   }
 
+  function buildFormData(): FormData {
+    const fd = new FormData()
+    fd.set("shop", shop)
+    fd.set("postUrl", postUrl.trim())
+    fd.set("title", title.trim())
+    fd.set("excerpt", excerpt.trim())
+    fd.set(
+      "bodyParagraphs",
+      JSON.stringify(
+        bodyText
+          .split(/\n\s*\n/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+      )
+    )
+    fd.set("tags", JSON.stringify(tagsText.split(",").map((t) => t.trim()).filter(Boolean)))
+    fd.set("mercariSearchQuery", mercariSearchQuery.trim())
+    fd.set("coverImageAlt", coverImageAlt.trim())
+    fd.set("coverImage", coverImageFile as File)
+    for (const f of galleryFiles) fd.append("galleryImages", f)
+    return fd
+  }
+
   async function publish() {
     if (!coverImageFile) {
-      setPublishError("カバー画像を選択・貼り付けしてください")
+      setSubmitError("カバー画像を選択・貼り付けしてください")
       return
     }
-    setPublishing(true)
-    setPublishError(null)
-    setResult(null)
+    setSubmitting("publish")
+    setSubmitError(null)
+    setOutcome(null)
     try {
-      const fd = new FormData()
-      fd.set("shop", shop)
-      fd.set("postUrl", postUrl.trim())
-      fd.set("title", title.trim())
-      fd.set("excerpt", excerpt.trim())
-      fd.set(
-        "bodyParagraphs",
-        JSON.stringify(
-          bodyText
-            .split(/\n\s*\n/)
-            .map((p) => p.trim())
-            .filter(Boolean)
-        )
-      )
-      fd.set("tags", JSON.stringify(tagsText.split(",").map((t) => t.trim()).filter(Boolean)))
-      fd.set("mercariSearchQuery", mercariSearchQuery.trim())
-      fd.set("coverImageAlt", coverImageAlt.trim())
-      fd.set("coverImage", coverImageFile)
-      for (const f of galleryFiles) fd.append("galleryImages", f)
-
-      const res = await fetch("/api/admin/vintage-shop/publish", { method: "POST", body: fd })
-      const raw = await res.text()
-      let data: { error?: string; merged?: boolean; slug?: string; id?: string }
-      try {
-        data = JSON.parse(raw)
-      } catch {
-        throw new Error(
-          res.status === 413 || /entity too large/i.test(raw)
-            ? "画像の合計サイズが大きすぎます(自動圧縮後もこの状態なら、画像の枚数を減らして分けて送ってください)"
-            : `サーバーエラー(${res.status}): ${raw.slice(0, 100)}`
-        )
-      }
-      if (!res.ok) throw new Error(data.error)
-      setResult({ merged: !!data.merged, slug: data.slug ?? "", id: data.id ?? "" })
+      const res = await fetch("/api/admin/vintage-shop/publish", { method: "POST", body: buildFormData() })
+      const data = await readJsonResponse(res)
+      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "公開に失敗しました")
+      setOutcome({ type: "published", merged: !!data.merged, slug: (data.slug as string) ?? "", id: (data.id as string) ?? "" })
     } catch (err) {
-      setPublishError(err instanceof Error ? err.message : "公開に失敗しました")
+      setSubmitError(err instanceof Error ? err.message : "公開に失敗しました")
     } finally {
-      setPublishing(false)
+      setSubmitting(null)
+    }
+  }
+
+  async function saveDraft() {
+    if (!coverImageFile) {
+      setSubmitError("カバー画像を選択・貼り付けしてください")
+      return
+    }
+    setSubmitting("draft")
+    setSubmitError(null)
+    setOutcome(null)
+    try {
+      const res = await fetch("/api/admin/vintage-shop/drafts", { method: "POST", body: buildFormData() })
+      const data = await readJsonResponse(res)
+      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "下書き保存に失敗しました")
+      setOutcome({ type: "draft" })
+      onSavedAsDraft()
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "下書き保存に失敗しました")
+    } finally {
+      setSubmitting(null)
     }
   }
 
@@ -214,20 +298,20 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
     setGalleryFiles((prev) => [...prev, ...compressed])
   }
 
-  const published = !!result
+  const locked = !!outcome
 
   return (
-    <div className={`rounded-xl border p-4 ${published ? "border-emerald-300 bg-emerald-50/40" : "border-border bg-card"}`}>
+    <div className={`rounded-xl border p-4 ${locked ? "border-emerald-300 bg-emerald-50/40" : "border-border bg-card"}`}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-bold text-muted-foreground">投稿 {index + 1}</p>
-        {removable && !published && (
+        {removable && !locked && (
           <button type="button" onClick={onRemove} className="text-xs text-muted-foreground hover:text-destructive">
             このカードを削除
           </button>
         )}
       </div>
 
-      <fieldset disabled={published} className="space-y-4 disabled:opacity-60">
+      <fieldset disabled={locked} className="space-y-4 disabled:opacity-60">
         <div className="rounded-lg border border-border bg-background/50 p-3">
           <div className="grid grid-cols-2 gap-3">
             <Field label="ショップ">
@@ -318,35 +402,209 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
         </FieldGroup>
       </fieldset>
 
-      {publishError && <p className="mt-3 text-sm text-destructive">{publishError}</p>}
-      {result && (
+      {submitError && <p className="mt-3 text-sm text-destructive">{submitError}</p>}
+      {outcome?.type === "published" && (
         <p className="mt-3 text-sm text-emerald-700">
-          {result.merged ? "本日の既存記事に追記しました: " : "新規記事として公開しました: "}
-          <a href={`/articles/${result.slug}`} target="_blank" rel="noopener noreferrer" className="underline">
-            /articles/{result.slug}
+          {outcome.merged ? "本日の既存記事に追記しました: " : "新規記事として公開しました: "}
+          <a href={`/articles/${outcome.slug}`} target="_blank" rel="noopener noreferrer" className="underline">
+            /articles/{outcome.slug}
           </a>
-          {result.id && (
+          {outcome.id && (
             <>
               {" "}
               ・
-              <a href={`/admin/articles/${result.id}/edit`} target="_blank" rel="noopener noreferrer" className="underline">
+              <a href={`/admin/articles/${outcome.id}/edit`} target="_blank" rel="noopener noreferrer" className="underline">
                 この記事を編集する
               </a>
             </>
           )}
         </p>
       )}
-
-      {!published && (
-        <button
-          type="button"
-          onClick={publish}
-          disabled={publishing || !title.trim() || !excerpt.trim() || !bodyText.trim() || !coverImageFile}
-          className="mt-4 h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
-        >
-          {publishing ? "公開中..." : "公開する"}
-        </button>
+      {outcome?.type === "draft" && (
+        <p className="mt-3 text-sm text-emerald-700">下書きとして保存しました。「下書き」タブから続きを編集・公開できます。</p>
       )}
+
+      {!locked && (
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={publish}
+            disabled={!!submitting || !title.trim() || !excerpt.trim() || !bodyText.trim() || !coverImageFile}
+            className="h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
+          >
+            {submitting === "publish" ? "公開中..." : "公開する"}
+          </button>
+          <button
+            type="button"
+            onClick={saveDraft}
+            disabled={!!submitting || !title.trim() || !coverImageFile}
+            className="h-11 px-6 rounded-full border border-border text-sm font-semibold hover:bg-secondary disabled:opacity-50"
+          >
+            {submitting === "draft" ? "保存中..." : "下書き保存"}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+type VintageDraft = {
+  id: string
+  shop: string
+  title: string
+  excerpt: string
+  coverImage: string
+  createdAt: string
+}
+
+/** 保存済みの下書き一覧。「公開する」でそのまま公開、「削除」で破棄する */
+function DraftsTab({ refreshKey }: { refreshKey: number }) {
+  const [drafts, setDrafts] = useState<VintageDraft[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Record<string, string>>({})
+
+  async function load() {
+    setError(null)
+    try {
+      const res = await fetch("/api/admin/vintage-shop/drafts")
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "下書きの取得に失敗しました")
+      setDrafts(data.drafts)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "下書きの取得に失敗しました")
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [refreshKey])
+
+  async function publishDraft(id: string) {
+    setBusyId(id)
+    try {
+      const res = await fetch(`/api/admin/vintage-shop/drafts/${id}/publish`, { method: "POST" })
+      const data = await readJsonResponse(res)
+      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "公開に失敗しました")
+      setDrafts((prev) => (prev ? prev.filter((d) => d.id !== id) : prev))
+      setMessages((prev) => ({ ...prev, [id]: `公開しました: /articles/${data.slug}` }))
+    } catch (err) {
+      setMessages((prev) => ({ ...prev, [id]: err instanceof Error ? err.message : "公開に失敗しました" }))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function deleteDraft(id: string) {
+    if (!confirm("この下書きを削除しますか？(元に戻せません)")) return
+    setBusyId(id)
+    try {
+      const res = await fetch(`/api/admin/vintage-shop/drafts/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("削除に失敗しました")
+      setDrafts((prev) => (prev ? prev.filter((d) => d.id !== id) : prev))
+    } catch (err) {
+      setMessages((prev) => ({ ...prev, [id]: err instanceof Error ? err.message : "削除に失敗しました" }))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (error) return <p className="text-sm text-destructive">{error}</p>
+  if (drafts === null) return <p className="text-sm text-muted-foreground">読み込み中...</p>
+  if (drafts.length === 0) return <p className="text-sm text-muted-foreground">下書きはありません。</p>
+
+  return (
+    <div className="space-y-3">
+      {drafts.map((d) => (
+        <div key={d.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={d.coverImage} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover border border-border" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold text-muted-foreground">{shopLabel(d.shop)}</p>
+            <p className="truncate text-sm font-semibold">{d.title}</p>
+            <p className="text-[11px] text-muted-foreground">{new Date(d.createdAt).toLocaleString("ja-JP")}</p>
+            {messages[d.id] && <p className="text-[11px] text-emerald-700 mt-1">{messages[d.id]}</p>}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => publishDraft(d.id)}
+              disabled={busyId === d.id}
+              className="h-8 rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50"
+            >
+              公開する
+            </button>
+            <button
+              type="button"
+              onClick={() => deleteDraft(d.id)}
+              disabled={busyId === d.id}
+              className="h-8 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary disabled:opacity-50"
+            >
+              削除
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+type PublishedItem = {
+  id: string
+  slug: string
+  title: string
+  coverImage: string
+  brands: string[]
+  publishedAt: string
+}
+
+/** 投稿済みの古着記事一覧(直近20件)。編集・閲覧へのリンクのみで、ここ自体は読み取り専用 */
+function PublishedTab() {
+  const [items, setItems] = useState<PublishedItem[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch("/api/admin/vintage-shop/published")
+      .then((res) => res.json())
+      .then((data) => setItems(data.items))
+      .catch(() => setError("投稿済み記事の取得に失敗しました"))
+  }, [])
+
+  if (error) return <p className="text-sm text-destructive">{error}</p>
+  if (items === null) return <p className="text-sm text-muted-foreground">読み込み中...</p>
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">投稿済みの古着記事はまだありません。</p>
+
+  return (
+    <div className="space-y-3">
+      {items.map((a) => (
+        <div key={a.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={a.coverImage} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover border border-border" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold text-muted-foreground">{a.brands.map(shopLabel).join(" / ")}</p>
+            <p className="truncate text-sm font-semibold">{a.title}</p>
+            <p className="text-[11px] text-muted-foreground">{new Date(a.publishedAt).toLocaleDateString("ja-JP")}</p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <a
+              href={`/articles/${a.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-8 rounded-full border border-border px-3 text-xs font-semibold leading-8 hover:bg-secondary"
+            >
+              見る
+            </a>
+            <a
+              href={`/admin/articles/${a.id}/edit`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-8 rounded-full bg-primary px-3 text-xs font-bold leading-8 text-primary-foreground"
+            >
+              編集する
+            </a>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
