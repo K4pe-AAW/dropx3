@@ -577,7 +577,10 @@ export function EditArticleForm({ article }: { article: Article }) {
           </button>
         </div>
         <p className="text-[11px] text-muted-foreground mb-3">
-          メルカリ・Yahoo!ショッピングの検索リンクを、このキーワードでまとめて追加します。
+          {QUICK_AFFILIATE_RETAILERS.filter((item) => item.build)
+            .map((item) => item.retailer)
+            .join("・")}
+          の検索リンクを、このキーワードでまとめて追加します。
         </p>
 
         <div className="flex flex-wrap gap-2 mb-1.5">
