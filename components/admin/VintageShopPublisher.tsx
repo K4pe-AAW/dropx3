@@ -467,7 +467,7 @@ function DraftsTab({ refreshKey }: { refreshKey: number }) {
   async function load() {
     setError(null)
     try {
-      const res = await fetch("/api/admin/vintage-shop/drafts")
+      const res = await fetch("/api/admin/vintage-shop/drafts", { cache: "no-store" })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "下書きの取得に失敗しました")
       setDrafts(data.drafts)
@@ -564,7 +564,7 @@ function PublishedTab() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch("/api/admin/vintage-shop/published")
+    fetch("/api/admin/vintage-shop/published", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => setItems(data.items))
       .catch(() => setError("投稿済み記事の取得に失敗しました"))

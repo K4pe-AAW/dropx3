@@ -13,5 +13,5 @@ export async function GET() {
     publishedAt: a.publishedAt,
     updatedAt: a.updatedAt,
   }))
-  return NextResponse.json({ items })
+  return NextResponse.json({ items }, { headers: { "Cache-Control": "no-store" } })
 }
