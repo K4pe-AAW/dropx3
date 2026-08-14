@@ -19,6 +19,39 @@ function imagesFromClipboard(e: ClipboardEvent): File[] {
     .filter((f): f is File => f !== null)
 }
 
+const MAX_IMAGE_DIMENSION = 1600
+const IMAGE_QUALITY = 0.82
+
+/**
+ * 貼り付け・選択した画像を記事用サイズに圧縮する。無圧縮のスクリーンショット等を
+ * 複数枚まとめて送るとVercelのリクエストサイズ上限(約4.5MB)を超えて公開APIが
+ * 失敗する(実際に発生した不具合、"Request Entity Too Large"がJSONでなく返り
+ * クライアント側でJSON.parseエラーになる)。記事の表示に元解像度は不要なので、
+ * 長辺1600px・JPEG品質82%に揃えてから送る。
+ */
+async function compressImage(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file).catch(() => null)
+  if (!bitmap) return file
+
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height))
+  const width = Math.round(bitmap.width * scale)
+  const height = Math.round(bitmap.height * scale)
+
+  const canvas = document.createElement("canvas")
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return file
+  ctx.drawImage(bitmap, 0, 0, width, height)
+  bitmap.close()
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", IMAGE_QUALITY))
+  if (!blob || blob.size >= file.size) return file
+
+  const name = file.name.replace(/\.[^.]+$/, "") || "image"
+  return new File([blob], `${name}.jpg`, { type: "image/jpeg" })
+}
+
 /** 画像プレビュー用のobject URL。fileが変わるたびに古いURLを解放する */
 function useObjectUrl(file: File | null): string | null {
   const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
@@ -149,14 +182,36 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
       for (const f of galleryFiles) fd.append("galleryImages", f)
 
       const res = await fetch("/api/admin/vintage-shop/publish", { method: "POST", body: fd })
-      const data = await res.json()
+      const raw = await res.text()
+      let data: { error?: string; merged?: boolean; slug?: string }
+      try {
+        data = JSON.parse(raw)
+      } catch {
+        throw new Error(
+          res.status === 413 || /entity too large/i.test(raw)
+            ? "画像の合計サイズが大きすぎます(自動圧縮後もこの状態なら、画像の枚数を減らして分けて送ってください)"
+            : `サーバーエラー(${res.status}): ${raw.slice(0, 100)}`
+        )
+      }
       if (!res.ok) throw new Error(data.error)
-      setResult({ merged: data.merged, slug: data.slug })
+      setResult({ merged: !!data.merged, slug: data.slug ?? "" })
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : "公開に失敗しました")
     } finally {
       setPublishing(false)
     }
+  }
+
+  async function handleCoverFiles(files: File[]) {
+    const f = files[0]
+    if (!f) return
+    setCoverImageFile(await compressImage(f))
+  }
+
+  async function handleGalleryFiles(files: File[]) {
+    if (files.length === 0) return
+    const compressed = await Promise.all(files.map(compressImage))
+    setGalleryFiles((prev) => [...prev, ...compressed])
   }
 
   const published = !!result
@@ -236,15 +291,8 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
 
         <FieldGroup label="カバー画像（必須・1枚目のカット）">
           <div className="grid grid-cols-2 gap-2">
-            <PasteZone
-              onPasteImages={(imgs) => {
-                if (imgs[0]) setCoverImageFile(imgs[0])
-              }}
-            />
-            <FilePickerButton
-              text="📁 ファイルを選択"
-              onFiles={(files) => setCoverImageFile(files[0] ?? null)}
-            />
+            <PasteZone onPasteImages={handleCoverFiles} />
+            <FilePickerButton text="📁 ファイルを選択" onFiles={handleCoverFiles} />
           </div>
           {coverPreviewUrl && (
             <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -257,17 +305,8 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
 
         <FieldGroup label="追加の画像（カルーセルの残りカット。複数選択可・貼り付けも複数回できます）">
           <div className="grid grid-cols-2 gap-2">
-            <PasteZone
-              hint="1枚ずつ繰り返し貼り付け可"
-              onPasteImages={(imgs) => {
-                if (imgs.length > 0) setGalleryFiles((prev) => [...prev, ...imgs])
-              }}
-            />
-            <FilePickerButton
-              text="📁 ファイルを選択(複数可)"
-              multiple
-              onFiles={(files) => setGalleryFiles((prev) => [...prev, ...files])}
-            />
+            <PasteZone hint="1枚ずつ繰り返し貼り付け可" onPasteImages={handleGalleryFiles} />
+            <FilePickerButton text="📁 ファイルを選択(複数可)" multiple onFiles={handleGalleryFiles} />
           </div>
           {galleryFiles.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
