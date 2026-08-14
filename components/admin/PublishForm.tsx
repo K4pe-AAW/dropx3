@@ -50,6 +50,21 @@ function suggestedLinksFrom(queries: string[]): LinkDraft[] {
   return suggested.length > 0 ? suggested : [{ label: "", retailer: "", url: "", price: "" }]
 }
 
+/**
+ * ワンクリックでアフィリエイトリンクの行を追加するための販売店クイックボタン。
+ * メルカリだけは実際のURLまで自動生成できる(buildMercariSearchLinkが常に実在する検索結果
+ * ページを返すため)。他のASPは実トラッキングURLをA8.net/バリューコマース管理画面から
+ * 都度発行してもらう必要があるため、ボタン文言・店舗名だけ自動入力しURLは空欄のまま渡す
+ * (存在しないURLを勝手に作らない、という既存方針を守るため)。
+ */
+const QUICK_RETAILERS: { label: string; retailer: string; isMercari?: boolean }[] = [
+  { label: "メルカリで探す", retailer: "メルカリ", isMercari: true },
+  { label: "楽天市場で見る", retailer: "楽天市場" },
+  { label: "ZOZOTOWNで見る", retailer: "ZOZOTOWN" },
+  { label: "スニダンで見る", retailer: "SNKRDUNK" },
+  { label: "Yahoo!ショッピングで見る", retailer: "Yahoo!ショッピング" },
+]
+
 export function PublishForm({ draft }: { draft: Draft }) {
   const router = useRouter()
   const [title, setTitle] = useState(draft.title)
@@ -93,6 +108,28 @@ export function PublishForm({ draft }: { draft: Draft }) {
 
   function updateLink(i: number, patch: Partial<LinkDraft>) {
     setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
+  }
+
+  function removeLink(i: number) {
+    setLinks((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  function addQuickLink(item: (typeof QUICK_RETAILERS)[number]) {
+    if (item.isMercari) {
+      const query = window.prompt(
+        "メルカリの検索キーワードを入力してください（具体的な商品名。カテゴリ名のみは不可）",
+        draft.suggestedAffiliateSearch[0] ?? ""
+      )
+      if (!query || !query.trim()) return
+      try {
+        const link = buildMercariSearchLink(query.trim())
+        setLinks((prev) => [...prev, { label: link.label, retailer: link.retailer, url: link.url, price: "" }])
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : "リンクの作成に失敗しました")
+      }
+      return
+    }
+    setLinks((prev) => [...prev, { label: item.label, retailer: item.retailer, url: "", price: "" }])
   }
 
   function updateGalleryImage(i: number, patch: Partial<GalleryImageDraft>) {
@@ -476,7 +513,19 @@ export function PublishForm({ draft }: { draft: Draft }) {
       )}
 
       <div>
-        <p className="text-xs font-semibold mb-2">アフィリエイトリンク</p>
+        <p className="text-xs font-semibold mb-2">アフィリエイトリンク（複数可）</p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {QUICK_RETAILERS.map((item) => (
+            <button
+              key={item.retailer}
+              type="button"
+              onClick={() => addQuickLink(item)}
+              className="h-8 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary"
+            >
+              + {item.retailer}
+            </button>
+          ))}
+        </div>
         <div className="space-y-3">
           {links.map((link, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
@@ -504,6 +553,13 @@ export function PublishForm({ draft }: { draft: Draft }) {
                 value={link.price}
                 onChange={(e) => updateLink(i, { price: e.target.value })}
               />
+              <button
+                type="button"
+                onClick={() => removeLink(i)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                削除
+              </button>
             </div>
           ))}
         </div>
@@ -512,7 +568,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
           onClick={() => setLinks((prev) => [...prev, { label: "", retailer: "", url: "", price: "" }])}
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
-          + リンクを追加
+          + 空欄のリンクを追加
         </button>
       </div>
 
