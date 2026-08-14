@@ -124,7 +124,7 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
 
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ merged: boolean; slug: string } | null>(null)
+  const [result, setResult] = useState<{ merged: boolean; slug: string; id: string } | null>(null)
 
   const coverPreviewUrl = useObjectUrl(coverImageFile)
 
@@ -183,7 +183,7 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
 
       const res = await fetch("/api/admin/vintage-shop/publish", { method: "POST", body: fd })
       const raw = await res.text()
-      let data: { error?: string; merged?: boolean; slug?: string }
+      let data: { error?: string; merged?: boolean; slug?: string; id?: string }
       try {
         data = JSON.parse(raw)
       } catch {
@@ -194,7 +194,7 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
         )
       }
       if (!res.ok) throw new Error(data.error)
-      setResult({ merged: !!data.merged, slug: data.slug ?? "" })
+      setResult({ merged: !!data.merged, slug: data.slug ?? "", id: data.id ?? "" })
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : "公開に失敗しました")
     } finally {
@@ -325,6 +325,15 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
           <a href={`/articles/${result.slug}`} target="_blank" rel="noopener noreferrer" className="underline">
             /articles/{result.slug}
           </a>
+          {result.id && (
+            <>
+              {" "}
+              ・
+              <a href={`/admin/articles/${result.id}/edit`} target="_blank" rel="noopener noreferrer" className="underline">
+                この記事を編集する
+              </a>
+            </>
+          )}
         </p>
       )}
 

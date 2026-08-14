@@ -71,7 +71,7 @@ export type ShopUpdateInput = {
 }
 
 export type ShopUpdateResult =
-  | { ok: true; merged: boolean; slug: string }
+  | { ok: true; merged: boolean; slug: string; id: string }
   | { error: string; status: number; existingSlug?: string }
 
 export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpdateResult> {
@@ -124,7 +124,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
     }
     existingToday.updatedAt = new Date().toISOString()
     await writeArticles(data)
-    return { ok: true, merged: true, slug: existingToday.slug }
+    return { ok: true, merged: true, slug: existingToday.slug, id: existingToday.id }
   }
 
   const newId = generateId(`${input.shop}-${postUrl}-${Date.now()}`)
@@ -150,5 +150,5 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
   data.articles.unshift(article)
   data.lastUpdated = new Date().toISOString()
   await writeArticles(data)
-  return { ok: true, merged: false, slug: article.slug }
+  return { ok: true, merged: false, slug: article.slug, id: article.id }
 }
