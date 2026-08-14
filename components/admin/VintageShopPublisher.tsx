@@ -317,16 +317,27 @@ function PostEntryCard({ index, onRemove, removable }: { index: number; onRemove
  * ファイル選択ボタンとは別に独立させた貼り付け専用エリア。同じ枠内に重ねると
  * クリックが常にファイル選択側に奪われてしまう(実際に報告のあった不具合)ため、
  * この要素はクリックでは何も起きず、フォーカスした状態でCtrl+V/Cmd+Vを押すことだけを想定している。
+ * Safariはボタンでないただのdivをクリックしただけではキーボードフォーカスを移さないため、
+ * onClickで明示的にfocus()を呼ぶ(呼ばないとクリック後にCtrl+Vを押しても何も起きない)。
+ * フォーカスできているかどうかを見た目でも分かるよう、フォーカス中は文言を変える。
  */
 function PasteZone({ onPasteImages, hint }: { onPasteImages: (files: File[]) => void; hint?: string }) {
+  const [focused, setFocused] = useState(false)
   return (
     <div
       tabIndex={0}
+      onClick={(e) => e.currentTarget.focus()}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       onPaste={(e) => onPasteImages(imagesFromClipboard(e))}
-      className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground outline-none focus:border-solid focus:border-ring focus:bg-secondary/50 focus:ring-2 focus:ring-ring"
+      className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-3 text-center text-xs outline-none cursor-pointer ${
+        focused ? "border-solid border-ring bg-secondary ring-2 ring-ring text-foreground" : "border-dashed border-border text-muted-foreground"
+      }`}
     >
-      <span>📋 クリックして貼り付け</span>
-      <span className="text-[10px] text-muted-foreground/70">(Instagramで画像をコピー→Ctrl+V / Cmd+V{hint ? `・${hint}` : ""})</span>
+      <span>{focused ? "✅ 準備OK・貼り付けてください" : "📋 クリックして貼り付け"}</span>
+      <span className="text-[10px] text-muted-foreground/70">
+        {focused ? "Ctrl+V / Cmd+V" : `(Instagramで画像をコピー→Ctrl+V / Cmd+V${hint ? `・${hint}` : ""})`}
+      </span>
     </div>
   )
 }
