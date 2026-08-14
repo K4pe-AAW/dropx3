@@ -3,7 +3,7 @@ import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
 
-const PAGE_SIZE = 15
+const PAGE_SIZE = 12
 
 export default async function HomePage({
   searchParams,

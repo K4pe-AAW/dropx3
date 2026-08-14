@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
 import { siteConfig } from "@/lib/site-config"
 
-const PAGE_SIZE = 15
+const PAGE_SIZE = 12
 
 export async function generateMetadata({
   params,

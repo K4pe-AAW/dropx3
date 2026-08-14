@@ -3,7 +3,7 @@ import { getAllArticles } from "@/lib/storage"
 import { ArticleCard } from "@/components/ArticleCard"
 import { Pagination } from "@/components/Pagination"
 
-const PAGE_SIZE = 15
+const PAGE_SIZE = 12
 
 export const metadata: Metadata = { title: "記事を探す" }
 

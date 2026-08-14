@@ -58,29 +58,29 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
         {message && <span className="text-xs text-muted-foreground">{message}</span>}
       </div>
 
-      <ul className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-6">
         {drafts.map((d) => (
-          <li key={d.id} className="flex items-start gap-3 border border-border rounded-xl p-4">
-            <input
-              type="checkbox"
-              checked={selected.has(d.id)}
-              onChange={() => toggle(d.id)}
-              className="mt-1 size-4 shrink-0"
-              aria-label={`${d.title}を選択`}
-            />
-            <div className="min-w-0 flex-1">
-              <Link href={`/admin/drafts/${d.id}`} className="font-bold text-sm hover:underline">
+          <div key={d.id} className="flex flex-col gap-2 border border-border rounded-xl p-4">
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={selected.has(d.id)}
+                onChange={() => toggle(d.id)}
+                className="mt-1 size-4 shrink-0"
+                aria-label={`${d.title}を選択`}
+              />
+              <Link href={`/admin/drafts/${d.id}`} className="font-bold text-sm hover:underline line-clamp-2">
                 {d.title}
               </Link>
-              <p className="text-xs text-muted-foreground mt-1">{d.excerpt}</p>
-              <p className="text-[11px] text-muted-foreground/70 mt-2">
-                {categoryLabel(d.category)} ・ {d.brands.join(", ") || "ブランドなし"} ・ 出典:{" "}
-                {d.sourceRefs.map((r) => r.name).join(", ")}
-              </p>
             </div>
-          </li>
+            <p className="text-xs text-muted-foreground line-clamp-3">{d.excerpt}</p>
+            <p className="text-[11px] text-muted-foreground/70 mt-auto pt-1">
+              {categoryLabel(d.category)} ・ {d.brands.join(", ") || "ブランドなし"} ・ 出典:{" "}
+              {d.sourceRefs.map((r) => r.name).join(", ")}
+            </p>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   )
 }

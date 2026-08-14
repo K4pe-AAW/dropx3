@@ -6,17 +6,28 @@ import { DeleteAllDraftsButton } from "@/components/admin/DeleteAllDraftsButton"
 import { LogoutButton } from "@/components/admin/LogoutButton"
 import { ArticleSearch } from "@/components/admin/ArticleSearch"
 import { DraftsList } from "@/components/admin/DraftsList"
+import { Pagination } from "@/components/Pagination"
 
 export const metadata: Metadata = { title: "管理画面" }
 
 /** 運用ガイド(Artifact)。同じfile_pathで再公開すればURLは変わらない */
 const ADMIN_GUIDE_URL = "https://claude.ai/code/artifact/643aaaf7-ac93-4cc5-8924-29896976591c"
 
-export default async function AdminPage() {
+const PAGE_SIZE = 15
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}) {
+  const { page } = await searchParams
   const [drafts, articles] = await Promise.all([getPendingDrafts(), getAllArticles()])
+  const totalPages = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE))
+  const currentPage = Math.min(Math.max(1, Number(page) || 1), totalPages)
+  const pageDrafts = drafts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
+    <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-xl font-black">管理画面</h1>
         <div className="flex items-center gap-3">
@@ -52,7 +63,10 @@ export default async function AdminPage() {
           を実行してください。
         </p>
       ) : (
-        <DraftsList drafts={drafts} />
+        <>
+          <DraftsList drafts={pageDrafts} />
+          <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/admin" />
+        </>
       )}
 
       <div className="mt-12 pt-8 border-t border-border">
