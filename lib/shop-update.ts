@@ -21,6 +21,25 @@ function jstDateKey(iso: string): string {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Instagram投稿URLを正規化する(?img_index=N・?locale=xx等のクエリを除去し、末尾スラッシュを揃える)。
+ * 同じ投稿でもクエリ違いで別URL扱いになり重複チェック(sourceRefs)が効かなくなるのを防ぐ。
+ */
+export function normalizePostUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    if (/(^|\.)instagram\.com$/.test(u.hostname)) {
+      u.search = ""
+      u.hash = ""
+      if (!u.pathname.endsWith("/")) u.pathname += "/"
+      return u.toString()
+    }
+    return url
+  } catch {
+    return url
+  }
+}
+
 export function isAllowedImageUrl(url: string): boolean {
   if (url.startsWith("/") && !url.startsWith("//")) return true
   return isSafeExternalUrl(url)
@@ -69,6 +88,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
   if (!input.postUrl || !isSafeExternalUrl(input.postUrl)) {
     return { error: "postUrl(Instagram投稿URL)が必須です", status: 400 }
   }
+  const postUrl = normalizePostUrl(input.postUrl)
   if (!input.mercariSearchQuery) {
     return {
       error: "mercariSearchQueryが必須です(例: 'HELMUT LANG デニムショーツ'。'古着'のようなカテゴリ名のみは不可)",
@@ -85,7 +105,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
 
   const data = await readArticles()
 
-  const dup = data.articles.find((a) => a.sourceRefs.some((r) => r.url === input.postUrl))
+  const dup = data.articles.find((a) => a.sourceRefs.some((r) => r.url === postUrl))
   if (dup) {
     return { error: "この投稿は既に記事化済みです", status: 409, existingSlug: dup.slug }
   }
@@ -98,7 +118,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
   if (existingToday) {
     existingToday.galleryImages.push({ url: input.coverImage, alt: input.coverImageAlt }, ...input.galleryImages)
     existingToday.bodyParagraphs.push(...input.bodyParagraphs)
-    existingToday.sourceRefs.push({ name: shopInfo.label, url: input.postUrl })
+    existingToday.sourceRefs.push({ name: shopInfo.label, url: postUrl })
     if (!existingToday.affiliateLinks.some((l) => l.url === mercariLink.url)) {
       existingToday.affiliateLinks.push(...sanitizeAffiliateLinks([mercariLink]))
     }
@@ -107,7 +127,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
     return { ok: true, merged: true, slug: existingToday.slug }
   }
 
-  const newId = generateId(`${input.shop}-${input.postUrl}-${Date.now()}`)
+  const newId = generateId(`${input.shop}-${postUrl}-${Date.now()}`)
   const article: Article = {
     id: newId,
     slug: generateSlug(input.title, newId),
@@ -124,7 +144,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
     featured: false,
     affiliateLinks: sanitizeAffiliateLinks([mercariLink]),
     officialLinks: [{ label: shopInfo.label, url: shopInfo.officialUrl }],
-    sourceRefs: [{ name: shopInfo.label, url: input.postUrl }],
+    sourceRefs: [{ name: shopInfo.label, url: postUrl }],
   }
 
   data.articles.unshift(article)

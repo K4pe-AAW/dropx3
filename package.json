@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test \"lib/source-watch/**/*.test.ts\" \"components/**/*.test.tsx\"",
+    "test": "tsx --test \"lib/**/*.test.ts\" \"components/**/*.test.tsx\"",
     "collect": "tsx scripts/collect.ts",
     "seed-blob": "tsx scripts/seed-blob.ts"
   },
