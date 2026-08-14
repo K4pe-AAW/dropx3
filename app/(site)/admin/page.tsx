@@ -5,7 +5,7 @@ import { CollectButton } from "@/components/admin/CollectButton"
 import { DeleteAllDraftsButton } from "@/components/admin/DeleteAllDraftsButton"
 import { LogoutButton } from "@/components/admin/LogoutButton"
 import { ArticleSearch } from "@/components/admin/ArticleSearch"
-import { categoryLabel } from "@/lib/site-config"
+import { DraftsList } from "@/components/admin/DraftsList"
 
 export const metadata: Metadata = { title: "管理画面" }
 
@@ -52,20 +52,7 @@ export default async function AdminPage() {
           を実行してください。
         </p>
       ) : (
-        <ul className="space-y-3">
-          {drafts.map((d) => (
-            <li key={d.id} className="border border-border rounded-xl p-4">
-              <Link href={`/admin/drafts/${d.id}`} className="font-bold text-sm hover:underline">
-                {d.title}
-              </Link>
-              <p className="text-xs text-muted-foreground mt-1">{d.excerpt}</p>
-              <p className="text-[11px] text-muted-foreground/70 mt-2">
-                {categoryLabel(d.category)} ・{" "}
-                {d.brands.join(", ") || "ブランドなし"} ・ 出典: {d.sourceRefs.map((r) => r.name).join(", ")}
-              </p>
-            </li>
-          ))}
-        </ul>
+        <DraftsList drafts={drafts} />
       )}
 
       <div className="mt-12 pt-8 border-t border-border">
