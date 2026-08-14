@@ -453,16 +453,23 @@ type VintageDraft = {
   shop: string
   title: string
   excerpt: string
+  bodyParagraphs: string[]
+  postUrl: string
   coverImage: string
   createdAt: string
 }
 
-/** 保存済みの下書き一覧。「公開する」でそのまま公開、「削除」で破棄する */
+/**
+ * 保存済みの下書き一覧。「公開する」でそのまま公開、「削除」で破棄する。
+ * 「本文を確認」で全文を展開表示し、あわせて元のInstagram投稿へのリンクも出す——
+ * AIが本文を組み立てた元ネタ(投稿URL)をレビュー時にクリックして見比べられるようにするため。
+ */
 function DraftsTab({ refreshKey }: { refreshKey: number }) {
   const [drafts, setDrafts] = useState<VintageDraft[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Record<string, string>>({})
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function load() {
     setError(null)
@@ -515,36 +522,80 @@ function DraftsTab({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="space-y-3">
-      {drafts.map((d) => (
-        <div key={d.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={d.coverImage} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover border border-border" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold text-muted-foreground">{shopLabel(d.shop)}</p>
-            <p className="truncate text-sm font-semibold">{d.title}</p>
-            <p className="text-[11px] text-muted-foreground">{new Date(d.createdAt).toLocaleString("ja-JP")}</p>
-            {messages[d.id] && <p className="text-[11px] text-emerald-700 mt-1">{messages[d.id]}</p>}
+      {drafts.map((d) => {
+        const expanded = expandedId === d.id
+        return (
+          <div key={d.id} className="rounded-xl border border-border bg-card p-3">
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={d.coverImage} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover border border-border" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground">{shopLabel(d.shop)}</p>
+                  {d.postUrl && (
+                    <a
+                      href={d.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-muted-foreground underline hover:text-foreground"
+                    >
+                      元の投稿を見る ↗
+                    </a>
+                  )}
+                </div>
+                <p className="truncate text-sm font-semibold">{d.title}</p>
+                <p className="text-[11px] text-muted-foreground">{new Date(d.createdAt).toLocaleString("ja-JP")}</p>
+                {messages[d.id] && <p className="text-[11px] text-emerald-700 mt-1">{messages[d.id]}</p>}
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : d.id)}
+                  className="h-8 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary"
+                >
+                  {expanded ? "本文を閉じる" : "本文を確認"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => publishDraft(d.id)}
+                  disabled={busyId === d.id}
+                  className="h-8 rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50"
+                >
+                  公開する
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteDraft(d.id)}
+                  disabled={busyId === d.id}
+                  className="h-8 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary disabled:opacity-50"
+                >
+                  削除
+                </button>
+              </div>
+            </div>
+            {expanded && (
+              <div className="mt-3 space-y-2 border-t border-border pt-3 text-sm">
+                <p className="text-muted-foreground">{d.excerpt}</p>
+                {d.bodyParagraphs.map((p, i) => (
+                  <p key={i} className="leading-relaxed">
+                    {p}
+                  </p>
+                ))}
+                {d.postUrl && (
+                  <a
+                    href={d.postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    元の投稿と照らし合わせて確認する ↗
+                  </a>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex shrink-0 gap-2">
-            <button
-              type="button"
-              onClick={() => publishDraft(d.id)}
-              disabled={busyId === d.id}
-              className="h-8 rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50"
-            >
-              公開する
-            </button>
-            <button
-              type="button"
-              onClick={() => deleteDraft(d.id)}
-              disabled={busyId === d.id}
-              className="h-8 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary disabled:opacity-50"
-            >
-              削除
-            </button>
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
