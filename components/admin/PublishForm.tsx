@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import type { Draft, Category } from "@/lib/types"
 import { siteConfig } from "@/lib/site-config"
+import { buildMercariSearchLink } from "@/lib/affiliate"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
 type GalleryImageDraft = { url: string; alt: string }
@@ -28,6 +29,27 @@ type PurchaseChannelDraft = {
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
 
+/**
+ * AIが提案した検索キーワードから、実在のメルカリ検索アフィリエイトリンク(A8.net、既存記事群と
+ * 同じトラッキングコード)を自動で組み立てる。存在しないURLを捏造するわけではなく、
+ * 「メルカリでこのキーワードを検索した結果ページ」という常に実在するリンクを提案するだけなので、
+ * suggestedAffiliateSearch(AI下書き由来、実リンクを直接生成させない既存方針)の趣旨と矛盾しない。
+ * 候補が無ければ従来通り空欄1行から始める。
+ */
+function suggestedLinksFrom(queries: string[]): LinkDraft[] {
+  const suggested = queries
+    .map((q) => {
+      try {
+        const link = buildMercariSearchLink(q)
+        return { label: link.label, retailer: link.retailer, url: link.url, price: "" }
+      } catch {
+        return null
+      }
+    })
+    .filter((l): l is LinkDraft => l !== null)
+  return suggested.length > 0 ? suggested : [{ label: "", retailer: "", url: "", price: "" }]
+}
+
 export function PublishForm({ draft }: { draft: Draft }) {
   const router = useRouter()
   const [title, setTitle] = useState(draft.title)
@@ -39,7 +61,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
   const [coverImage, setCoverImage] = useState(draft.suggestedCoverImage ?? "")
   const [coverImageAlt, setCoverImageAlt] = useState(draft.title)
   const [featured, setFeatured] = useState(false)
-  const [links, setLinks] = useState<LinkDraft[]>([{ label: "", retailer: "", url: "", price: "" }])
+  const [links, setLinks] = useState<LinkDraft[]>(() => suggestedLinksFrom(draft.suggestedAffiliateSearch))
   const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>(
     (draft.suggestedGalleryImages ?? []).map((g) => ({ url: g.url, alt: g.alt }))
   )
@@ -449,8 +471,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
 
       {draft.suggestedAffiliateSearch.length > 0 && (
         <p className="text-xs text-muted-foreground leading-relaxed">
-          AIが提案した検索キーワード（A8.net/バリューコマースの管理画面でこれらの商品を検索し、
-          発行されたリンクを下に貼ってください）：{draft.suggestedAffiliateSearch.join(" / ")}
+          AIが提案した検索キーワード({draft.suggestedAffiliateSearch.join(" / ")})から、下にメルカリ検索リンクを自動で入力しています。内容を確認し、ZOZOTOWN/楽天等より適したASPのリンクがA8.net/バリューコマースの管理画面で見つかれば差し替えてください。
         </p>
       )}
 
