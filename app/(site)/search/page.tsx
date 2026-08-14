@@ -1,15 +1,18 @@
 import type { Metadata } from "next"
 import { getAllArticles } from "@/lib/storage"
 import { ArticleCard } from "@/components/ArticleCard"
+import { Pagination } from "@/components/Pagination"
+
+const PAGE_SIZE = 15
 
 export const metadata: Metadata = { title: "記事を探す" }
 
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
-  const { q } = await searchParams
+  const { q, page } = await searchParams
   const query = (q ?? "").trim()
   const all = query ? await getAllArticles() : []
   const results = query
@@ -18,6 +21,10 @@ export default async function SearchPage({
         return haystack.includes(query.toLowerCase())
       })
     : []
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE))
+  const currentPage = Math.min(Math.max(1, Number(page) || 1), totalPages)
+  const list = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -48,10 +55,11 @@ export default async function SearchPage({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-8">
-        {results.map((a) => (
+        {list.map((a) => (
           <ArticleCard key={a.id} article={a} />
         ))}
       </div>
+      <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/search" extraParams={{ q: query }} />
     </div>
   )
 }
