@@ -156,6 +156,8 @@ export type Draft = {
   sourceWatchProductId?: string
   suggestedCoverImage?: string
   suggestedGalleryImages?: GalleryImage[]
+  /** RSS収集したYouTube動画のsourceUrl(watch?v=…)から自動抽出したvideoId。category="youtube"の場合のみ */
+  suggestedYoutubeVideoId?: string
   suggestedColorways?: ColorwayInfo[]
   suggestedOfficialLinks?: OfficialLink[]
   suggestedPurchaseChannels?: PurchaseChannelInfo[]

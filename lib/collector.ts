@@ -1,9 +1,17 @@
 import Parser from "rss-parser"
-import { SOURCES, PR_TIMES_RSS_URL, PR_TIMES_KEYWORDS } from "./sources"
+import { SOURCES, YOUTUBE_SOURCES, PR_TIMES_RSS_URL, PR_TIMES_KEYWORDS } from "./sources"
 import { RawItem } from "./types"
 import { generateId } from "./storage"
 
-const parser = new Parser({ timeout: 15000 })
+/**
+ * customFields.item: YouTubeのチャンネルフィードはAtom+media namespaceで、動画の説明文が
+ * <media:group><media:description>に入っている(標準のcontentSnippetにはマッピングされない)。
+ * 他ソースのRSS 2.0フィードには存在しないフィールドなので、無い場合はundefinedのまま無害。
+ */
+const parser = new Parser<Record<string, never>, { mediaGroup?: { "media:description"?: string[] } }>({
+  timeout: 15000,
+  customFields: { item: [["media:group", "mediaGroup", { keepArray: false }]] },
+})
 
 type FeedItem = {
   title?: string
@@ -11,16 +19,18 @@ type FeedItem = {
   contentSnippet?: string
   isoDate?: string
   pubDate?: string
+  mediaGroup?: { "media:description"?: string[] }
 }
 
 function toRawItem(sourceName: string, item: FeedItem): RawItem | null {
   if (!item.title || !item.link) return null
+  const snippet = item.contentSnippet || item.mediaGroup?.["media:description"]?.[0]
   return {
     id: generateId(item.link),
     sourceName,
     sourceUrl: item.link,
     title: item.title.trim(),
-    snippet: item.contentSnippet?.slice(0, 300),
+    snippet: snippet?.slice(0, 300),
     publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
     fetchedAt: new Date().toISOString(),
   }
@@ -30,7 +40,7 @@ export async function collectFromRss(): Promise<{ items: RawItem[]; errors: stri
   const items: RawItem[] = []
   const errors: string[] = []
 
-  for (const source of SOURCES) {
+  for (const source of [...SOURCES, ...YOUTUBE_SOURCES]) {
     try {
       const feed = await parser.parseURL(source.rssUrl)
       for (const entry of feed.items.slice(0, 10)) {

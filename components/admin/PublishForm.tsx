@@ -60,6 +60,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
   const [tagsText, setTagsText] = useState(draft.tags.join(", "))
   const [coverImage, setCoverImage] = useState(draft.suggestedCoverImage ?? "")
   const [coverImageAlt, setCoverImageAlt] = useState(draft.title)
+  const [youtubeVideoId, setYoutubeVideoId] = useState(draft.suggestedYoutubeVideoId ?? "")
   const [featured, setFeatured] = useState(false)
   const [links, setLinks] = useState<LinkDraft[]>(() => suggestedLinksFrom(draft.suggestedAffiliateSearch))
   const [autoLinkQuery, setAutoLinkQuery] = useState(draft.suggestedAffiliateSearch[0] ?? "")
@@ -192,6 +193,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
         coverImage,
         coverImageAlt,
         featured,
+        ...(youtubeVideoId.trim() ? { youtubeVideoId: youtubeVideoId.trim() } : {}),
         affiliateLinks,
         galleryImages: galleryImages.filter((g) => g.url.trim()),
         officialLinks: officialLinks.filter((l) => l.url.trim()),
@@ -296,6 +298,17 @@ export function PublishForm({ draft }: { draft: Draft }) {
       <Field label="画像の代替テキスト">
         <input className={inputClass} value={coverImageAlt} onChange={(e) => setCoverImageAlt(e.target.value)} />
       </Field>
+
+      {category === "youtube" && (
+        <Field label="YouTube動画ID（記事内で公式プレイヤーとして埋め込み表示）">
+          <input
+            className={inputClass}
+            value={youtubeVideoId}
+            onChange={(e) => setYoutubeVideoId(e.target.value)}
+            placeholder="例: 5YLKl50OjQc（watch?v=の後ろの部分）"
+          />
+        </Field>
+      )}
 
       <div>
         <p className="text-xs font-semibold mb-2">追加の画像（記事内にギャラリー表示・任意）</p>

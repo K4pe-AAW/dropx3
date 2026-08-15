@@ -129,19 +129,39 @@ export const VINTAGE_SHOP_SOURCES: BrandSource[] = [
 ]
 
 /**
- * YouTubeチャンネルの動画・サムネイルはクリエイター自身の著作物。VINTAGE_SHOP_SOURCESと同じ理由で
- * 自己ホストしない — サムネイルの保存はもちろん、「権利表記(クレジット)さえ付ければ使ってよい」
- * という考え方も採用しない(表示許諾とクレジット表示は別問題。無許諾転載はクレジットの有無に
- * 関わらず無許諾転載のまま)。記事化する場合は動画の内容を独自の文章で紹介し、動画への
- * リンク(officialLinks)を張るに留める。カバー画像が必要な場合はライセンスフリーの
- * ストック写真等、別途権利がクリアな画像を使うこと。
+ * YouTubeチャンネルの動画・サムネイルはクリエイター自身の著作物のため、ダウンロード保存(自己ホスト)は
+ * しない。ただしYouTube公式の埋め込みプレイヤー(components/YouTubeEmbed.tsx)とYouTube公式CDNの
+ * サムネイル直リンク(img.youtube.com/vi/{videoId}/hqdefault.jpg)は転載ではなくYouTube自身が
+ * 提供する参照手段なので使ってよい(2026-08-08の実装で確立済みの方針)。
+ * rssUrlはYouTube公式のチャンネルRSS(Atom)フィード。@ハンドルではなくチャンネルID(UC…)が必要なため、
+ * チャンネルページの<link rel="canonical">から取得したものを使う。
  */
-export const YOUTUBE_SOURCES: BrandSource[] = [
-  { name: "石川俊介", url: "https://www.youtube.com/@Shunsuke_Ishikawa" },
-  { name: "nakamu_nakamu", url: "https://www.youtube.com/@nakamu_nakamu" },
-  { name: "Takahiro Kawashima", url: "https://www.youtube.com/@takahiro_kawashima" },
-  { name: "YUYA OFUJI CHANNEL", url: "https://www.youtube.com/@YUYAOFUJICHANNEL" },
-  { name: "Lou vintage mix", url: "https://www.youtube.com/@lou_vintage_mix_dayoff" },
+export const YOUTUBE_SOURCES: SourceConfig[] = [
+  {
+    name: "石川俊介",
+    rssUrl: "https://www.youtube.com/feeds/videos.xml?channel_id=UCOxDy_5spY9R7MzY5tyuIHg",
+    siteUrl: "https://www.youtube.com/@Shunsuke_Ishikawa",
+  },
+  {
+    name: "nakamu_nakamu",
+    rssUrl: "https://www.youtube.com/feeds/videos.xml?channel_id=UCVxR92R3kl7pr0CYY0podOA",
+    siteUrl: "https://www.youtube.com/@nakamu_nakamu",
+  },
+  {
+    name: "Takahiro Kawashima",
+    rssUrl: "https://www.youtube.com/feeds/videos.xml?channel_id=UCagYXYqBUVIdE7gKc6bcuSA",
+    siteUrl: "https://www.youtube.com/@takahiro_kawashima",
+  },
+  {
+    name: "YUYA OFUJI CHANNEL",
+    rssUrl: "https://www.youtube.com/feeds/videos.xml?channel_id=UCcR5p5UTpIF9I5AqqZOW-Og",
+    siteUrl: "https://www.youtube.com/@YUYAOFUJICHANNEL",
+  },
+  {
+    name: "Lou vintage mix",
+    rssUrl: "https://www.youtube.com/feeds/videos.xml?channel_id=UCLA_y3n1leleGr4UBnEHvUA",
+    siteUrl: "https://www.youtube.com/@lou_vintage_mix_dayoff",
+  },
 ]
 
 /**

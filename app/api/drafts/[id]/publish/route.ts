@@ -104,6 +104,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const affiliateLinks: AffiliateLink[] = sanitizeAffiliateLinks(
     Array.isArray(body.affiliateLinks) ? (body.affiliateLinks as AffiliateLink[]) : []
   )
+  const youtubeVideoIdInput: string = typeof body.youtubeVideoId === "string" ? body.youtubeVideoId.trim() : ""
+  const youtubeVideoId = /^[A-Za-z0-9_-]{6,20}$/.test(youtubeVideoIdInput) ? youtubeVideoIdInput : undefined
   const galleryImages: GalleryImage[] = sanitizeGalleryImages(body.galleryImages)
   const officialLinks: OfficialLink[] = sanitizeOfficialLinks(body.officialLinks)
   const colorways: ColorwayInfo[] = sanitizeColorways(body.colorways)
@@ -135,6 +137,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     tags,
     publishedAt: new Date().toISOString(),
     featured: Boolean(body.featured),
+    ...(youtubeVideoId ? { youtubeVideoId } : {}),
     ...(colorways.length > 0 ? { colorways } : {}),
     ...(purchaseChannels.length > 0 ? { purchaseChannels } : {}),
     affiliateLinks,

@@ -6,6 +6,24 @@ import { getOpenAIClient } from "./openai-client"
 const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
 const DEFAULT_CATEGORY: Category = "sneaker"
 
+/**
+ * YouTube動画のwatch URLからvideoIdを取り出す。RawItem.sourceUrlがYouTubeチャンネルRSS由来の
+ * 場合のみ一致する(lib/collector.tsがそのままlinkをsourceUrlに使っているため)。
+ * 動画自体のサムネイルはYouTube公式CDNの直リンクなら自己ホスト不要で使える方針
+ * (lib/sources.tsのYOUTUBE_SOURCESコメント参照)なので、videoIdが取れたらカバー画像も
+ * 自動で埋める。
+ */
+export function extractYoutubeVideoId(url: string): string | undefined {
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname !== "www.youtube.com" && parsed.hostname !== "youtube.com") return undefined
+    if (parsed.pathname !== "/watch") return undefined
+    return parsed.searchParams.get("v") ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
 const SYSTEM_PROMPT = `あなたはストリートファッション/スニーカーニュースメディア「${siteConfig.name}」の編集者です。
 渡される情報(タイトル・抜粋・出典)は他メディアの記事です。丸写しはせず、事実関係だけを踏まえて
 ${siteConfig.name}独自の文章としてゼロから書き直してください。出典の文章表現をそのまま流用してはいけません。
@@ -88,6 +106,7 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
   if (!content) throw new Error("OpenAIから空のレスポンスが返されました")
 
   const result: DraftResult = JSON.parse(content)
+  const youtubeVideoId = extractYoutubeVideoId(item.sourceUrl)
 
   return {
     id: generateId(`${item.sourceUrl}-draft`),
@@ -103,6 +122,12 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
       : [],
     sourceRefs: [{ name: item.sourceName, url: item.sourceUrl }],
     createdAt: new Date().toISOString(),
+    ...(youtubeVideoId
+      ? {
+          suggestedYoutubeVideoId: youtubeVideoId,
+          suggestedCoverImage: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`,
+        }
+      : {}),
   }
 }
 
