@@ -117,6 +117,21 @@ export type ArticlesData = {
   lastUpdated: string
 }
 
+/**
+ * 予約公開待ちの記事。中身はArticleとほぼ同じ(公開時にそのままarticles.jsonへ移すだけで済むように)
+ * だが、公開日時が未来のscheduledPublishAtに置き換わっている。scheduledPublishAtを過ぎたら
+ * cron(app/api/cron/publish-scheduled)がpublishedAt=scheduledPublishAtとしてarticles.jsonへ
+ * 昇格させる。それまでの間、articles.jsonには一切存在しないため公開系の読み取り経路
+ * (getAllArticles等)を一切変更せずに完全非公開を実現できる。
+ */
+export type ScheduledArticle = Omit<Article, "publishedAt"> & {
+  scheduledPublishAt: string // ISO 8601
+}
+
+export type ScheduledArticlesData = {
+  scheduled: ScheduledArticle[]
+}
+
 // --- 収集パイプライン (collector -> AI下書き -> レビュー -> 公開) ---
 
 export type RawItem = {

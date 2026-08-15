@@ -62,6 +62,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
   const [coverImageAlt, setCoverImageAlt] = useState(draft.title)
   const [youtubeVideoId, setYoutubeVideoId] = useState(draft.suggestedYoutubeVideoId ?? "")
   const [featured, setFeatured] = useState(false)
+  const [scheduledPublishAt, setScheduledPublishAt] = useState("")
   const [links, setLinks] = useState<LinkDraft[]>(() => suggestedLinksFrom(draft.suggestedAffiliateSearch))
   const [autoLinkQuery, setAutoLinkQuery] = useState(draft.suggestedAffiliateSearch[0] ?? "")
   const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>(
@@ -177,7 +178,10 @@ export function PublishForm({ draft }: { draft: Draft }) {
         ...(l.price.trim() ? { price: l.price.trim() } : {}),
       }))
 
-    const res = await fetch(`/api/drafts/${draft.id}/publish`, {
+    const isScheduled = Boolean(scheduledPublishAt)
+    const endpoint = isScheduled ? `/api/drafts/${draft.id}/schedule` : `/api/drafts/${draft.id}/publish`
+
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -194,6 +198,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
         coverImageAlt,
         featured,
         ...(youtubeVideoId.trim() ? { youtubeVideoId: youtubeVideoId.trim() } : {}),
+        ...(isScheduled ? { scheduledPublishAt: new Date(scheduledPublishAt).toISOString() } : {}),
         affiliateLinks,
         galleryImages: galleryImages.filter((g) => g.url.trim()),
         officialLinks: officialLinks.filter((l) => l.url.trim()),
@@ -226,7 +231,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.error || "公開に失敗しました")
+      setError(data.error || (isScheduled ? "予約に失敗しました" : "公開に失敗しました"))
       return
     }
 
@@ -613,6 +618,15 @@ export function PublishForm({ draft }: { draft: Draft }) {
         </button>
       </div>
 
+      <Field label="公開日時（任意・指定すればその時刻まで非公開のまま予約されます）">
+        <input
+          type="datetime-local"
+          className={inputClass}
+          value={scheduledPublishAt}
+          onChange={(e) => setScheduledPublishAt(e.target.value)}
+        />
+      </Field>
+
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex items-center gap-3 pt-4 border-t border-border">
@@ -621,7 +635,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
           disabled={submitting}
           className="h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
         >
-          {submitting ? "公開中..." : "公開する"}
+          {submitting ? "処理中..." : scheduledPublishAt ? "予約公開する" : "公開する"}
         </button>
         <button
           type="button"

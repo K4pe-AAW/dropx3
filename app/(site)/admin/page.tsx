@@ -1,11 +1,12 @@
 import Link from "next/link"
 import type { Metadata } from "next"
-import { getPendingDrafts, getAllArticles } from "@/lib/storage"
+import { getPendingDrafts, getAllArticles, getScheduledArticles } from "@/lib/storage"
 import { CollectButton } from "@/components/admin/CollectButton"
 import { DeleteAllDraftsButton } from "@/components/admin/DeleteAllDraftsButton"
 import { LogoutButton } from "@/components/admin/LogoutButton"
 import { ArticleSearch } from "@/components/admin/ArticleSearch"
 import { DraftsList } from "@/components/admin/DraftsList"
+import { ScheduledList } from "@/components/admin/ScheduledList"
 import { Pagination } from "@/components/Pagination"
 import { DRAFT_GROUPS, draftGroupOf, type DraftGroupKey } from "@/lib/admin-draft-groups"
 
@@ -22,7 +23,11 @@ export default async function AdminPage({
   searchParams: Promise<{ page?: string; tab?: string }>
 }) {
   const { page, tab } = await searchParams
-  const [drafts, articles] = await Promise.all([getPendingDrafts(), getAllArticles()])
+  const [drafts, articles, scheduled] = await Promise.all([
+    getPendingDrafts(),
+    getAllArticles(),
+    getScheduledArticles(),
+  ])
 
   const activeTab: DraftGroupKey = DRAFT_GROUPS.some((g) => g.key === tab) ? (tab as DraftGroupKey) : DRAFT_GROUPS[0].key
   const tabDrafts = drafts.filter((d) => draftGroupOf(d.category) === activeTab)
@@ -60,6 +65,8 @@ export default async function AdminPage({
           <CollectButton />
         </div>
       </div>
+
+      <ScheduledList scheduled={scheduled} />
 
       {drafts.length === 0 ? (
         <p className="text-sm text-muted-foreground leading-relaxed">

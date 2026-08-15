@@ -1,9 +1,10 @@
 import crypto from "crypto"
 import { put, head } from "@vercel/blob"
-import { Article, ArticlesData, Draft, DraftsData } from "./types"
+import { Article, ArticlesData, Draft, DraftsData, ScheduledArticle, ScheduledArticlesData } from "./types"
 
 const ARTICLES_PATH = "data/articles.json"
 const DRAFTS_PATH = "data/drafts.json"
+const SCHEDULED_PATH = "data/scheduled.json"
 
 /** SOURCE WATCH等、他モジュールからも同じBlob read-modify-write規約を使うためexportする */
 export async function readJson<T>(pathname: string, fallback: T): Promise<T> {
@@ -243,4 +244,60 @@ export async function removeDraft(id: string) {
   const data = await readDrafts()
   data.drafts = data.drafts.filter((d) => d.id !== id)
   await writeDrafts(data)
+}
+
+// --- Scheduled articles (公開日時が未来の記事。articles.jsonには入れず、cronが昇格させる) ---
+
+export async function readScheduledArticles(): Promise<ScheduledArticlesData> {
+  return readJson<ScheduledArticlesData>(SCHEDULED_PATH, { scheduled: [] })
+}
+
+export async function writeScheduledArticles(data: ScheduledArticlesData) {
+  await writeJson(SCHEDULED_PATH, data)
+}
+
+export async function getScheduledArticles(): Promise<ScheduledArticle[]> {
+  const { scheduled } = await readScheduledArticles()
+  return scheduled.slice().sort((a, b) => (a.scheduledPublishAt < b.scheduledPublishAt ? -1 : 1))
+}
+
+export async function addScheduledArticle(article: ScheduledArticle) {
+  const data = await readScheduledArticles()
+  data.scheduled = data.scheduled.filter((a) => a.id !== article.id)
+  data.scheduled.push(article)
+  await writeScheduledArticles(data)
+}
+
+export async function removeScheduledArticle(id: string) {
+  const data = await readScheduledArticles()
+  data.scheduled = data.scheduled.filter((a) => a.id !== id)
+  await writeScheduledArticles(data)
+}
+
+/**
+ * scheduledPublishAtを過ぎた予約記事をarticles.jsonへ昇格させる(publishedAt=scheduledPublishAt)。
+ * scheduled.json・articles.jsonそれぞれについて単一トランザクション(1回読んで1回書く)を守る
+ * ——2ファイルにまたがるが、両方ともこの関数内で完結させ、この関数の呼び出し元(cron)が
+ * 短時間に連続実行されない前提(実行間隔は呼び出し側のcron設定に依存)。
+ */
+export async function promoteDueScheduledArticles(): Promise<{ promoted: number; titles: string[] }> {
+  const scheduledData = await readScheduledArticles()
+  const now = Date.now()
+  const due = scheduledData.scheduled.filter((a) => new Date(a.scheduledPublishAt).getTime() <= now)
+  if (due.length === 0) return { promoted: 0, titles: [] }
+
+  const articlesData = await readArticles()
+  for (const item of due) {
+    const { scheduledPublishAt, ...rest } = item
+    const article: Article = { ...rest, publishedAt: scheduledPublishAt }
+    articlesData.articles = articlesData.articles.filter((a) => a.id !== article.id)
+    articlesData.articles.unshift(article)
+  }
+  articlesData.lastUpdated = new Date().toISOString()
+  await writeArticles(articlesData)
+
+  scheduledData.scheduled = scheduledData.scheduled.filter((a) => !due.some((d) => d.id === a.id))
+  await writeScheduledArticles(scheduledData)
+
+  return { promoted: due.length, titles: due.map((a) => a.title) }
 }
