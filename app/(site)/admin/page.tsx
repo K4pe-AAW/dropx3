@@ -7,6 +7,7 @@ import { LogoutButton } from "@/components/admin/LogoutButton"
 import { ArticleSearch } from "@/components/admin/ArticleSearch"
 import { DraftsList } from "@/components/admin/DraftsList"
 import { Pagination } from "@/components/Pagination"
+import { DRAFT_GROUPS, draftGroupOf, type DraftGroupKey } from "@/lib/admin-draft-groups"
 
 export const metadata: Metadata = { title: "管理画面" }
 
@@ -18,13 +19,17 @@ const PAGE_SIZE = 15
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; tab?: string }>
 }) {
-  const { page } = await searchParams
+  const { page, tab } = await searchParams
   const [drafts, articles] = await Promise.all([getPendingDrafts(), getAllArticles()])
-  const totalPages = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE))
+
+  const activeTab: DraftGroupKey = DRAFT_GROUPS.some((g) => g.key === tab) ? (tab as DraftGroupKey) : DRAFT_GROUPS[0].key
+  const tabDrafts = drafts.filter((d) => draftGroupOf(d.category) === activeTab)
+
+  const totalPages = Math.max(1, Math.ceil(tabDrafts.length / PAGE_SIZE))
   const currentPage = Math.min(Math.max(1, Number(page) || 1), totalPages)
-  const pageDrafts = drafts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const pageDrafts = tabDrafts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -64,8 +69,39 @@ export default async function AdminPage({
         </p>
       ) : (
         <>
-          <DraftsList drafts={pageDrafts} />
-          <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/admin" />
+          <div className="flex flex-wrap gap-2 mb-6">
+            {DRAFT_GROUPS.map((g) => {
+              const count = drafts.filter((d) => draftGroupOf(d.category) === g.key).length
+              const active = g.key === activeTab
+              return (
+                <Link
+                  key={g.key}
+                  href={`/admin?tab=${g.key}`}
+                  className={
+                    active
+                      ? "h-9 flex items-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground"
+                      : "h-9 flex items-center rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
+                  }
+                >
+                  {g.label} ({count})
+                </Link>
+              )
+            })}
+          </div>
+
+          {tabDrafts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">このタブに下書きはありません。</p>
+          ) : (
+            <>
+              <DraftsList drafts={pageDrafts} />
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                basePath="/admin"
+                extraParams={{ tab: activeTab }}
+              />
+            </>
+          )}
         </>
       )}
 
