@@ -38,8 +38,8 @@ export function NavMenu() {
         aria-expanded={open}
         className="flex shrink-0 flex-col items-center gap-1 text-primary-foreground/85"
       >
-        <span className="flex size-10 items-center justify-center rounded-full border border-accent">
-          {open ? <CloseIcon className="size-4" /> : <MenuIcon className="size-4" />}
+        <span className="flex size-12 items-center justify-center rounded-full border border-accent">
+          {open ? <CloseIcon className="size-5" /> : <MenuIcon className="size-5" />}
         </span>
         <span className="text-[10px] font-bold tracking-widest">MENU</span>
       </button>
