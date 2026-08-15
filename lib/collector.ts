@@ -22,8 +22,18 @@ type FeedItem = {
   mediaGroup?: { "media:description"?: string[] }
 }
 
+/** ショート動画は短尺で情報量が薄く記事化に向かないため収集対象から除外する */
+function isYoutubeShorts(url: string): boolean {
+  try {
+    return new URL(url).pathname.startsWith("/shorts/")
+  } catch {
+    return false
+  }
+}
+
 function toRawItem(sourceName: string, item: FeedItem): RawItem | null {
   if (!item.title || !item.link) return null
+  if (isYoutubeShorts(item.link)) return null
   const snippet = item.contentSnippet || item.mediaGroup?.["media:description"]?.[0]
   return {
     id: generateId(item.link),
