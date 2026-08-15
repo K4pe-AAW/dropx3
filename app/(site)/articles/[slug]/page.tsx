@@ -8,10 +8,13 @@ import { ColorwaySection } from "@/components/ColorwaySection"
 import { RelatedArticleLinks } from "@/components/RelatedArticleLinks"
 import { OfficialProductWidget } from "@/components/OfficialProductWidget"
 import { ArticleCard } from "@/components/ArticleCard"
+import { ArticleBody } from "@/components/ArticleBody"
 import { YouTubeEmbed } from "@/components/YouTubeEmbed"
 import { QuoteBlock } from "@/components/QuoteBlock"
+import { TrackedLink } from "@/components/TrackedLink"
 import { Badge } from "@/components/ui/badge"
 import { categoryLabel, siteConfig } from "@/lib/site-config"
+import { linkDomain } from "@/lib/analytics"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -124,9 +127,11 @@ export default async function ArticleDetailPage({
       {article.brands.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {article.brands.map((b) => (
-            <Link key={b} href={`/brand/${encodeURIComponent(b)}`}>
-              <Badge variant="default">{b}</Badge>
-            </Link>
+            <TrackedLink key={b} event="brand_select" params={{ brand: b, placement: "article_badge" }}>
+              <Link href={`/brand/${encodeURIComponent(b)}`}>
+                <Badge variant="default">{b}</Badge>
+              </Link>
+            </TrackedLink>
           ))}
         </div>
       )}
@@ -150,11 +155,13 @@ export default async function ArticleDetailPage({
         </div>
       )}
 
-      <div className="space-y-5 text-[15px] leading-[1.9]">
-        {article.bodyParagraphs.map((p, i) => (
-          <p key={i}>{p}</p>
-        ))}
-      </div>
+      <ArticleBody
+        paragraphs={article.bodyParagraphs}
+        articleId={article.id}
+        articleTitle={article.title}
+        category={article.category}
+        brand={article.brands[0]}
+      />
 
       {article.quote && <QuoteBlock text={article.quote.text} sourceLabel={article.quote.sourceLabel} />}
 
@@ -174,18 +181,24 @@ export default async function ArticleDetailPage({
       )}
 
       {article.purchaseChannels && article.purchaseChannels.length > 0 && (
-        <PurchaseChannelsSection channels={article.purchaseChannels} />
+        <PurchaseChannelsSection channels={article.purchaseChannels} articleId={article.id} />
       )}
 
       {article.officialProducts && article.officialProducts.length > 0 && (
-        <OfficialProductWidget products={article.officialProducts} brand={article.brands[0]} />
+        <OfficialProductWidget products={article.officialProducts} brand={article.brands[0]} articleId={article.id} />
       )}
 
       {article.relatedArticles && article.relatedArticles.length > 0 && (
         <RelatedArticleLinks links={article.relatedArticles} />
       )}
 
-      <PurchaseLinks officialLinks={article.officialLinks} affiliateLinks={article.affiliateLinks} />
+      <PurchaseLinks
+        officialLinks={article.officialLinks}
+        affiliateLinks={article.affiliateLinks}
+        articleId={article.id}
+        articleTitle={article.title}
+        brand={article.brands[0]}
+      />
 
       {article.sourceRefs.length > 0 && (
         <div className="mt-8 rounded-xl border border-border p-4">
@@ -193,14 +206,24 @@ export default async function ArticleDetailPage({
           <ul className="space-y-1">
             {article.sourceRefs.map((ref, i) => (
               <li key={i}>
-                <a
-                  href={ref.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                <TrackedLink
+                  event="outbound_click"
+                  params={{
+                    link_domain: linkDomain(ref.url),
+                    link_url: ref.url,
+                    placement: "article_body",
+                    article_id: article.id,
+                  }}
                 >
-                  {ref.name}
-                </a>
+                  <a
+                    href={ref.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                  >
+                    {ref.name}
+                  </a>
+                </TrackedLink>
               </li>
             ))}
           </ul>

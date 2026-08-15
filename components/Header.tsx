@@ -3,6 +3,7 @@ import { siteConfig } from "@/lib/site-config"
 import { SearchIcon } from "@/components/icons"
 import { Logo } from "@/components/Logo"
 import { MobileNav } from "@/components/MobileNav"
+import { TrackedLink } from "@/components/TrackedLink"
 
 export function Header() {
   return (
@@ -22,13 +23,14 @@ export function Header() {
             新着記事
           </Link>
           {siteConfig.categories.map((c) => (
-            <Link
-              key={c.slug}
-              href={`/category/${c.slug}`}
-              className="rounded-full border border-accent px-3.5 py-1.5 text-primary-foreground/85 hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              {c.label}
-            </Link>
+            <TrackedLink key={c.slug} event="brand_select" params={{ category: c.slug, placement: "header_nav" }}>
+              <Link
+                href={`/category/${c.slug}`}
+                className="rounded-full border border-accent px-3.5 py-1.5 text-primary-foreground/85 hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                {c.label}
+              </Link>
+            </TrackedLink>
           ))}
           <Link
             href="/about"

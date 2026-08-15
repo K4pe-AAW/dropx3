@@ -1,13 +1,24 @@
+"use client"
+
 import type { OfficialProductLink } from "@/lib/types"
 import { isSafeExternalUrl } from "@/lib/affiliate"
 import { ExternalLinkIcon } from "@/components/icons"
+import { trackEvent, linkDomain } from "@/lib/analytics"
 
 /**
  * ブランド公式サイトの他の実売商品を写真+商品名+価格でカード表示する(UPTODATE等の競合メディアの
  * 「ブランド公式のおすすめ商品」ウィジェットを参考)。紹介料が発生しない公式サイトへの直リンクなので
  * officialLinksと同じ扱い(PurchaseLinksのアフィリエイト行と違い"PR"表記・sponsored relは付けない)。
  */
-export function OfficialProductWidget({ products, brand }: { products: OfficialProductLink[]; brand?: string }) {
+export function OfficialProductWidget({
+  products,
+  brand,
+  articleId,
+}: {
+  products: OfficialProductLink[]
+  brand?: string
+  articleId: string
+}) {
   const safe = products.filter((p) => p.name.trim() && p.image.trim() && isSafeExternalUrl(p.url))
   if (safe.length === 0) return null
 
@@ -25,6 +36,14 @@ export function OfficialProductWidget({ products, brand }: { products: OfficialP
             href={p.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() =>
+              trackEvent("outbound_click", {
+                link_domain: linkDomain(p.url),
+                link_url: p.url,
+                placement: "article_body",
+                article_id: articleId,
+              })
+            }
             className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-secondary/50"
           >
             <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-muted">

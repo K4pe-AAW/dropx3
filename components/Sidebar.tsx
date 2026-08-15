@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Article } from "@/lib/types"
 import { PopularList } from "@/components/PopularList"
 import { ChevronDownIcon } from "@/components/icons"
+import { TrackedLink } from "@/components/TrackedLink"
 
 export function Sidebar({
   popular,
@@ -33,13 +34,14 @@ export function Sidebar({
           </summary>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {brands.slice(0, 40).map((b) => (
-              <Link
-                key={b.name}
-                href={`/brand/${encodeURIComponent(b.name)}`}
-                className="text-xs px-2.5 py-1 rounded-full border border-border hover:bg-secondary transition-colors"
-              >
-                {b.name}
-              </Link>
+              <TrackedLink key={b.name} event="brand_select" params={{ brand: b.name, placement: "sidebar" }}>
+                <Link
+                  href={`/brand/${encodeURIComponent(b.name)}`}
+                  className="text-xs px-2.5 py-1 rounded-full border border-border hover:bg-secondary transition-colors"
+                >
+                  {b.name}
+                </Link>
+              </TrackedLink>
             ))}
           </div>
         </details>

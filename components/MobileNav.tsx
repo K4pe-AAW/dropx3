@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { siteConfig } from "@/lib/site-config"
 import { MenuIcon, CloseIcon } from "@/components/icons"
+import { trackEvent } from "@/lib/analytics"
 
 export function MobileNav() {
   const [open, setOpen] = useState(false)
@@ -34,7 +35,10 @@ export function MobileNav() {
             <Link
               key={c.slug}
               href={`/category/${c.slug}`}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false)
+                trackEvent("brand_select", { category: c.slug, placement: "mobile_nav" })
+              }}
               className="rounded-full border border-accent px-3.5 py-2 text-center text-primary-foreground/85 hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               {c.label}

@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import { getAllArticles } from "@/lib/storage"
 import { ArticleCard } from "@/components/ArticleCard"
 import { Pagination } from "@/components/Pagination"
+import { SearchSubmitTracker } from "@/components/SearchSubmitTracker"
+import { TrackedLink } from "@/components/TrackedLink"
 
 const PAGE_SIZE = 12
 
@@ -54,9 +56,17 @@ export default async function SearchPage({
         <p className="text-sm text-muted-foreground">該当する記事が見つかりませんでした。</p>
       )}
 
+      {query && <SearchSubmitTracker query={query} resultCount={results.length} />}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-8">
-        {list.map((a) => (
-          <ArticleCard key={a.id} article={a} />
+        {list.map((a, i) => (
+          <TrackedLink
+            key={a.id}
+            event="search_result_select"
+            params={{ search_term: query, result_position: (currentPage - 1) * PAGE_SIZE + i, article_id: a.id }}
+          >
+            <ArticleCard article={a} />
+          </TrackedLink>
         ))}
       </div>
       <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/search" extraParams={{ q: query }} />
