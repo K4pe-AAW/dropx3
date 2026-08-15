@@ -12,7 +12,7 @@ export function Header() {
     >
       <div className="max-w-6xl mx-auto px-4 py-4 lg:py-10 flex flex-col items-center gap-3">
         <div className="relative w-full flex items-center justify-between lg:justify-center gap-3">
-          <Link href="/" className="text-accent w-[70%] lg:w-[700px]" aria-label={siteConfig.name}>
+          <Link href="/" className="text-accent w-[80%] lg:w-[700px] mt-[10px]" aria-label={siteConfig.name}>
             <Logo className="w-full h-auto" />
           </Link>
           <div className="lg:absolute lg:right-0 lg:top-1/2 lg:-translate-y-1/2">
