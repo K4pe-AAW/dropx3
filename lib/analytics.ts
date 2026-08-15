@@ -61,7 +61,7 @@ export type AnalyticsEvent =
       params: {
         brand?: string
         category?: string
-        placement?: "header_nav" | "mobile_nav" | "sidebar" | "article_badge"
+        placement?: "header_menu" | "sidebar" | "article_badge"
       }
     }
   | {
