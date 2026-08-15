@@ -3,7 +3,7 @@ import { siteConfig } from "@/lib/site-config"
 import { SearchIcon } from "@/components/icons"
 import { Logo } from "@/components/Logo"
 import { MobileNav } from "@/components/MobileNav"
-import { TrackedLink } from "@/components/TrackedLink"
+import { CategoryMenu } from "@/components/CategoryMenu"
 
 export function Header() {
   return (
@@ -11,9 +11,9 @@ export function Header() {
       className="sticky top-0 z-50 bg-primary text-primary-foreground bg-cover bg-center"
       style={{ backgroundImage: "linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url(/images/hero-bg.jpg)" }}
     >
-      <div className="max-w-6xl mx-auto px-4 py-4 sm:py-[46px] flex flex-col items-center gap-3 sm:gap-8">
-        <div className="relative w-full flex items-center justify-between gap-3 sm:flex-col sm:justify-center sm:gap-8">
-          <Link href="/" className="text-accent w-32 sm:w-[90%]" aria-label={siteConfig.name}>
+      <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8 flex flex-col items-center gap-3 sm:gap-6">
+        <div className="relative w-full flex items-center justify-between gap-3 sm:flex-col sm:justify-center sm:gap-6">
+          <Link href="/" className="text-accent w-32 sm:w-96" aria-label={siteConfig.name}>
             <Logo className="w-full h-auto" />
           </Link>
           <nav className="hidden sm:flex flex-wrap items-center justify-center gap-2 text-sm font-medium">
@@ -23,16 +23,7 @@ export function Header() {
             >
               新着記事
             </Link>
-            {siteConfig.categories.map((c) => (
-              <TrackedLink key={c.slug} event="brand_select" params={{ category: c.slug, placement: "header_nav" }}>
-                <Link
-                  href={`/category/${c.slug}`}
-                  className="rounded-full border border-accent px-3.5 py-1.5 text-primary-foreground/85 hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  {c.label}
-                </Link>
-              </TrackedLink>
-            ))}
+            <CategoryMenu />
             <Link
               href="/about"
               className="rounded-full border border-accent px-3.5 py-1.5 text-primary-foreground/85 hover:bg-accent hover:text-accent-foreground transition-colors"
