@@ -6,24 +6,28 @@ import { siteConfig } from "@/lib/site-config"
 import { MenuIcon, CloseIcon } from "@/components/icons"
 import { trackEvent } from "@/lib/analytics"
 
+/**
+ * ボタンとパネルをFragmentで返す(ラップ用divを持たない)。Header側でロゴと同じ行に
+ * ボタンを並べ、パネルはabsolute(top-full)で行の下に被さる形にすることで、
+ * 開いていない通常時のヒーロー高さに影響を与えない。
+ */
 export function MobileNav() {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="sm:hidden w-full flex flex-col items-center">
+    <>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "メニューを閉じる" : "メニューを開く"}
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full border border-accent px-4 py-1.5 text-xs font-medium text-primary-foreground/85"
+        className="sm:hidden flex size-10 shrink-0 items-center justify-center rounded-full border border-accent text-primary-foreground/85"
       >
         {open ? <CloseIcon className="size-4" /> : <MenuIcon className="size-4" />}
-        メニュー
       </button>
 
       {open && (
-        <nav className="mt-4 flex w-full flex-col items-stretch gap-1.5 text-sm font-medium">
+        <nav className="sm:hidden absolute left-0 right-0 top-full z-50 mt-2 flex flex-col items-stretch gap-1.5 rounded-2xl bg-primary p-3 text-sm font-medium shadow-lg">
           <Link
             href="/"
             onClick={() => setOpen(false)}
@@ -53,6 +57,6 @@ export function MobileNav() {
           </Link>
         </nav>
       )}
-    </div>
+    </>
   )
 }
