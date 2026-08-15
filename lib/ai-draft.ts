@@ -1,4 +1,4 @@
-import { RawItem, Draft, Category } from "./types"
+import { RawItem, Draft, Category, OfficialLink } from "./types"
 import { generateId } from "./storage"
 import { siteConfig } from "./site-config"
 import { getOpenAIClient } from "./openai-client"
@@ -7,18 +7,21 @@ const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
 const DEFAULT_CATEGORY: Category = "sneaker"
 
 /**
- * YouTube動画のwatch URLからvideoIdを取り出す。RawItem.sourceUrlがYouTubeチャンネルRSS由来の
- * 場合のみ一致する(lib/collector.tsがそのままlinkをsourceUrlに使っているため)。
- * 動画自体のサムネイルはYouTube公式CDNの直リンクなら自己ホスト不要で使える方針
- * (lib/sources.tsのYOUTUBE_SOURCESコメント参照)なので、videoIdが取れたらカバー画像も
- * 自動で埋める。
+ * YouTube動画のURLからvideoIdを取り出す。RawItem.sourceUrlがYouTubeチャンネルRSS由来の場合のみ
+ * 一致する(lib/collector.tsがそのままlinkをsourceUrlに使っているため)。通常動画(/watch?v=…)と
+ * ショート動画(/shorts/…)の両方に対応する(登録チャンネルの一部はショート中心のため)——
+ * どちらの形式でも同じvideoIdの仕組みで、YouTube公式の埋め込みプレイヤー(/embed/{videoId})が
+ * 共通して使える。動画自体のサムネイルはYouTube公式CDNの直リンクなら自己ホスト不要で使える方針
+ * (lib/sources.tsのYOUTUBE_SOURCESコメント参照)なので、videoIdが取れたらカバー画像も自動で埋める。
  */
 export function extractYoutubeVideoId(url: string): string | undefined {
   try {
     const parsed = new URL(url)
     if (parsed.hostname !== "www.youtube.com" && parsed.hostname !== "youtube.com") return undefined
-    if (parsed.pathname !== "/watch") return undefined
-    return parsed.searchParams.get("v") ?? undefined
+    if (parsed.pathname === "/watch") return parsed.searchParams.get("v") ?? undefined
+    const shortsMatch = parsed.pathname.match(/^\/shorts\/([^/]+)/)
+    if (shortsMatch) return shortsMatch[1]
+    return undefined
   } catch {
     return undefined
   }
@@ -126,6 +129,10 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
       ? {
           suggestedYoutubeVideoId: youtubeVideoId,
           suggestedCoverImage: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`,
+          // カテゴリ判定がyoutube以外(商品ジャンル)になった場合でも動画へのリンクは必ず残す
+          suggestedOfficialLinks: [
+            { label: `${item.sourceName}で見る`, url: item.sourceUrl } satisfies OfficialLink,
+          ],
         }
       : {}),
   }

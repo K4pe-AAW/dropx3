@@ -14,8 +14,12 @@ test("extractYoutubeVideoId: YouTube以外のURLはundefined", () => {
   assert.equal(extractYoutubeVideoId("https://www.fashionsnap.com/article/2026-08-14/x/"), undefined)
 })
 
-test("extractYoutubeVideoId: YouTubeでもwatch以外のパス(チャンネルトップ等)はundefined", () => {
+test("extractYoutubeVideoId: YouTubeでもwatch/shorts以外のパス(チャンネルトップ等)はundefined", () => {
   assert.equal(extractYoutubeVideoId("https://www.youtube.com/@Shunsuke_Ishikawa"), undefined)
+})
+
+test("extractYoutubeVideoId: ショート動画(/shorts/…)からも取り出せる", () => {
+  assert.equal(extractYoutubeVideoId("https://www.youtube.com/shorts/2m1iniI60Zk"), "2m1iniI60Zk")
 })
 
 test("extractYoutubeVideoId: 不正なURLはundefined", () => {

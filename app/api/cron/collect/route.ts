@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { runCollectAndDraft } from "@/lib/pipeline"
 
+/** 全ソース分のAI下書き生成を直列で待つため、既定の実行時間上限では途中で打ち切られうる(詳細は/api/admin/collect参照) */
+export const maxDuration = 300
+
 /**
  * 外部スケジューラから叩く想定。/admin配下と違いcookie認証は使わない(ブラウザセッションがないため)。
  * - Vercel Cron(vercel.jsonのcrons)は`Authorization: Bearer $CRON_SECRET`を自動付与する。
