@@ -1,5 +1,5 @@
 import crypto from "crypto"
-import { put, head } from "@vercel/blob"
+import { put, head, BlobPreconditionFailedError } from "@vercel/blob"
 import { Article, ArticlesData, Draft, DraftsData, ScheduledArticle, ScheduledArticlesData } from "./types"
 
 const ARTICLES_PATH = "data/articles.json"
@@ -43,21 +43,57 @@ export async function writeJson(pathname: string, data: unknown) {
   })
 }
 
-/**
- * put()が成功を返しても直後のreadJson()にまだ反映されていないことがある(head/fetchを
- * キャッシュバイパスしても発生する、Blob側の反映遅延)。保存直後にユーザーへ結果を見せる画面
- * (SOURCE WATCHのON/OFFトグル等)では、書いた内容を読み直して一致を確認し、一致しなければ
- * 少し待って書き直す。一致しないまま試行回数を使い切った場合も最後の書き込みは行われているため、
- * 呼び出し元は例外を気にせず進めてよい(反映が遅れているだけで書き込み自体は失われない)。
- */
-export async function writeJsonVerified<T>(pathname: string, data: T, attempts = 3): Promise<void> {
-  const expected = JSON.stringify(data)
-  for (let i = 0; i < attempts; i++) {
-    await writeJson(pathname, data)
-    const reread = await readJson<T | null>(pathname, null as T | null)
-    if (JSON.stringify(reread) === expected) return
-    if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 1000))
+async function readJsonWithEtag<T>(pathname: string, fallback: T): Promise<{ data: T; etag: string | null }> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN が設定されていません。VercelダッシュボードのStorageタブでBlobを作成し、.env.localに追加してください。"
+    )
   }
+  try {
+    const info = await head(pathname).catch(() => null)
+    if (!info) return { data: fallback, etag: null }
+    const bustedUrl = `${info.url}${info.url.includes("?") ? "&" : "?"}_=${Date.now()}`
+    const res = await fetch(bustedUrl, { cache: "no-store" })
+    if (!res.ok) return { data: fallback, etag: info.etag }
+    return { data: (await res.json()) as T, etag: info.etag }
+  } catch {
+    return { data: fallback, etag: null }
+  }
+}
+
+/**
+ * read→mutate→writeを1回のread-modify-writeで済ませると、同じJSONファイルへの更新が
+ * 近い時間に重なったとき、後から書いた側が前の変更をまるごと上書きして消してしまう
+ * (SOURCE WATCHの情報源一覧のように1ファイルに全件入っている場合、無関係な項目の保存同士でも
+ * 起こりうる。以前記事が6件消えた件も同種の競合と考えられる)。
+ * 読み取り時のETagをput()のifMatchに渡す楽観的排他制御で、書き込み直前に他の更新が
+ * 割り込んでいたら失敗させ、最新状態を読み直してmutateからやり直す。
+ */
+export async function mutateJson<T>(pathname: string, fallback: T, mutate: (data: T) => T, attempts = 5): Promise<T> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN が設定されていません。VercelダッシュボードのStorageタブでBlobを作成し、.env.localに追加してください。"
+    )
+  }
+  for (let i = 0; i < attempts; i++) {
+    const { data, etag } = await readJsonWithEtag(pathname, fallback)
+    const next = mutate(data)
+    try {
+      await put(pathname, JSON.stringify(next, null, 2), {
+        access: "public",
+        contentType: "application/json",
+        allowOverwrite: true,
+        cacheControlMaxAge: 60,
+        ...(etag ? { ifMatch: etag } : {}),
+      })
+      return next
+    } catch (err) {
+      const isConflict = err instanceof BlobPreconditionFailedError
+      if (!isConflict || i === attempts - 1) throw err
+      // ETagが一致しなかった = 読み取り後に他の書き込みが入った。最新を読み直して次のループでやり直す
+    }
+  }
+  throw new Error(`mutateJson: competing writes to ${pathname} could not be resolved after ${attempts} attempts`)
 }
 
 /**

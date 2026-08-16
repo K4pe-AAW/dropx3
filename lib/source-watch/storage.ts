@@ -1,4 +1,4 @@
-import { readJson, writeJson, writeJsonVerified, generateId } from "@/lib/storage"
+import { readJson, writeJson, mutateJson, generateId } from "@/lib/storage"
 import { normalizeUrl } from "./normalize"
 import type { CrawlLog, ImageAsset, Product, Source, SourceItem, SourceLink } from "./types"
 
@@ -41,32 +41,38 @@ export async function seedSourcesIfMissing(newSources: Source[]): Promise<{ adde
 
 /** 管理画面の「Instagramアカウントを追加」等、1件だけを即座に登録するための単体追加。既存idと衝突する場合はエラー */
 export async function addSource(input: Source): Promise<Source> {
-  const data = await readJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] })
-  if (data.sources.some((s) => s.id === input.id)) throw new Error(`source already exists: ${input.id}`)
-  data.sources.push(input)
-  await writeJsonVerified(SOURCES_PATH, data)
+  await mutateJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] }, (data) => {
+    if (data.sources.some((s) => s.id === input.id)) throw new Error(`source already exists: ${input.id}`)
+    return { sources: [...data.sources, input] }
+  })
   return input
 }
 
 export async function updateSource(id: string, patch: Partial<Omit<Source, "id" | "createdAt">>): Promise<Source> {
-  const data = await readJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] })
-  const source = data.sources.find((s) => s.id === id)
-  if (!source) throw new Error(`source not found: ${id}`)
-  Object.assign(source, patch, { updatedAt: new Date().toISOString() })
-  // URL未確認のソースを誤って有効化しないための最終防衛線
-  if (!source.url) source.enabled = false
-  await writeJsonVerified(SOURCES_PATH, data)
-  return source
+  let updated: Source | undefined
+  await mutateJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] }, (data) => {
+    const source = data.sources.find((s) => s.id === id)
+    if (!source) throw new Error(`source not found: ${id}`)
+    const next: Source = { ...source, ...patch, updatedAt: new Date().toISOString() }
+    // URL未確認のソースを誤って有効化しないための最終防衛線
+    if (!next.url) next.enabled = false
+    updated = next
+    return { sources: data.sources.map((s) => (s.id === id ? next : s)) }
+  })
+  if (!updated) throw new Error(`source not found: ${id}`)
+  return updated
 }
 
 /** 管理画面の「削除」。ソフト無効化(enabled:false)とは別に、一覧から完全に取り除く */
 export async function removeSource(id: string): Promise<boolean> {
-  const data = await readJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] })
-  const before = data.sources.length
-  data.sources = data.sources.filter((s) => s.id !== id)
-  if (data.sources.length === before) return false
-  await writeJsonVerified(SOURCES_PATH, data)
-  return true
+  let removed = false
+  await mutateJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] }, (data) => {
+    const before = data.sources.length
+    const sources = data.sources.filter((s) => s.id !== id)
+    removed = sources.length !== before
+    return { sources }
+  })
+  return removed
 }
 
 // --- SourceItems ---
