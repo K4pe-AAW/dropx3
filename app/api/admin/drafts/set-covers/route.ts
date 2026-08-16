@@ -1,0 +1,72 @@
+import { NextRequest, NextResponse } from "next/server"
+import { readDrafts, writeDrafts, putBlobFile } from "@/lib/storage"
+import { isSafeExternalUrl } from "@/lib/affiliate"
+
+function extFromContentType(type: string): string {
+  if (type.includes("png")) return "png"
+  if (type.includes("webp")) return "webp"
+  if (type.includes("gif")) return "gif"
+  return "jpg"
+}
+
+/**
+ * 一時admin API(画像ソーシング一括反映用)。画像URL(公式サイト、または
+ * upload-coverで既にBlobへ上げたもの)を受け取り、必要ならダウンロード→
+ * Blobへ再アップロードした上で、該当下書きのsuggestedCoverImageに設定する。
+ * 単一トランザクション(drafts.jsonの読み書きは1回ずつ)。使用後削除。
+ */
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null)
+  const items: { id: string; imageUrl: string }[] = Array.isArray(body?.items)
+    ? body.items.filter(
+        (i: unknown): i is { id: string; imageUrl: string } =>
+          typeof i === "object" &&
+          i !== null &&
+          typeof (i as Record<string, unknown>).id === "string" &&
+          typeof (i as Record<string, unknown>).imageUrl === "string"
+      )
+    : []
+  if (items.length === 0) return NextResponse.json({ error: "itemsが空です" }, { status: 400 })
+
+  const results: { id: string; ok: boolean; url?: string; error?: string }[] = []
+  const uploaded: { id: string; url: string }[] = []
+
+  for (const item of items) {
+    if (!isSafeExternalUrl(item.imageUrl)) {
+      results.push({ id: item.id, ok: false, error: "不正な画像URL" })
+      continue
+    }
+    try {
+      // 既にこのBlobストアにあるURL(upload-cover経由)ならそのまま使い、二重アップロードを避ける
+      if (item.imageUrl.includes(".public.blob.vercel-storage.com/")) {
+        uploaded.push({ id: item.id, url: item.imageUrl })
+        results.push({ id: item.id, ok: true, url: item.imageUrl })
+        continue
+      }
+      const res = await fetch(item.imageUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36",
+        },
+      })
+      if (!res.ok) throw new Error(`fetch failed: ${res.status}`)
+      const contentType = res.headers.get("content-type") || "image/jpeg"
+      const buffer = Buffer.from(await res.arrayBuffer())
+      const url = await putBlobFile(`images/drafts/${item.id}.${extFromContentType(contentType)}`, buffer, contentType)
+      uploaded.push({ id: item.id, url })
+      results.push({ id: item.id, ok: true, url })
+    } catch (err) {
+      results.push({ id: item.id, ok: false, error: err instanceof Error ? err.message : "unknown error" })
+    }
+  }
+
+  if (uploaded.length > 0) {
+    const data = await readDrafts()
+    for (const u of uploaded) {
+      const draft = data.drafts.find((d) => d.id === u.id)
+      if (draft) draft.suggestedCoverImage = u.url
+    }
+    await writeDrafts(data)
+  }
+
+  return NextResponse.json({ results })
+}
