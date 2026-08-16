@@ -221,10 +221,24 @@ function SourceRow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, feedUrl, enabled, sourceScore: score, monitoringIntervalMinutes: interval, monitoringMethod: method, imagePolicy }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data: SourceWithLog = await res.json()
+      if (!res.ok) throw new Error((data as unknown as { error?: string }).error)
       onChange(data)
-      setStatus("保存しました")
+      // サーバー側の最終防衛線(URL未確認なら強制的にenabled:falseに戻す)で
+      // 送った値と実際に保存された値がズレることがあるため、チェックボックス等の見た目を
+      // 必ずサーバーの返り値に合わせ直す(そのままだとリロードするまで気付けない)
+      setUrl(data.url ?? "")
+      setFeedUrl(data.feedUrl ?? "")
+      setEnabled(data.enabled)
+      setScore(data.sourceScore)
+      setIntervalMin(data.monitoringIntervalMinutes)
+      setMethod(data.monitoringMethod)
+      setImagePolicy(data.imagePolicy)
+      if (enabled && !data.enabled) {
+        setStatus("保存しました(ただしURLが空のため有効化はできませんでした。URLを入力してから再度保存してください)")
+      } else {
+        setStatus("保存しました")
+      }
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "保存に失敗しました")
     } finally {
