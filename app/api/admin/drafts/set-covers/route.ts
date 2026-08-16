@@ -36,7 +36,11 @@ export async function POST(req: NextRequest) {
       continue
     }
     try {
-      const res = await fetch(item.imageUrl)
+      const res = await fetch(item.imageUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36",
+        },
+      })
       if (!res.ok) throw new Error(`fetch failed: ${res.status}`)
       const contentType = res.headers.get("content-type") || "image/jpeg"
       const buffer = Buffer.from(await res.arrayBuffer())
