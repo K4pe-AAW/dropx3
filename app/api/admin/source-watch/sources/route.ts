@@ -5,7 +5,9 @@ import { isSafeExternalUrl } from "@/lib/affiliate"
 import { generateId } from "@/lib/storage"
 import { resolveYoutubeChannelId, youtubeChannelRssUrl } from "@/lib/source-watch/youtube"
 import { DEFAULT_SOURCE_SCORE_BY_CATEGORY } from "@/lib/source-watch/types"
-import type { Source } from "@/lib/source-watch/types"
+import type { ProductCategory, Source } from "@/lib/source-watch/types"
+
+const PRODUCT_CATEGORIES: ProductCategory[] = ["apparel", "shoes", "vintage_insta", "accessories", "furniture"]
 
 export async function GET() {
   try {
@@ -36,6 +38,7 @@ export async function POST(req: NextRequest) {
   const name = typeof body.name === "string" ? body.name.trim() : ""
   const inputUrl = typeof body.url === "string" ? body.url.trim() : ""
   const brands: string[] = Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string" && b.trim()) : []
+  const productCategory: ProductCategory | undefined = PRODUCT_CATEGORIES.includes(body.productCategory) ? body.productCategory : undefined
 
   if (!name) return NextResponse.json({ error: "名前を入力してください" }, { status: 400 })
   if (!inputUrl || !isSafeExternalUrl(inputUrl)) return NextResponse.json({ error: "有効なURLを入力してください" }, { status: 400 })
@@ -57,6 +60,7 @@ export async function POST(req: NextRequest) {
       url: inputUrl,
       feedUrl: youtubeChannelRssUrl(channelId),
       category: "domestic_media",
+      productCategory,
       sourceScore: DEFAULT_SOURCE_SCORE_BY_CATEGORY.domestic_media,
       brands: brands.length > 0 ? brands : undefined,
       monitoringMethod: "rss",
@@ -83,6 +87,7 @@ export async function POST(req: NextRequest) {
     name,
     url: inputUrl,
     category,
+    productCategory,
     sourceScore: DEFAULT_SOURCE_SCORE_BY_CATEGORY[category],
     brands: brands.length > 0 ? brands : undefined,
     // サイトごとにRSS/Sitemapの有無がまちまちなので、安全側(html)で登録しておき

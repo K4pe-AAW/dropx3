@@ -56,23 +56,17 @@ export default async function AdminPage({
           >
             使い方ガイド
           </a>
-          <Link href="/admin/source-watch" className="text-xs font-semibold text-accent-foreground hover:underline">
-            SOURCE WATCH
-          </Link>
-          <Link href="/admin/vintage-shop" className="text-xs font-semibold text-accent-foreground hover:underline">
-            古着屋投稿
-          </Link>
           <LogoutButton />
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-border mb-8">
+      <div className="flex gap-1 border-b border-border mb-8 overflow-x-auto">
         <Link
           href="/admin?view=drafts"
           className={
             activeView === "drafts"
-              ? "px-4 py-3 text-sm font-black border-b-2 border-accent -mb-px"
-              : "px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground"
+              ? "px-4 py-3 text-sm font-black border-b-2 border-accent -mb-px whitespace-nowrap"
+              : "px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap"
           }
         >
           下書き ({drafts.length})
@@ -81,11 +75,17 @@ export default async function AdminPage({
           href="/admin?view=published"
           className={
             activeView === "published"
-              ? "px-4 py-3 text-sm font-black border-b-2 border-accent -mb-px"
-              : "px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground"
+              ? "px-4 py-3 text-sm font-black border-b-2 border-accent -mb-px whitespace-nowrap"
+              : "px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap"
           }
         >
           公開済み ({articles.length})
+        </Link>
+        <Link href="/admin/source-watch" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
+          SOURCE WATCH
+        </Link>
+        <Link href="/admin/vintage-shop" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
+          古着屋投稿
         </Link>
       </div>
 

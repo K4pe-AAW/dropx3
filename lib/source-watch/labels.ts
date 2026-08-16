@@ -1,7 +1,7 @@
 // 管理画面(SOURCE WATCH編集デスク)向けの表示ラベル/バケット分類を1箇所に集約する。
 // サーバー・クライアント両方から安全にimportできる純粋な定数のみを置く。
 
-import type { ImageSourceType, PurchaseLinkKind, SaleMethod, SocialPlatform, SocialPostType, SocialPriority, SocialSourceType, SourceCategory } from "./types"
+import type { ImageSourceType, ProductCategory, PurchaseLinkKind, SaleMethod, SocialPlatform, SocialPostType, SocialPriority, SocialSourceType, SourceCategory } from "./types"
 
 export const SOURCE_CATEGORY_LABEL: Record<SourceCategory, string> = {
   official: "公式",
@@ -33,6 +33,16 @@ export const SOURCE_CATEGORY_SHORT_LABEL: Record<SourceCategory, string> = {
   resale: "RESALE",
   social: "SOCIAL",
 }
+
+export const PRODUCT_CATEGORY_LABEL: Record<ProductCategory, string> = {
+  apparel: "アパレル",
+  shoes: "シューズ",
+  vintage_insta: "古着Insta",
+  accessories: "小物",
+  furniture: "家具関連",
+}
+
+export const PRODUCT_CATEGORY_ORDER: ProductCategory[] = ["apparel", "shoes", "vintage_insta", "accessories", "furniture"]
 
 /** IMAGE FINDERのカテゴリタブ。editorial_placeholderは「候補」ではないため含めない */
 export type ImageCategoryBucket = "official" | "press" | "affiliate" | "retailer" | "social" | "early"
@@ -182,7 +192,7 @@ export const SOCIAL_POST_TYPES: SocialPostType[] = [
   "other",
 ]
 
-export const SOCIAL_TOPICS = ["SOFUBI", "ART_TOY", "FIGURE", "FASHION", "SNEAKER", "EVENT"] as const
+export const SOCIAL_TOPICS = ["SOFUBI", "ART_TOY", "FIGURE", "FASHION", "SNEAKER", "VINTAGE", "EVENT"] as const
 export type SocialTopic = (typeof SOCIAL_TOPICS)[number]
 export const SOCIAL_TOPIC_LABEL: Record<SocialTopic, string> = {
   SOFUBI: "ソフビ",
@@ -190,5 +200,6 @@ export const SOCIAL_TOPIC_LABEL: Record<SocialTopic, string> = {
   FIGURE: "フィギュア",
   FASHION: "ファッション",
   SNEAKER: "スニーカー",
+  VINTAGE: "古着",
   EVENT: "イベント",
 }

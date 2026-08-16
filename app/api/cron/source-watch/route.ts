@@ -6,9 +6,9 @@ export const maxDuration = 120
 
 /**
  * 外部スケジューラから叩く想定。app/api/cron/collect/route.tsと同じ認証方式を踏襲する。
- * ソースごとのmonitoringIntervalMinutesに基づき「今巡回すべきもの」だけを処理するため、
- * このcron自体は短い間隔(30分)で叩いておけば、公式ニュース(60分)〜古着(10時間)まで
- * それぞれの頻度で自然に処理される。
+ * ソースごとのmonitoringIntervalMinutesに基づき「今巡回すべきもの」だけを処理する。
+ * cron自体は4時間おき(vercel.json)。個別ソースの間隔をそれより短くしても、実際の
+ * 巡回頻度は最短4時間になる(このcronの実行タイミングが唯一のトリガーのため)。
  */
 export async function GET(req: NextRequest) {
   const bearer = req.headers.get("authorization")

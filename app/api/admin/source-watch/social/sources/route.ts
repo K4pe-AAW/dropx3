@@ -4,11 +4,12 @@ import { addSource } from "@/lib/source-watch/storage"
 import { generateId } from "@/lib/storage"
 import { SOCIAL_TOPICS } from "@/lib/source-watch/labels"
 import { DEFAULT_SOURCE_SCORE_BY_SOCIAL_TYPE } from "@/lib/source-watch/types"
-import type { Source, SocialPlatform, SocialPriority, SocialSourceType } from "@/lib/source-watch/types"
+import type { ProductCategory, Source, SocialPlatform, SocialPriority, SocialSourceType } from "@/lib/source-watch/types"
 
 const SOCIAL_SOURCE_TYPES: SocialSourceType[] = ["official_brand", "official_artist", "official_event", "official_store", "media", "collector", "unknown"]
 const SOCIAL_PRIORITIES: SocialPriority[] = ["S", "A", "B", "C"]
 const SOCIAL_PLATFORMS: SocialPlatform[] = ["instagram", "x", "threads", "youtube", "tiktok"]
+const PRODUCT_CATEGORIES: ProductCategory[] = ["apparel", "shoes", "vintage_insta", "accessories", "furniture"]
 
 function parseHandle(profileUrl: string): string | null {
   try {
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
   const socialType: SocialSourceType = SOCIAL_SOURCE_TYPES.includes(body.socialType) ? body.socialType : "unknown"
   const priority: SocialPriority = SOCIAL_PRIORITIES.includes(body.priority) ? body.priority : "B"
   const topics: string[] = Array.isArray(body.topics) ? body.topics.filter((t: unknown) => typeof t === "string" && (SOCIAL_TOPICS as readonly string[]).includes(t)) : []
+  const productCategory: ProductCategory | undefined = PRODUCT_CATEGORIES.includes(body.productCategory) ? body.productCategory : undefined
 
   const handle = parseHandle(profileUrl)
   const id = `social-${platform}-${handle ?? generateId(profileUrl).slice(0, 12)}`
@@ -44,6 +46,7 @@ export async function POST(req: NextRequest) {
     name,
     url: profileUrl,
     category: "social",
+    productCategory,
     sourceScore: DEFAULT_SOURCE_SCORE_BY_SOCIAL_TYPE[socialType],
     monitoringMethod: "manual",
     monitoringIntervalMinutes: 1440,

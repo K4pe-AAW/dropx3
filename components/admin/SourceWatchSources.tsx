@@ -1,19 +1,21 @@
 "use client"
 
 import { useState } from "react"
-import type { CrawlLog, ImagePolicy, MonitoringMethod, Source } from "@/lib/source-watch/types"
-import { SOURCE_CATEGORY_LABEL, SOURCE_CATEGORY_ORDER } from "@/lib/source-watch/labels"
+import type { CrawlLog, ImagePolicy, MonitoringMethod, ProductCategory, Source } from "@/lib/source-watch/types"
+import { PRODUCT_CATEGORY_LABEL, PRODUCT_CATEGORY_ORDER } from "@/lib/source-watch/labels"
 
 type SourceWithLog = Source & { latestCrawlLog?: CrawlLog }
 
 const METHODS: MonitoringMethod[] = ["rss", "sitemap", "html", "api", "manual"]
 const IMAGE_POLICIES: ImagePolicy[] = ["press_assets_available", "affiliate_assets", "embed_only", "unknown", "do_not_use"]
+const PRODUCT_CATEGORIES_WITH_NONE = ["", ...PRODUCT_CATEGORY_ORDER] as const
 
 const inputClass = "rounded-md border border-border px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring bg-background"
 
 function formatLog(log?: CrawlLog): string {
   if (!log) return "巡回履歴なし"
-  const t = new Date(log.startedAt).toLocaleString("ja-JP")
+  // サーバー(UTC)とブラウザ(JST)で表示が食い違いhydrationエラーになるため、タイムゾーンを固定する
+  const t = new Date(log.startedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })
   return `${t} / 新着${log.newCount}件 / 処理${log.changedCount}件 / エラー${log.errorCount}件 / robots:${log.robotsVerdict} / ${log.durationMs}ms`
 }
 
@@ -49,9 +51,16 @@ export function SourceWatchSources({ initialSources }: { initialSources: SourceW
     setSources((prev) => [...prev, source])
   }
 
-  const grouped = SOURCE_CATEGORY_ORDER.map((cat) => ({ cat, items: sources.filter((s) => s.category === cat) })).filter(
-    (g) => g.items.length > 0
-  )
+  // 情報源の種類(official/retailer/...)ではなく、何を扱うソースかで並べた方が探しやすいため
+  // ProductCategoryを一覧の主軸にする。未設定のものは末尾に「未分類」としてまとめる
+  const grouped = [
+    ...PRODUCT_CATEGORY_ORDER.map((cat) => ({
+      key: cat as string,
+      label: PRODUCT_CATEGORY_LABEL[cat],
+      items: sources.filter((s) => s.productCategory === cat),
+    })),
+    { key: "uncategorized", label: "未分類", items: sources.filter((s) => !s.productCategory) },
+  ].filter((g) => g.items.length > 0)
 
   return (
     <div>
@@ -63,16 +72,17 @@ export function SourceWatchSources({ initialSources }: { initialSources: SourceW
         >
           {crawlingAll ? "巡回中..." : "巡回する(期限が来たものだけ)"}
         </button>
+        <span className="text-[11px] text-muted-foreground">自動巡回は4時間ごと(有効な情報源のみ)</span>
         {message && <span className="text-xs text-muted-foreground">{message}</span>}
       </div>
 
       <AddSourceForm onAdded={addSourceToList} />
 
       <div className="space-y-8 mt-8">
-        {grouped.map(({ cat, items }) => (
-          <div key={cat}>
+        {grouped.map(({ key, label, items }) => (
+          <div key={key}>
             <h3 className="text-xs font-bold text-muted-foreground mb-2">
-              {SOURCE_CATEGORY_LABEL[cat]} ({items.length})
+              {label} ({items.length})
             </h3>
             <div className="space-y-2">
               {items.map((s) => (
@@ -104,11 +114,14 @@ const ADD_KIND_PLACEHOLDER: Record<AddKind, string> = {
 }
 
 function AddSourceForm({ onAdded }: { onAdded: (source: Source) => void }) {
+  const [productCategory, setProductCategory] = useState<ProductCategory | null>(null)
   const [kind, setKind] = useState<AddKind>("official")
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+
+  const isVintageInsta = productCategory === "vintage_insta"
 
   async function submit() {
     if (!name.trim() || !url.trim()) {
@@ -118,10 +131,14 @@ function AddSourceForm({ onAdded }: { onAdded: (source: Source) => void }) {
     setSubmitting(true)
     setStatus(null)
     try {
-      const res = await fetch("/api/admin/source-watch/sources", {
+      const endpoint = isVintageInsta ? "/api/admin/source-watch/social/sources" : "/api/admin/source-watch/sources"
+      const body = isVintageInsta
+        ? { profileUrl: url.trim(), name: name.trim(), socialType: "official_store", priority: "B", topics: ["VINTAGE"], productCategory }
+        : { kind, name: name.trim(), url: url.trim(), productCategory }
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, name: name.trim(), url: url.trim() }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -139,52 +156,85 @@ function AddSourceForm({ onAdded }: { onAdded: (source: Source) => void }) {
   return (
     <div className="border border-dashed border-border rounded-lg p-3">
       <p className="text-xs font-bold mb-2">情報源を追加</p>
-      <div className="flex flex-wrap gap-2 mb-2">
-        {(Object.keys(ADD_KIND_LABEL) as AddKind[]).map((k) => (
+
+      <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">① 何を扱う情報源ですか?</p>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {PRODUCT_CATEGORY_ORDER.map((c) => (
           <button
-            key={k}
+            key={c}
             type="button"
-            onClick={() => setKind(k)}
+            onClick={() => setProductCategory(c)}
             className={
-              kind === k
+              productCategory === c
                 ? "h-7 px-3 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold"
                 : "h-7 px-3 rounded-full border border-border text-[11px] font-semibold hover:bg-secondary"
             }
           >
-            {ADD_KIND_LABEL[k]}
+            {PRODUCT_CATEGORY_LABEL[c]}
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2">
-        <input
-          className={inputClass}
-          placeholder="名前(例: BEAMS)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          className={inputClass}
-          placeholder={ADD_KIND_PLACEHOLDER[kind]}
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-        <button
-          onClick={submit}
-          disabled={submitting}
-          className="h-8 px-4 rounded-full border border-border text-[11px] font-semibold hover:bg-secondary disabled:opacity-50 whitespace-nowrap"
-        >
-          {submitting ? "追加中..." : "追加する"}
-        </button>
-      </div>
-      {kind === "youtube" && (
-        <p className="text-[10px] text-muted-foreground/70 mt-1.5">
-          チャンネルIDを自動取得してRSS巡回を有効にします(720分間隔)。取得できない場合はURLを見直してください。
-        </p>
-      )}
-      {kind !== "youtube" && (
-        <p className="text-[10px] text-muted-foreground/70 mt-1.5">
-          まず巡回方式「html」・画像利用ポリシー「unknown」で登録されます。RSS/SitemapのURLが分かれば下の一覧から編集できます。
-        </p>
+
+      {productCategory && (
+        <>
+          {!isVintageInsta && (
+            <>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">② サイトの種類は?</p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(Object.keys(ADD_KIND_LABEL) as AddKind[]).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setKind(k)}
+                    className={
+                      kind === k
+                        ? "h-7 px-3 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold"
+                        : "h-7 px-3 rounded-full border border-border text-[11px] font-semibold hover:bg-secondary"
+                    }
+                  >
+                    {ADD_KIND_LABEL[k]}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2">
+            <input
+              className={inputClass}
+              placeholder={isVintageInsta ? "表示名(例: tonari)" : "名前(例: BEAMS)"}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <input
+              className={inputClass}
+              placeholder={isVintageInsta ? "https://www.instagram.com/handle/" : ADD_KIND_PLACEHOLDER[kind]}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+            <button
+              onClick={submit}
+              disabled={submitting}
+              className="h-8 px-4 rounded-full border border-border text-[11px] font-semibold hover:bg-secondary disabled:opacity-50 whitespace-nowrap"
+            >
+              {submitting ? "追加中..." : "追加する"}
+            </button>
+          </div>
+          {isVintageInsta && (
+            <p className="text-[10px] text-muted-foreground/70 mt-1.5">
+              Instagramアカウントとして登録します(SOCIAL WATCH画面からも管理できます)。自動取得はできないため、巡回は手動更新が基本です。
+            </p>
+          )}
+          {!isVintageInsta && kind === "youtube" && (
+            <p className="text-[10px] text-muted-foreground/70 mt-1.5">
+              チャンネルIDを自動取得してRSS巡回を有効にします(720分間隔)。取得できない場合はURLを見直してください。
+            </p>
+          )}
+          {!isVintageInsta && kind !== "youtube" && (
+            <p className="text-[10px] text-muted-foreground/70 mt-1.5">
+              まず巡回方式「html」・画像利用ポリシー「unknown」で登録されます。詳しい設定は追加後、一覧の「詳細設定」から調整できます。
+            </p>
+          )}
+        </>
       )}
       {status && <p className="text-[11px] text-muted-foreground mt-1.5">{status}</p>}
     </div>
@@ -207,6 +257,8 @@ function SourceRow({
   const [interval, setIntervalMin] = useState(source.monitoringIntervalMinutes)
   const [method, setMethod] = useState(source.monitoringMethod)
   const [imagePolicy, setImagePolicy] = useState(source.imagePolicy)
+  const [productCategory, setProductCategory] = useState<ProductCategory | "">(source.productCategory ?? "")
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [saving, setSaving] = useState(false)
   const [crawling, setCrawling] = useState(false)
   const [removing, setRemoving] = useState(false)
@@ -219,7 +271,16 @@ function SourceRow({
       const res = await fetch(`/api/admin/source-watch/sources/${source.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, feedUrl, enabled, sourceScore: score, monitoringIntervalMinutes: interval, monitoringMethod: method, imagePolicy }),
+        body: JSON.stringify({
+          url,
+          feedUrl,
+          enabled,
+          sourceScore: score,
+          monitoringIntervalMinutes: interval,
+          monitoringMethod: method,
+          imagePolicy,
+          productCategory: productCategory || null,
+        }),
       })
       const data: SourceWithLog = await res.json()
       if (!res.ok) throw new Error((data as unknown as { error?: string }).error)
@@ -234,6 +295,7 @@ function SourceRow({
       setIntervalMin(data.monitoringIntervalMinutes)
       setMethod(data.monitoringMethod)
       setImagePolicy(data.imagePolicy)
+      setProductCategory(data.productCategory ?? "")
       if (enabled && !data.enabled) {
         setStatus("保存しました(ただしURLが空のため有効化はできませんでした。URLを入力してから再度保存してください)")
       } else {
@@ -289,49 +351,70 @@ function SourceRow({
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
           {source.name}
         </label>
-        <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{method}</span>
+        <select
+          className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded border-none outline-none"
+          value={productCategory}
+          onChange={(e) => setProductCategory(e.target.value as ProductCategory | "")}
+        >
+          {PRODUCT_CATEGORIES_WITH_NONE.map((c) => (
+            <option key={c || "none"} value={c}>
+              {c ? PRODUCT_CATEGORY_LABEL[c] : "未分類"}
+            </option>
+          ))}
+        </select>
         {!source.url && <span className="text-[10px] text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">URL未確認</span>}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-        <input className={inputClass} placeholder="URL" value={url} onChange={(e) => setUrl(e.target.value)} />
-        <input className={inputClass} placeholder="Feed URL(RSS/Sitemap)" value={feedUrl} onChange={(e) => setFeedUrl(e.target.value)} />
-        <select className={inputClass} value={method} onChange={(e) => setMethod(e.target.value as MonitoringMethod)}>
-          {METHODS.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <select className={inputClass} value={imagePolicy} onChange={(e) => setImagePolicy(e.target.value as ImagePolicy)}>
-          {IMAGE_POLICIES.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-          信頼度
-          <input
-            type="number"
-            min={0}
-            max={100}
-            className={`${inputClass} w-16`}
-            value={score}
-            onChange={(e) => setScore(Number(e.target.value))}
-          />
-        </label>
-        <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-          巡回間隔(分)
-          <input
-            type="number"
-            min={1}
-            className={`${inputClass} w-16`}
-            value={interval}
-            onChange={(e) => setIntervalMin(Number(e.target.value))}
-          />
-        </label>
-      </div>
+      <input className={`${inputClass} w-full mb-2`} placeholder="URL" value={url} onChange={(e) => setUrl(e.target.value)} />
+
+      <button
+        type="button"
+        onClick={() => setShowAdvanced((v) => !v)}
+        className="text-[11px] text-muted-foreground hover:text-foreground underline mb-2"
+      >
+        {showAdvanced ? "詳細設定を隠す" : "詳細設定を表示(巡回方式・画像ポリシー・信頼度など)"}
+      </button>
+
+      {showAdvanced && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+          <input className={inputClass} placeholder="Feed URL(RSS/Sitemap)" value={feedUrl} onChange={(e) => setFeedUrl(e.target.value)} />
+          <select className={inputClass} value={method} onChange={(e) => setMethod(e.target.value as MonitoringMethod)}>
+            {METHODS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <select className={inputClass} value={imagePolicy} onChange={(e) => setImagePolicy(e.target.value as ImagePolicy)}>
+            {IMAGE_POLICIES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            信頼度
+            <input
+              type="number"
+              min={0}
+              max={100}
+              className={`${inputClass} w-16`}
+              value={score}
+              onChange={(e) => setScore(Number(e.target.value))}
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            巡回間隔(分)
+            <input
+              type="number"
+              min={1}
+              className={`${inputClass} w-16`}
+              value={interval}
+              onChange={(e) => setIntervalMin(Number(e.target.value))}
+            />
+          </label>
+        </div>
+      )}
 
       {source.notes && <p className="text-[11px] text-muted-foreground/70 mb-2 leading-relaxed">{source.notes}</p>}
       <p className="text-[10px] text-muted-foreground/60 mb-2">{formatLog(source.latestCrawlLog)}</p>

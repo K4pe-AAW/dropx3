@@ -13,6 +13,13 @@ export type SourceCategory =
 
 export type MonitoringMethod = "rss" | "sitemap" | "html" | "api" | "manual"
 
+/**
+ * 管理画面で情報源を扱いやすくするための商品カテゴリタグ。SourceCategory(情報源の種類)とは
+ * 別軸で、「これは何を扱う情報源か」を表す。スコアリング等のロジックには使わず、
+ * 追加フォームの入口とソース一覧のグルーピングのみに使う表示用の分類。
+ */
+export type ProductCategory = "apparel" | "shoes" | "vintage_insta" | "accessories" | "furniture"
+
 export type ImagePolicy =
   | "press_assets_available" // ブランド公式のプレス素材/Media Kitが確認できている
   | "affiliate_assets" // ASP等が提供する商品画像を使ってよい
@@ -73,6 +80,8 @@ export type Source = {
   /** RSS/SitemapのURL。html/manual/apiの場合は省略可 */
   feedUrl?: string
   category: SourceCategory
+  /** 管理画面での分類・絞り込み用(未設定=未分類)。詳細はProductCategoryの定義コメント参照 */
+  productCategory?: ProductCategory
   sourceScore: number
   country?: string
   brands?: string[]
