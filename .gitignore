@@ -30,3 +30,6 @@ npm-debug.log*
 /obj/
 .vercel
 .env*
+
+# agent worktrees (isolated background-agent checkouts; never part of the tree itself)
+/.claude/worktrees/

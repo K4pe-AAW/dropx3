@@ -3,6 +3,9 @@ import { Article } from "@/lib/types"
 import { PopularList } from "@/components/PopularList"
 import { ChevronDownIcon } from "@/components/icons"
 import { TrackedLink } from "@/components/TrackedLink"
+import { AdUnit } from "@/components/AdUnit"
+
+const SIDEBAR_AD_SLOT = "1676093020"
 
 export function Sidebar({
   popular,
@@ -21,9 +24,9 @@ export function Sidebar({
         </div>
       )}
 
-      <div className="rounded-xl border border-dashed border-border p-5 text-center">
-        <p className="text-[10px] tracking-widest text-muted-foreground/60 mb-2">SPONSORED</p>
-        <p className="text-xs text-muted-foreground">広告枠</p>
+      <div>
+        <p className="text-center text-[10px] tracking-widest text-muted-foreground/60 mb-2">SPONSORED</p>
+        <AdUnit slot={SIDEBAR_AD_SLOT} />
       </div>
 
       {brands.length > 0 && (
