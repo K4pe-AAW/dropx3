@@ -59,6 +59,16 @@ export async function updateSource(id: string, patch: Partial<Omit<Source, "id" 
   return source
 }
 
+/** 管理画面の「削除」。ソフト無効化(enabled:false)とは別に、一覧から完全に取り除く */
+export async function removeSource(id: string): Promise<boolean> {
+  const data = await readJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] })
+  const before = data.sources.length
+  data.sources = data.sources.filter((s) => s.id !== id)
+  if (data.sources.length === before) return false
+  await writeJson(SOURCES_PATH, data)
+  return true
+}
+
 // --- SourceItems ---
 
 export async function listSourceItems(sourceId?: string): Promise<SourceItem[]> {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSource, updateSource } from "@/lib/source-watch/storage"
+import { getSource, updateSource, removeSource } from "@/lib/source-watch/storage"
 import { isSafeExternalUrl } from "@/lib/affiliate"
 import type { ImagePolicy, MonitoringMethod, SocialPriority, Source } from "@/lib/source-watch/types"
 
@@ -49,4 +49,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const updated = await updateSource(id, patch)
   return NextResponse.json(updated)
+}
+
+/** 管理画面の「削除」。巡回履歴(CrawlLog)はソースIDに紐づくだけなので残っても実害はなく消さない */
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const removed = await removeSource(id)
+  if (!removed) return NextResponse.json({ error: "ソースが見つかりません" }, { status: 404 })
+  return NextResponse.json({ ok: true })
 }
