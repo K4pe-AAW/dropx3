@@ -36,6 +36,10 @@ export async function writeJson(pathname: string, data: unknown) {
     access: "public",
     contentType: "application/json",
     allowOverwrite: true,
+    // cacheControlMaxAgeの既定値は1ヶ月。頻繁に上書きするJSONデータでこれを使うと、
+    // CDNエッジが古いキャッシュを持ち続け、書き込み直後の読み取りが数分〜それ以上古いままになる
+    // (readJson側のクエリ文字列キャッシュバスターだけでは防げなかった)。指定可能な最小値まで下げる
+    cacheControlMaxAge: 60,
   })
 }
 
