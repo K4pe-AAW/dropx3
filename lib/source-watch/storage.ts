@@ -1,4 +1,4 @@
-import { readJson, writeJson, generateId } from "@/lib/storage"
+import { readJson, writeJson, writeJsonVerified, generateId } from "@/lib/storage"
 import { normalizeUrl } from "./normalize"
 import type { CrawlLog, ImageAsset, Product, Source, SourceItem, SourceLink } from "./types"
 
@@ -44,7 +44,7 @@ export async function addSource(input: Source): Promise<Source> {
   const data = await readJson<{ sources: Source[] }>(SOURCES_PATH, { sources: [] })
   if (data.sources.some((s) => s.id === input.id)) throw new Error(`source already exists: ${input.id}`)
   data.sources.push(input)
-  await writeJson(SOURCES_PATH, data)
+  await writeJsonVerified(SOURCES_PATH, data)
   return input
 }
 
@@ -55,7 +55,7 @@ export async function updateSource(id: string, patch: Partial<Omit<Source, "id" 
   Object.assign(source, patch, { updatedAt: new Date().toISOString() })
   // URL未確認のソースを誤って有効化しないための最終防衛線
   if (!source.url) source.enabled = false
-  await writeJson(SOURCES_PATH, data)
+  await writeJsonVerified(SOURCES_PATH, data)
   return source
 }
 
@@ -65,7 +65,7 @@ export async function removeSource(id: string): Promise<boolean> {
   const before = data.sources.length
   data.sources = data.sources.filter((s) => s.id !== id)
   if (data.sources.length === before) return false
-  await writeJson(SOURCES_PATH, data)
+  await writeJsonVerified(SOURCES_PATH, data)
   return true
 }
 

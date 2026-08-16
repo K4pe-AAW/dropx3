@@ -40,6 +40,23 @@ export async function writeJson(pathname: string, data: unknown) {
 }
 
 /**
+ * put()が成功を返しても直後のreadJson()にまだ反映されていないことがある(head/fetchを
+ * キャッシュバイパスしても発生する、Blob側の反映遅延)。保存直後にユーザーへ結果を見せる画面
+ * (SOURCE WATCHのON/OFFトグル等)では、書いた内容を読み直して一致を確認し、一致しなければ
+ * 少し待って書き直す。一致しないまま試行回数を使い切った場合も最後の書き込みは行われているため、
+ * 呼び出し元は例外を気にせず進めてよい(反映が遅れているだけで書き込み自体は失われない)。
+ */
+export async function writeJsonVerified<T>(pathname: string, data: T, attempts = 3): Promise<void> {
+  const expected = JSON.stringify(data)
+  for (let i = 0; i < attempts; i++) {
+    await writeJson(pathname, data)
+    const reread = await readJson<T | null>(pathname, null as T | null)
+    if (JSON.stringify(reread) === expected) return
+    if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+}
+
+/**
  * 画像等バイナリファイルをBlobへ保存し公開URLを返す。古着屋(tonari/ROOM)手動投稿フォーム等、
  * git commit/pushを経由せずランタイムのadmin APIから直接画像を受け付けたい用途向け
  * (従来の`public/images/`へのgit経由の画像は編集記事のカバー画像等では引き続き使用可)。
