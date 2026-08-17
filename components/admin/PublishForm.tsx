@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import type { Draft, Category } from "@/lib/types"
 import { siteConfig } from "@/lib/site-config"
-import { buildMercariSearchLink, QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
+import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
 type GalleryImageDraft = { url: string; alt: string }
@@ -29,27 +29,6 @@ type PurchaseChannelDraft = {
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
 
-/**
- * AIが提案した検索キーワードから、実在のメルカリ検索アフィリエイトリンク(A8.net、既存記事群と
- * 同じトラッキングコード)を自動で組み立てる。存在しないURLを捏造するわけではなく、
- * 「メルカリでこのキーワードを検索した結果ページ」という常に実在するリンクを提案するだけなので、
- * suggestedAffiliateSearch(AI下書き由来、実リンクを直接生成させない既存方針)の趣旨と矛盾しない。
- * 候補が無ければ従来通り空欄1行から始める。
- */
-function suggestedLinksFrom(queries: string[]): LinkDraft[] {
-  const suggested = queries
-    .map((q) => {
-      try {
-        const link = buildMercariSearchLink(q)
-        return { label: link.label, retailer: link.retailer, url: link.url, price: "" }
-      } catch {
-        return null
-      }
-    })
-    .filter((l): l is LinkDraft => l !== null)
-  return suggested.length > 0 ? suggested : [{ label: "", retailer: "", url: "", price: "" }]
-}
-
 export function PublishForm({ draft }: { draft: Draft }) {
   const router = useRouter()
   const [title, setTitle] = useState(draft.title)
@@ -63,7 +42,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
   const [youtubeVideoId, setYoutubeVideoId] = useState(draft.suggestedYoutubeVideoId ?? "")
   const [featured, setFeatured] = useState(false)
   const [scheduledPublishAt, setScheduledPublishAt] = useState("")
-  const [links, setLinks] = useState<LinkDraft[]>(() => suggestedLinksFrom(draft.suggestedAffiliateSearch))
+  const [links, setLinks] = useState<LinkDraft[]>([])
   const [autoLinkQuery, setAutoLinkQuery] = useState(draft.suggestedAffiliateSearch[0] ?? "")
   const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>(
     (draft.suggestedGalleryImages ?? []).map((g) => ({ url: g.url, alt: g.alt }))
@@ -524,12 +503,6 @@ export function PublishForm({ draft }: { draft: Draft }) {
           + リンクを追加
         </button>
       </div>
-
-      {draft.suggestedAffiliateSearch.length > 0 && (
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          AIが提案したキーワード({draft.suggestedAffiliateSearch.join(" / ")})でメルカリ検索リンクを下に自動入力済みです。内容を確認してください。
-        </p>
-      )}
 
       <div>
         <p className="text-xs font-semibold mb-2">アフィリエイトリンク（複数可）</p>
