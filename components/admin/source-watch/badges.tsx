@@ -17,9 +17,18 @@ const READINESS_DOT: Record<ProductReadiness, string> = {
   HOLD: "bg-muted-foreground/50",
 }
 
+const READINESS_HINT: Record<ProductReadiness, string> = {
+  READY: "記事の材料(画像・購入リンク等)がほぼ揃っている(80点以上)",
+  REVIEW: "記事の材料が一部不足している(60〜79点)",
+  HOLD: "記事の材料が大きく不足しているか、ブロック条件に該当(59点以下)。ただし確度がCONFIRMEDなら記事化ボタン自体は使える",
+}
+
 export function ReadinessBadge({ readiness, score, className }: { readiness: ProductReadiness; score?: number; className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-bold tracking-wide", READINESS_STYLE[readiness], className)}>
+    <span
+      className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-bold tracking-wide", READINESS_STYLE[readiness], className)}
+      title={`完成度: ${READINESS_HINT[readiness]}`}
+    >
       <span className={cn("size-1.5 rounded-full", READINESS_DOT[readiness])} />
       {readiness}
       {typeof score === "number" && <span className="font-normal opacity-70">{score}</span>}
@@ -33,8 +42,18 @@ const TIER_STYLE: Record<ConfidenceTier, string> = {
   RUMOR: "border border-dashed border-border text-muted-foreground",
 }
 
+const TIER_HINT: Record<ConfidenceTier, string> = {
+  CONFIRMED: "確度: 公式・国内正規販売店で確認済み。記事化(下書き生成)できる状態",
+  REPORTED: "確度: 公式未確認だが、複数の信頼できる情報源が報じている。記事化ボタンはまだ出ない",
+  RUMOR: "確度: 単一の早期情報・SNSのみ。記事化ボタンはまだ出ない",
+}
+
 export function TierBadge({ tier, className }: { tier: ConfidenceTier; className?: string }) {
-  return <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide", TIER_STYLE[tier], className)}>{tier}</span>
+  return (
+    <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide", TIER_STYLE[tier], className)} title={TIER_HINT[tier]}>
+      {tier}
+    </span>
+  )
 }
 
 export function SourceTypeBadge({ category, className }: { category: SourceCategory | null; className?: string }) {

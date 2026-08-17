@@ -37,7 +37,7 @@ export const QUICK_FILTER_LABEL: Record<QuickFilterKey, string> = {
   domesticYes: "国内販売あり",
   domesticNo: "国内販売未確認",
   noPurchaseLink: "購入リンクなし",
-  officialConfirmed: "公式確認済",
+  officialConfirmed: "記事化できる(公式確認済)",
   addedToday: "今日追加",
 }
 
