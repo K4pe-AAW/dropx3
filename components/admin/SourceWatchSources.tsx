@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import type { CrawlLog, ImagePolicy, MonitoringMethod, ProductCategory, Source } from "@/lib/source-watch/types"
-import { PRODUCT_CATEGORY_LABEL, PRODUCT_CATEGORY_ORDER } from "@/lib/source-watch/labels"
+import type { CrawlLog, ImagePolicy, MonitoringMethod, ProductCategory, Source, SocialPlatform, SocialSourceType } from "@/lib/source-watch/types"
+import { PRODUCT_CATEGORY_LABEL, PRODUCT_CATEGORY_ORDER, SOCIAL_PLATFORM_LABEL, SOCIAL_SOURCE_TYPE_LABEL, type SocialTopic } from "@/lib/source-watch/labels"
 
 type SourceWithLog = Source & { latestCrawlLog?: CrawlLog }
 
@@ -101,27 +101,50 @@ export function SourceWatchSources({ initialSources }: { initialSources: SourceW
   )
 }
 
-type AddKind = "official" | "retailer" | "youtube"
+type AddKind = "official" | "retailer" | "youtube" | "social"
 const ADD_KIND_LABEL: Record<AddKind, string> = {
   official: "ブランド公式サイト",
   retailer: "セレクトショップ",
   youtube: "YouTubeチャンネル",
+  social: "SNSアカウント(Instagram/X)",
 }
 const ADD_KIND_PLACEHOLDER: Record<AddKind, string> = {
   official: "https://brand-official-site.com/",
   retailer: "https://select-shop.com/",
   youtube: "https://www.youtube.com/@ハンドル または /channel/UC…",
+  social: "https://www.instagram.com/handle/ または https://x.com/handle",
+}
+
+const SOCIAL_PLATFORM_OPTIONS: SocialPlatform[] = ["instagram", "x"]
+const SOCIAL_TYPE_OPTIONS: SocialSourceType[] = ["official_brand", "official_store", "media", "unknown"]
+
+// SNSの新着はトピックでグルーピングされる(SOCIAL WATCH画面)ため、情報源追加時に選んだ
+// 商品カテゴリからそのまま対応するトピックを推定する(furnitureは対応するトピックが無いため未設定のまま)
+const PRODUCT_CATEGORY_TO_SOCIAL_TOPIC: Partial<Record<ProductCategory, SocialTopic>> = {
+  apparel: "FASHION",
+  shoes: "SNEAKER",
+  vintage_insta: "VINTAGE",
+  accessories: "FASHION",
 }
 
 function AddSourceForm({ onAdded }: { onAdded: (source: Source) => void }) {
   const [productCategory, setProductCategory] = useState<ProductCategory | null>(null)
   const [kind, setKind] = useState<AddKind>("official")
+  const [socialPlatform, setSocialPlatform] = useState<SocialPlatform>("instagram")
+  const [socialType, setSocialType] = useState<SocialSourceType>("official_brand")
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
   const isVintageInsta = productCategory === "vintage_insta"
+  const isSocial = isVintageInsta || kind === "social"
+
+  function selectProductCategory(c: ProductCategory) {
+    setProductCategory(c)
+    // 古着Instaは実質必ずSNSアカウントの登録になるため、②の選択を待たず先回りしておく
+    if (c === "vintage_insta") setKind("social")
+  }
 
   async function submit() {
     if (!name.trim() || !url.trim()) {
@@ -131,9 +154,18 @@ function AddSourceForm({ onAdded }: { onAdded: (source: Source) => void }) {
     setSubmitting(true)
     setStatus(null)
     try {
-      const endpoint = isVintageInsta ? "/api/admin/source-watch/social/sources" : "/api/admin/source-watch/sources"
-      const body = isVintageInsta
-        ? { profileUrl: url.trim(), name: name.trim(), socialType: "official_store", priority: "B", topics: ["VINTAGE"], productCategory }
+      const endpoint = isSocial ? "/api/admin/source-watch/social/sources" : "/api/admin/source-watch/sources"
+      const topic = productCategory ? PRODUCT_CATEGORY_TO_SOCIAL_TOPIC[productCategory] : undefined
+      const body = isSocial
+        ? {
+            profileUrl: url.trim(),
+            name: name.trim(),
+            platform: isVintageInsta ? "instagram" : socialPlatform,
+            socialType: isVintageInsta ? "official_store" : socialType,
+            priority: "B",
+            topics: topic ? [topic] : [],
+            productCategory,
+          }
         : { kind, name: name.trim(), url: url.trim(), productCategory }
       const res = await fetch(endpoint, {
         method: "POST",
@@ -163,7 +195,7 @@ function AddSourceForm({ onAdded }: { onAdded: (source: Source) => void }) {
           <button
             key={c}
             type="button"
-            onClick={() => setProductCategory(c)}
+            onClick={() => selectProductCategory(c)}
             className={
               productCategory === c
                 ? "h-7 px-3 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold"
@@ -198,10 +230,47 @@ function AddSourceForm({ onAdded }: { onAdded: (source: Source) => void }) {
               </div>
             </>
           )}
+          {!isVintageInsta && kind === "social" && (
+            <>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">③ プラットフォームとアカウント種別は?</p>
+              <div className="flex flex-wrap gap-2 mb-1.5">
+                {SOCIAL_PLATFORM_OPTIONS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setSocialPlatform(p)}
+                    className={
+                      socialPlatform === p
+                        ? "h-7 px-3 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold"
+                        : "h-7 px-3 rounded-full border border-border text-[11px] font-semibold hover:bg-secondary"
+                    }
+                  >
+                    {SOCIAL_PLATFORM_LABEL[p]}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {SOCIAL_TYPE_OPTIONS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setSocialType(t)}
+                    className={
+                      socialType === t
+                        ? "h-7 px-3 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold"
+                        : "h-7 px-3 rounded-full border border-border text-[11px] font-semibold hover:bg-secondary"
+                    }
+                  >
+                    {SOCIAL_SOURCE_TYPE_LABEL[t]}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2">
             <input
               className={inputClass}
-              placeholder={isVintageInsta ? "表示名(例: tonari)" : "名前(例: BEAMS)"}
+              placeholder={isSocial ? "表示名(例: BEAMS公式)" : "名前(例: BEAMS)"}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -219,17 +288,18 @@ function AddSourceForm({ onAdded }: { onAdded: (source: Source) => void }) {
               {submitting ? "追加中..." : "追加する"}
             </button>
           </div>
-          {isVintageInsta && (
+          {isSocial && (
             <p className="text-[10px] text-muted-foreground/70 mt-1.5">
-              Instagramアカウントとして登録します(SOCIAL WATCH画面からも管理できます)。自動取得はできないため、巡回は手動更新が基本です。
+              SNSアカウントとして登録します(SOCIAL WATCH画面からも管理できます)。新着の自動検知はできないため(公式APIの制約)、
+              投稿を見つけたらSOCIAL WATCH画面で投稿URLと本文を貼って手動で解析してください。
             </p>
           )}
-          {!isVintageInsta && kind === "youtube" && (
+          {!isSocial && kind === "youtube" && (
             <p className="text-[10px] text-muted-foreground/70 mt-1.5">
               チャンネルIDを自動取得してRSS巡回を有効にします(720分間隔)。取得できない場合はURLを見直してください。
             </p>
           )}
-          {!isVintageInsta && kind !== "youtube" && (
+          {!isSocial && kind !== "youtube" && (
             <p className="text-[10px] text-muted-foreground/70 mt-1.5">
               まず巡回方式「html」・画像利用ポリシー「unknown」で登録されます。詳しい設定は追加後、一覧の「詳細設定」から調整できます。
             </p>
