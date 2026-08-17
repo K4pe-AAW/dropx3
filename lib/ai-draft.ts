@@ -2,7 +2,7 @@ import { RawItem, Draft, Category, OfficialLink, PurchaseChannelInfo } from "./t
 import { generateId } from "./storage"
 import { siteConfig } from "./site-config"
 import { getOpenAIClient } from "./openai-client"
-import { resolveKnownAffiliateBuilder } from "./affiliate"
+import { resolveKnownAffiliateBuilder, isSafeExternalUrl } from "./affiliate"
 
 const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
 const DEFAULT_CATEGORY: Category = "sneaker"
@@ -54,6 +54,8 @@ type SuggestedPurchaseChannel = {
   date?: string
 }
 
+type SuggestedOfficialLink = { label: string; url: string }
+
 type DraftResult = {
   title: string
   excerpt: string
@@ -63,6 +65,7 @@ type DraftResult = {
   tags: string[]
   suggestedAffiliateSearch: string[]
   suggestedPurchaseChannels?: SuggestedPurchaseChannel[]
+  suggestedOfficialLinks?: SuggestedOfficialLink[]
 }
 
 const CHANNEL_TYPES = new Set(["official", "secondary"])
@@ -80,6 +83,23 @@ function sanitizeSuggestedPurchaseChannels(input: unknown): PurchaseChannelInfo[
       ...(typeof c.date === "string" && c.date.trim() ? { date: c.date.trim() } : {}),
     }))
     .filter((c) => c.retailerName)
+}
+
+/**
+ * AIの出力を信用せず型とURLの安全性を検証する。抜粋(動画概要欄等)に実際に記載されているURLだけを
+ * 転記させる想定で、AIが推測・創作したURLが紛れ込んでもisSafeExternalUrlでは弾けないため、
+ * 最終的な正しさの担保はプロンプト側の「実際に書かれている場合のみ」という指示に依存する
+ * (公開前に人間がレビューする前提であることも安全弁になっている)。
+ */
+function sanitizeSuggestedOfficialLinks(input: unknown): OfficialLink[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((l): l is Record<string, unknown> => typeof l === "object" && l !== null)
+    .map((l) => ({
+      label: typeof l.label === "string" && l.label.trim() ? l.label.trim() : "公式サイトで見る",
+      url: typeof l.url === "string" ? l.url.trim() : "",
+    }))
+    .filter((l) => l.url && isSafeExternalUrl(l.url))
 }
 
 /**
@@ -128,6 +148,11 @@ function buildUserPrompt(item: RawItem): string {
 (ブランド公式サイト、mita sneakers、メルカリ、StockX等)が列挙されている場合、suggestedPurchaseChannels
 にその店舗名を拾うこと。店舗名の列挙が無ければ空配列のままにする(店舗名を推測・創作しない)。
 
+【動画紹介記事の場合・任意】抜粋がYouTube動画の概要欄で、紹介されているブランド/ショップの
+公式サイトやオンラインストアのURL(http(s)から始まる実際のURL文字列)が明記されている場合、
+suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと。「概要欄はこちら」「リンクはプロフィールから」
+のような案内文だけでURL自体が本文に無い場合は拾わない(URLを推測・創作しない)。該当が無ければ空配列。
+
 以下のJSONで返してください:
 {
   "title": "${siteConfig.name}らしい独自タイトル(40文字前後)",
@@ -144,12 +169,16 @@ function buildUserPrompt(item: RawItem): string {
       "saleMethod": "regular(通常販売) / lottery(抽選) / unknown(記載なし)",
       "date": "その店舗固有の発売日・応募期間があれば(無ければこのキー自体を省略)"
     }
+  ],
+  "suggestedOfficialLinks": [
+    { "label": "ブランド/店舗名", "url": "抜粋に実際に記載されているそのブランド/店舗の公式URL" }
   ]
 }
 
 注意:
 - 実在しないアフィリエイトURLは絶対に生成しないこと(suggestedAffiliateSearchはあくまで検索キーワード)。
 - suggestedPurchaseChannelsにURLを含めないこと(項目自体が存在しない)。実際の販売リンクは公開前に人間が確認して付ける。店舗名の記載が抜粋に無ければ空配列のままにする。
+- suggestedOfficialLinksのurlは、抜粋の本文中に実際に存在するURL文字列をそのまま転記する場合のみ使うこと。ブランド名や店舗名からURLを推測して作らない(例: 「ブランド名.com」のような形で創作しない)。抜粋にURL自体が書かれていなければ空配列のままにする。
 - 価格や発売日など、抜粋に書かれていない具体的な数値を断定的に書かないこと。不明な場合は「詳細は続報を待ちたい」のようにぼかす。
 - 出典記事の文章をそのまま使わず、必ず独自の表現で書き直すこと。
 - bodyParagraphsの説明文部分(箇条書きの[アイテム情報]ブロックを除く)は4〜5段落、合計800〜1200字程度を
@@ -183,6 +212,12 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
     sanitizeSuggestedPurchaseChannels(result.suggestedPurchaseChannels),
     affiliateSearchKeyword
   )
+  // 概要欄等に実際に書かれていたブランド/店舗URL(あれば)。YouTube記事は「チャンネルで見る」の
+  // 定番リンクを先頭に必ず残しつつ、紹介されたブランドのリンクをその後ろに続ける
+  const brandLinksFromAi = sanitizeSuggestedOfficialLinks(result.suggestedOfficialLinks)
+  const suggestedOfficialLinks = youtubeVideoId
+    ? [{ label: `${item.sourceName}で見る`, url: item.sourceUrl } satisfies OfficialLink, ...brandLinksFromAi]
+    : brandLinksFromAi
 
   return {
     id: generateId(`${item.sourceUrl}-draft`),
@@ -197,16 +232,14 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
       ? result.suggestedAffiliateSearch
       : [],
     ...(suggestedPurchaseChannels.length > 0 ? { suggestedPurchaseChannels } : {}),
+    ...(suggestedOfficialLinks.length > 0 ? { suggestedOfficialLinks } : {}),
     sourceRefs: [{ name: item.sourceName, url: item.sourceUrl }],
     createdAt: new Date().toISOString(),
+    // カテゴリ判定がyoutube以外(商品ジャンル)になった場合でも動画へのリンクは必ず残す
     ...(youtubeVideoId
       ? {
           suggestedYoutubeVideoId: youtubeVideoId,
           suggestedCoverImage: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`,
-          // カテゴリ判定がyoutube以外(商品ジャンル)になった場合でも動画へのリンクは必ず残す
-          suggestedOfficialLinks: [
-            { label: `${item.sourceName}で見る`, url: item.sourceUrl } satisfies OfficialLink,
-          ],
         }
       : {}),
   }
