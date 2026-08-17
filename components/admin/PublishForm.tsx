@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, type FormEvent, type ReactNode } from "react"
+import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import type { Draft, Category } from "@/lib/types"
 import { siteConfig } from "@/lib/site-config"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
+import { DIRECT_BRAND_SOURCES } from "@/lib/sources"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
 type GalleryImageDraft = { url: string; alt: string }
@@ -73,6 +74,17 @@ export function PublishForm({ draft }: { draft: Draft }) {
   const [additionalSummary, setAdditionalSummary] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // RSS収集の下書きは著作権保護のためカバー画像を自動設定しない(YouTube以外)。ここでは画像を
+  // 保存・転載するのではなく、著作権者が明確な情報源(ブランド公式サイト)を人間に示すだけに留める。
+  const matchedBrandSources = useMemo(() => {
+    const brandNames = brandsText
+      .split(",")
+      .map((b) => b.trim().toLowerCase())
+      .filter(Boolean)
+    if (brandNames.length === 0) return []
+    return DIRECT_BRAND_SOURCES.filter((s) => brandNames.includes(s.name.toLowerCase()))
+  }, [brandsText])
 
   function updateLink(i: number, patch: Partial<LinkDraft>) {
     setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
@@ -315,6 +327,29 @@ export function PublishForm({ draft }: { draft: Draft }) {
           placeholder="https://..."
           required
         />
+        {!coverImage && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {matchedBrandSources.map((s) => (
+              <a
+                key={s.name}
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-accent-foreground underline hover:text-foreground"
+              >
+                {s.name}公式サイトで画像を確認
+              </a>
+            ))}
+            <a
+              href={`https://www.google.com/search?q=${encodeURIComponent(brandsText || title)}&tbm=isch`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-muted-foreground underline hover:text-foreground"
+            >
+              画像を検索して探す
+            </a>
+          </div>
+        )}
       </Field>
 
       <Field label="画像の代替テキスト">

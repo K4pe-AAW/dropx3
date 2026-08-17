@@ -138,6 +138,11 @@ export async function writeArticles(data: ArticlesData) {
   await writeJson(ARTICLES_PATH, data)
 }
 
+/** articles.jsonへの読み書きを常にこの関数経由にすることで、公開・編集・予約昇格が競合しても片方が消えない */
+export async function mutateArticles(mutate: (data: ArticlesData) => ArticlesData): Promise<ArticlesData> {
+  return mutateJson<ArticlesData>(ARTICLES_PATH, { articles: [], lastUpdated: new Date().toISOString() }, mutate)
+}
+
 export async function getAllArticles(): Promise<Article[]> {
   // publishedAtはUTC('Z')とJST('+09:00')が混在しうるため、文字列比較ではなく実時刻で比較する
   const { articles } = await readArticles()
@@ -163,13 +168,16 @@ export async function getArticleById(id: string): Promise<Article | undefined> {
 
 /** 公開済み記事を編集する。slugは変更しない(公開URL・外部からのリンクを壊さないため) */
 export async function updateArticle(id: string, patch: Partial<Omit<Article, "id" | "slug">>): Promise<Article> {
-  const data = await readArticles()
-  const article = data.articles.find((a) => a.id === id)
-  if (!article) throw new Error(`article not found: ${id}`)
-  Object.assign(article, patch, { updatedAt: new Date().toISOString() })
-  data.lastUpdated = new Date().toISOString()
-  await writeArticles(data)
-  return article
+  let updated: Article | undefined
+  await mutateArticles((data) => {
+    const article = data.articles.find((a) => a.id === id)
+    if (!article) throw new Error(`article not found: ${id}`)
+    Object.assign(article, patch, { updatedAt: new Date().toISOString() })
+    data.lastUpdated = new Date().toISOString()
+    updated = article
+    return data
+  })
+  return updated!
 }
 
 export async function getArticlesByCategory(category: string): Promise<Article[]> {
@@ -226,22 +234,26 @@ export async function getArchiveMonths(): Promise<{ key: string; label: string; 
 }
 
 export async function publishArticle(article: Article) {
-  const data = await readArticles()
-  data.articles = data.articles.filter((a) => a.id !== article.id)
-  data.articles.unshift(article)
-  data.lastUpdated = new Date().toISOString()
-  await writeArticles(data)
+  await mutateArticles((data) => {
+    data.articles = data.articles.filter((a) => a.id !== article.id)
+    data.articles.unshift(article)
+    data.lastUpdated = new Date().toISOString()
+    return data
+  })
 }
 
 /** 公開済み記事を非公開にする(ハードデリートではなく除去のみ。呼び出し側でrejected draft化して残す運用) */
 export async function unpublishArticle(id: string): Promise<Article> {
-  const data = await readArticles()
-  const article = data.articles.find((a) => a.id === id)
-  if (!article) throw new Error(`article not found: ${id}`)
-  data.articles = data.articles.filter((a) => a.id !== id)
-  data.lastUpdated = new Date().toISOString()
-  await writeArticles(data)
-  return article
+  let removed: Article | undefined
+  await mutateArticles((data) => {
+    const article = data.articles.find((a) => a.id === id)
+    if (!article) throw new Error(`article not found: ${id}`)
+    data.articles = data.articles.filter((a) => a.id !== id)
+    data.lastUpdated = new Date().toISOString()
+    removed = article
+    return data
+  })
+  return removed!
 }
 
 // --- Drafts (収集パイプラインの出力。人間のレビュー待ち) ---
@@ -252,6 +264,11 @@ export async function readDrafts(): Promise<DraftsData> {
 
 export async function writeDrafts(data: DraftsData) {
   await writeJson(DRAFTS_PATH, data)
+}
+
+/** drafts.jsonへの読み書きを常にこの関数経由にすることで、収集・公開・削除が競合しても片方が消えない */
+export async function mutateDrafts(mutate: (data: DraftsData) => DraftsData): Promise<DraftsData> {
+  return mutateJson<DraftsData>(DRAFTS_PATH, { drafts: [] }, mutate)
 }
 
 export async function getPendingDrafts(): Promise<Draft[]> {
@@ -265,42 +282,45 @@ export async function getDraftById(id: string): Promise<Draft | undefined> {
 }
 
 export async function addDrafts(newDrafts: Draft[]): Promise<{ saved: number; skipped: number }> {
-  const data = await readDrafts()
   let saved = 0
   let skipped = 0
-
-  for (const draft of newDrafts) {
-    const isDup = data.drafts.some((d) =>
-      d.sourceRefs.some((ref) => draft.sourceRefs.some((r) => r.url === ref.url))
-    )
-    if (isDup) {
-      skipped++
-      continue
+  await mutateDrafts((data) => {
+    // mutateJsonはETag競合時にこのmutate関数を再実行するため、カウンタは毎回リセットする
+    saved = 0
+    skipped = 0
+    for (const draft of newDrafts) {
+      const isDup = data.drafts.some((d) =>
+        d.sourceRefs.some((ref) => draft.sourceRefs.some((r) => r.url === ref.url))
+      )
+      if (isDup) {
+        skipped++
+        continue
+      }
+      data.drafts.unshift(draft)
+      saved++
     }
-    data.drafts.unshift(draft)
-    saved++
-  }
-
-  // 保留分が溜まりすぎないよう上限を設ける
-  if (data.drafts.length > 300) {
-    data.drafts = data.drafts.slice(0, 300)
-  }
-
-  await writeDrafts(data)
+    // 保留分が溜まりすぎないよう上限を設ける
+    if (data.drafts.length > 300) {
+      data.drafts = data.drafts.slice(0, 300)
+    }
+    return data
+  })
   return { saved, skipped }
 }
 
 export async function updateDraftStatus(id: string, status: Draft["status"]) {
-  const data = await readDrafts()
-  const draft = data.drafts.find((d) => d.id === id)
-  if (draft) draft.status = status
-  await writeDrafts(data)
+  await mutateDrafts((data) => {
+    const draft = data.drafts.find((d) => d.id === id)
+    if (draft) draft.status = status
+    return data
+  })
 }
 
 export async function removeDraft(id: string) {
-  const data = await readDrafts()
-  data.drafts = data.drafts.filter((d) => d.id !== id)
-  await writeDrafts(data)
+  await mutateDrafts((data) => {
+    data.drafts = data.drafts.filter((d) => d.id !== id)
+    return data
+  })
 }
 
 // --- Scheduled articles (公開日時が未来の記事。articles.jsonには入れず、cronが昇格させる) ---
@@ -313,48 +333,60 @@ export async function writeScheduledArticles(data: ScheduledArticlesData) {
   await writeJson(SCHEDULED_PATH, data)
 }
 
+/** scheduled.jsonへの読み書きを常にこの関数経由にすることで、複数件の一括予約や予約昇格が競合しても枠がズレない */
+export async function mutateScheduledArticles(mutate: (data: ScheduledArticlesData) => ScheduledArticlesData): Promise<ScheduledArticlesData> {
+  return mutateJson<ScheduledArticlesData>(SCHEDULED_PATH, { scheduled: [] }, mutate)
+}
+
 export async function getScheduledArticles(): Promise<ScheduledArticle[]> {
   const { scheduled } = await readScheduledArticles()
   return scheduled.slice().sort((a, b) => (a.scheduledPublishAt < b.scheduledPublishAt ? -1 : 1))
 }
 
 export async function addScheduledArticle(article: ScheduledArticle) {
-  const data = await readScheduledArticles()
-  data.scheduled = data.scheduled.filter((a) => a.id !== article.id)
-  data.scheduled.push(article)
-  await writeScheduledArticles(data)
+  await mutateScheduledArticles((data) => {
+    data.scheduled = data.scheduled.filter((a) => a.id !== article.id)
+    data.scheduled.push(article)
+    return data
+  })
 }
 
 export async function removeScheduledArticle(id: string) {
-  const data = await readScheduledArticles()
-  data.scheduled = data.scheduled.filter((a) => a.id !== id)
-  await writeScheduledArticles(data)
+  await mutateScheduledArticles((data) => {
+    data.scheduled = data.scheduled.filter((a) => a.id !== id)
+    return data
+  })
 }
 
 /**
  * scheduledPublishAtを過ぎた予約記事をarticles.jsonへ昇格させる(publishedAt=scheduledPublishAt)。
- * scheduled.json・articles.jsonそれぞれについて単一トランザクション(1回読んで1回書く)を守る
- * ——2ファイルにまたがるが、両方ともこの関数内で完結させ、この関数の呼び出し元(cron)が
- * 短時間に連続実行されない前提(実行間隔は呼び出し側のcron設定に依存)。
+ * 「due一覧の確定」はここで1回だけ読んで決めるが、articles.jsonへの追加・scheduled.jsonからの除去は
+ * それぞれmutateJsonで保護し、かつ両方とも記事ID/該当ID基準の冪等な操作にしている
+ * (同一IDの記事を複数回追加しても重複しない・同一IDの削除を複数回行っても副作用は同じ)ため、
+ * 万一この関数が短時間に重複実行されても、articles反映後にscheduled除去が失敗するケース以外は
+ * 安全に収束する(その場合も次回実行時にarticles側が冪等なので再度届く)。
  */
 export async function promoteDueScheduledArticles(): Promise<{ promoted: number; titles: string[] }> {
-  const scheduledData = await readScheduledArticles()
+  const { scheduled } = await readScheduledArticles()
   const now = Date.now()
-  const due = scheduledData.scheduled.filter((a) => new Date(a.scheduledPublishAt).getTime() <= now)
+  const due = scheduled.filter((a) => new Date(a.scheduledPublishAt).getTime() <= now)
   if (due.length === 0) return { promoted: 0, titles: [] }
 
-  const articlesData = await readArticles()
-  for (const item of due) {
-    const { scheduledPublishAt, ...rest } = item
-    const article: Article = { ...rest, publishedAt: scheduledPublishAt }
-    articlesData.articles = articlesData.articles.filter((a) => a.id !== article.id)
-    articlesData.articles.unshift(article)
-  }
-  articlesData.lastUpdated = new Date().toISOString()
-  await writeArticles(articlesData)
+  await mutateArticles((articlesData) => {
+    for (const item of due) {
+      const { scheduledPublishAt, ...rest } = item
+      const article: Article = { ...rest, publishedAt: scheduledPublishAt }
+      articlesData.articles = articlesData.articles.filter((a) => a.id !== article.id)
+      articlesData.articles.unshift(article)
+    }
+    articlesData.lastUpdated = new Date().toISOString()
+    return articlesData
+  })
 
-  scheduledData.scheduled = scheduledData.scheduled.filter((a) => !due.some((d) => d.id === a.id))
-  await writeScheduledArticles(scheduledData)
+  await mutateScheduledArticles((scheduledData) => {
+    scheduledData.scheduled = scheduledData.scheduled.filter((a) => !due.some((d) => d.id === a.id))
+    return scheduledData
+  })
 
   return { promoted: due.length, titles: due.map((a) => a.title) }
 }

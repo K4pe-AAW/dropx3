@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import {
-  readDrafts,
-  writeDrafts,
-  readArticles,
-  writeArticles,
-  readScheduledArticles,
-  writeScheduledArticles,
-  generateSlug,
-  generateId,
-} from "@/lib/storage"
+import { readDrafts, mutateDrafts, mutateArticles, mutateScheduledArticles, generateSlug, generateId } from "@/lib/storage"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 import { canonicalBrandNames } from "@/lib/brands"
 import { computeNextSlot } from "@/lib/publish-schedule"
@@ -84,8 +75,8 @@ export async function POST(req: NextRequest) {
     scheduledIso = d.toISOString()
   }
 
-  const draftsData = await readDrafts()
-  const targets = draftsData.drafts.filter((d) => ids.includes(d.id))
+  const { drafts } = await readDrafts()
+  const targets = drafts.filter((d) => ids.includes(d.id))
 
   const ready = targets.filter((d) => Boolean(d.suggestedCoverImage))
   const skipped = targets.filter((d) => !d.suggestedCoverImage)
@@ -93,39 +84,45 @@ export async function POST(req: NextRequest) {
   if (ready.length > 0) {
     if (autoSchedule) {
       // scheduledData.scheduledへのpushだけを次のcomputeNextSlot呼び出しの入力にする(既に
-      // 割り当てた分を別配列でも二重に数えると、1枠2件のはずが1件ごとに次枠へ進んでしまうため)
-      const scheduledData = await readScheduledArticles()
-      for (const draft of ready) {
-        const slot = computeNextSlot(scheduledData.scheduled.map((s) => s.scheduledPublishAt))
-        const iso = slot.toISOString()
-        const article = draftToArticleShape(draft)
-        const scheduled: ScheduledArticle = { ...article, scheduledPublishAt: iso }
-        scheduledData.scheduled = scheduledData.scheduled.filter((s) => s.id !== scheduled.id)
-        scheduledData.scheduled.push(scheduled)
-      }
-      await writeScheduledArticles(scheduledData)
+      // 割り当てた分を別配列でも二重に数えると、1枠2件のはずが1件ごとに次枠へ進んでしまうため)。
+      // mutateScheduledArticlesで包むことで、他の予約リクエストと競合してもETagで安全にやり直す
+      await mutateScheduledArticles((scheduledData) => {
+        for (const draft of ready) {
+          const slot = computeNextSlot(scheduledData.scheduled.map((s) => s.scheduledPublishAt))
+          const iso = slot.toISOString()
+          const article = draftToArticleShape(draft)
+          const scheduled: ScheduledArticle = { ...article, scheduledPublishAt: iso }
+          scheduledData.scheduled = scheduledData.scheduled.filter((s) => s.id !== scheduled.id)
+          scheduledData.scheduled.push(scheduled)
+        }
+        return scheduledData
+      })
     } else if (scheduledIso) {
-      const scheduledData = await readScheduledArticles()
-      for (const draft of ready) {
-        const article = draftToArticleShape(draft)
-        const scheduled: ScheduledArticle = { ...article, scheduledPublishAt: scheduledIso }
-        scheduledData.scheduled = scheduledData.scheduled.filter((s) => s.id !== scheduled.id)
-        scheduledData.scheduled.push(scheduled)
-      }
-      await writeScheduledArticles(scheduledData)
+      await mutateScheduledArticles((scheduledData) => {
+        for (const draft of ready) {
+          const article = draftToArticleShape(draft)
+          const scheduled: ScheduledArticle = { ...article, scheduledPublishAt: scheduledIso }
+          scheduledData.scheduled = scheduledData.scheduled.filter((s) => s.id !== scheduled.id)
+          scheduledData.scheduled.push(scheduled)
+        }
+        return scheduledData
+      })
     } else {
-      const articlesData = await readArticles()
       const now = new Date().toISOString()
-      for (const draft of ready) {
-        const article: Article = { ...draftToArticleShape(draft), publishedAt: now }
-        articlesData.articles.unshift(article)
-      }
-      articlesData.lastUpdated = now
-      await writeArticles(articlesData)
+      await mutateArticles((articlesData) => {
+        for (const draft of ready) {
+          const article: Article = { ...draftToArticleShape(draft), publishedAt: now }
+          articlesData.articles.unshift(article)
+        }
+        articlesData.lastUpdated = now
+        return articlesData
+      })
     }
 
-    draftsData.drafts = draftsData.drafts.filter((d) => !ready.some((r) => r.id === d.id))
-    await writeDrafts(draftsData)
+    await mutateDrafts((data) => {
+      data.drafts = data.drafts.filter((d) => !ready.some((r) => r.id === d.id))
+      return data
+    })
   }
 
   return NextResponse.json({
