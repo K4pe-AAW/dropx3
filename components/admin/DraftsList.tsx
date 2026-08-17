@@ -11,6 +11,7 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [autoScheduling, setAutoScheduling] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [scheduledPublishAt, setScheduledPublishAt] = useState("")
 
@@ -78,6 +79,36 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
     }
   }
 
+  async function autoScheduleSelected() {
+    if (selected.size === 0) return
+    if (
+      !window.confirm(
+        `チェックした${selected.size}件を、8〜22時・2時間おき・1枠2件のペースで次の空き枠へ順番に予約します（カバー画像が無いものは自動でスキップされます）。よろしいですか？`
+      )
+    )
+      return
+    setAutoScheduling(true)
+    setMessage(null)
+    try {
+      const res = await fetch("/api/admin/drafts/publish-selected", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected), autoSchedule: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "予約に失敗しました")
+      const parts = [`${data.published}件を次の空き枠へ予約しました`]
+      if (data.skipped > 0) parts.push(`${data.skipped}件はカバー画像未設定のためスキップ`)
+      setMessage(parts.join(" / "))
+      setSelected(new Set())
+      router.refresh()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "エラーが発生しました")
+    } finally {
+      setAutoScheduling(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -99,6 +130,14 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
             ? "処理中..."
             : `チェックした記事を${scheduledPublishAt ? "予約公開" : "まとめて公開"}${selected.size > 0 ? `(${selected.size})` : ""}`}
         </button>
+        <button
+          type="button"
+          onClick={autoScheduleSelected}
+          disabled={selected.size === 0 || autoScheduling}
+          className="h-8 rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary disabled:opacity-50"
+        >
+          {autoScheduling ? "処理中..." : `次の空き枠へ順番に予約${selected.size > 0 ? `(${selected.size})` : ""}`}
+        </button>
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
           公開日時
           <input
@@ -111,7 +150,7 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
         {message && <span className="text-xs text-muted-foreground">{message}</span>}
       </div>
       <p className="text-[11px] text-muted-foreground/70 mb-3">
-        公開日時を指定するとその時刻まで非公開のまま予約されます。空欄なら即座に公開します。カバー画像が未設定の下書き(下のカードに「画像未設定」と表示)は一括公開の対象外です——個別に開いて設定してください。
+        公開日時を指定するとその時刻まで非公開のまま予約されます。空欄なら即座に公開します。「次の空き枠へ順番に予約」は日時指定不要で、8〜22時・2時間おき・1枠2件のペースに自動で割り振ります。カバー画像が未設定の下書き(下のカードに「画像未設定」と表示)はどちらも対象外です——個別に開いて設定してください。
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-6">

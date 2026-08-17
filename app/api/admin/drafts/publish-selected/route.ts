@@ -11,6 +11,7 @@ import {
 } from "@/lib/storage"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 import { canonicalBrandNames } from "@/lib/brands"
+import { computeNextSlot } from "@/lib/publish-schedule"
 import type { Article, AffiliateLink, Draft, ScheduledArticle } from "@/lib/types"
 
 /** AIが提案した検索キーワードから、自動生成できる店舗の実リンクをまとめて組み立てる(PublishFormの「自動でリンクを追加」と同じロジック) */
@@ -59,6 +60,10 @@ function draftToArticleShape(draft: Draft): Omit<Article, "publishedAt"> {
  * チェックした下書きを単一トランザクションでまとめて公開(または予約)する。
  * カバー画像が無い下書き(Youtube以外のほとんどの下書きが該当)は、画像未確認のまま公開しない
  * という既存方針を守るため対象外にし、スキップ件数として返す。
+ *
+ * autoSchedule:trueの場合、全件に同じ日時を付けるのではなく、8-22時(JST)・2時間おき・1枠2件の
+ * 固定ペースで、選択順に「次に空いている枠」を1件ずつ割り当てていく(computeNextSlotを都度呼び、
+ * 割り当て済みの枠を次の計算に含めることで同一枠への3件目以降の割当を防ぐ)。
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
@@ -67,9 +72,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "対象が指定されていません" }, { status: 400 })
   }
 
+  const autoSchedule = Boolean(body.autoSchedule)
+
   const scheduledPublishAtInput = typeof body.scheduledPublishAt === "string" ? body.scheduledPublishAt : ""
   let scheduledIso: string | null = null
-  if (scheduledPublishAtInput) {
+  if (!autoSchedule && scheduledPublishAtInput) {
     const d = new Date(scheduledPublishAtInput)
     if (Number.isNaN(d.getTime()) || d.getTime() <= Date.now()) {
       return NextResponse.json({ error: "公開日時は未来の時刻を指定してください" }, { status: 400 })
@@ -84,7 +91,20 @@ export async function POST(req: NextRequest) {
   const skipped = targets.filter((d) => !d.suggestedCoverImage)
 
   if (ready.length > 0) {
-    if (scheduledIso) {
+    if (autoSchedule) {
+      const scheduledData = await readScheduledArticles()
+      const assignedTimes: string[] = []
+      for (const draft of ready) {
+        const slot = computeNextSlot([...scheduledData.scheduled.map((s) => s.scheduledPublishAt), ...assignedTimes])
+        const iso = slot.toISOString()
+        assignedTimes.push(iso)
+        const article = draftToArticleShape(draft)
+        const scheduled: ScheduledArticle = { ...article, scheduledPublishAt: iso }
+        scheduledData.scheduled = scheduledData.scheduled.filter((s) => s.id !== scheduled.id)
+        scheduledData.scheduled.push(scheduled)
+      }
+      await writeScheduledArticles(scheduledData)
+    } else if (scheduledIso) {
       const scheduledData = await readScheduledArticles()
       for (const draft of ready) {
         const article = draftToArticleShape(draft)
@@ -111,7 +131,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     published: ready.length,
-    scheduled: Boolean(scheduledIso),
+    scheduled: autoSchedule || Boolean(scheduledIso),
     skipped: skipped.length,
     skippedTitles: skipped.map((d) => d.title),
   })
