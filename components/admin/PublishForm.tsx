@@ -144,11 +144,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
     setPurchaseChannels((prev) => prev.filter((_, idx) => idx !== i))
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-
+  function buildRequestBody(): Record<string, unknown> {
     const affiliateLinks = links
       .filter((l) => l.url.trim())
       .map((l) => ({
@@ -158,53 +154,62 @@ export function PublishForm({ draft }: { draft: Draft }) {
         ...(l.price.trim() ? { price: l.price.trim() } : {}),
       }))
 
+    return {
+      title,
+      excerpt,
+      bodyParagraphs: [
+        ...bodyText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+        ...additionalSummary.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+      ],
+      category,
+      brands: brandsText.split(",").map((b) => b.trim()).filter(Boolean),
+      tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
+      coverImage,
+      coverImageAlt,
+      featured,
+      ...(youtubeVideoId.trim() ? { youtubeVideoId: youtubeVideoId.trim() } : {}),
+      affiliateLinks,
+      galleryImages: galleryImages.filter((g) => g.url.trim()),
+      officialLinks: officialLinks.filter((l) => l.url.trim()),
+      colorways: colorways
+        .filter((c) => c.colorName.trim())
+        .map((c) => ({
+          colorName: c.colorName.trim(),
+          ...(c.image.trim() ? { image: c.image.trim() } : {}),
+          ...(c.styleCode.trim() ? { styleCode: c.styleCode.trim() } : {}),
+          ...(c.price.trim() ? { price: c.price.trim() } : {}),
+          ...(c.size.trim() ? { size: c.size.trim() } : {}),
+          ...(c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
+          ...(c.retailersText.trim()
+            ? { retailers: c.retailersText.split(",").map((r) => r.trim()).filter(Boolean) }
+            : {}),
+        })),
+      purchaseChannels: purchaseChannels
+        .filter((c) => c.retailerName.trim())
+        .map((c) => ({
+          retailerName: c.retailerName.trim(),
+          channelType: c.channelType,
+          saleMethod: c.saleMethod,
+          ...(c.date.trim() ? { date: c.date.trim() } : {}),
+          ...(c.url.trim() ? { url: c.url.trim() } : {}),
+        })),
+    }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
     const isScheduled = Boolean(scheduledPublishAt)
     const endpoint = isScheduled ? `/api/drafts/${draft.id}/schedule` : `/api/drafts/${draft.id}/publish`
+    const body = buildRequestBody()
+    if (isScheduled) body.scheduledPublishAt = new Date(scheduledPublishAt).toISOString()
 
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        excerpt,
-        bodyParagraphs: [
-          ...bodyText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
-          ...additionalSummary.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
-        ],
-        category,
-        brands: brandsText.split(",").map((b) => b.trim()).filter(Boolean),
-        tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
-        coverImage,
-        coverImageAlt,
-        featured,
-        ...(youtubeVideoId.trim() ? { youtubeVideoId: youtubeVideoId.trim() } : {}),
-        ...(isScheduled ? { scheduledPublishAt: new Date(scheduledPublishAt).toISOString() } : {}),
-        affiliateLinks,
-        galleryImages: galleryImages.filter((g) => g.url.trim()),
-        officialLinks: officialLinks.filter((l) => l.url.trim()),
-        colorways: colorways
-          .filter((c) => c.colorName.trim())
-          .map((c) => ({
-            colorName: c.colorName.trim(),
-            ...(c.image.trim() ? { image: c.image.trim() } : {}),
-            ...(c.styleCode.trim() ? { styleCode: c.styleCode.trim() } : {}),
-            ...(c.price.trim() ? { price: c.price.trim() } : {}),
-            ...(c.size.trim() ? { size: c.size.trim() } : {}),
-            ...(c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
-            ...(c.retailersText.trim()
-              ? { retailers: c.retailersText.split(",").map((r) => r.trim()).filter(Boolean) }
-              : {}),
-          })),
-        purchaseChannels: purchaseChannels
-          .filter((c) => c.retailerName.trim())
-          .map((c) => ({
-            retailerName: c.retailerName.trim(),
-            channelType: c.channelType,
-            saleMethod: c.saleMethod,
-            ...(c.date.trim() ? { date: c.date.trim() } : {}),
-            ...(c.url.trim() ? { url: c.url.trim() } : {}),
-          })),
-      }),
+      body: JSON.stringify(body),
     })
 
     setSubmitting(false)
@@ -212,6 +217,28 @@ export function PublishForm({ draft }: { draft: Draft }) {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       setError(data.error || (isScheduled ? "予約に失敗しました" : "公開に失敗しました"))
+      return
+    }
+
+    router.push("/admin")
+    router.refresh()
+  }
+
+  async function handleScheduleNext() {
+    setSubmitting(true)
+    setError(null)
+
+    const res = await fetch(`/api/drafts/${draft.id}/schedule-next`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildRequestBody()),
+    })
+
+    setSubmitting(false)
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || "予約に失敗しました")
       return
     }
 
@@ -599,6 +626,19 @@ export function PublishForm({ draft }: { draft: Draft }) {
           value={scheduledPublishAt}
           onChange={(e) => setScheduledPublishAt(e.target.value)}
         />
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleScheduleNext}
+            disabled={submitting}
+            className="h-8 px-3 rounded-full border border-border text-xs font-semibold hover:bg-secondary disabled:opacity-50"
+          >
+            次の空き枠へ予約する
+          </button>
+          <span className="text-[11px] text-muted-foreground">
+            8〜22時・2時間おき・1枠2件のペースで、次に空いている枠へ自動で割り当てます（日時は指定不要）
+          </span>
+        </div>
       </Field>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
