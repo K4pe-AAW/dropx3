@@ -92,12 +92,12 @@ export async function POST(req: NextRequest) {
 
   if (ready.length > 0) {
     if (autoSchedule) {
+      // scheduledData.scheduledへのpushだけを次のcomputeNextSlot呼び出しの入力にする(既に
+      // 割り当てた分を別配列でも二重に数えると、1枠2件のはずが1件ごとに次枠へ進んでしまうため)
       const scheduledData = await readScheduledArticles()
-      const assignedTimes: string[] = []
       for (const draft of ready) {
-        const slot = computeNextSlot([...scheduledData.scheduled.map((s) => s.scheduledPublishAt), ...assignedTimes])
+        const slot = computeNextSlot(scheduledData.scheduled.map((s) => s.scheduledPublishAt))
         const iso = slot.toISOString()
-        assignedTimes.push(iso)
         const article = draftToArticleShape(draft)
         const scheduled: ScheduledArticle = { ...article, scheduledPublishAt: iso }
         scheduledData.scheduled = scheduledData.scheduled.filter((s) => s.id !== scheduled.id)
