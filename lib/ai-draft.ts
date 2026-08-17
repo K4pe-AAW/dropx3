@@ -2,6 +2,7 @@ import { RawItem, Draft, Category, OfficialLink, PurchaseChannelInfo } from "./t
 import { generateId } from "./storage"
 import { siteConfig } from "./site-config"
 import { getOpenAIClient } from "./openai-client"
+import { resolveKnownAffiliateBuilder } from "./affiliate"
 
 const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
 const DEFAULT_CATEGORY: Category = "sneaker"
@@ -67,7 +68,7 @@ type DraftResult = {
 const CHANNEL_TYPES = new Set(["official", "secondary"])
 const SALE_METHODS = new Set(["regular", "lottery", "unknown"])
 
-/** AIの出力を信用せず型を検証する(URLは意図的に受け付けない——公開前に人間が実際のリンクを付ける運用) */
+/** AIの出力を信用せず型を検証する(URLはAIには一切出力させていない——下でDROPWIRE自身の提携済みリンクのみ付与する) */
 function sanitizeSuggestedPurchaseChannels(input: unknown): PurchaseChannelInfo[] {
   if (!Array.isArray(input)) return []
   return input
@@ -79,6 +80,26 @@ function sanitizeSuggestedPurchaseChannels(input: unknown): PurchaseChannelInfo[
       ...(typeof c.date === "string" && c.date.trim() ? { date: c.date.trim() } : {}),
     }))
     .filter((c) => c.retailerName)
+}
+
+/**
+ * 店舗名がメルカリ/Yahoo!ショッピング/スニダン/楽天市場等、DROPWIRE自身が既に提携済みのASPと
+ * 一致する場合のみ、実際のトラッキングリンクを自動生成して付与する(出典元のURLは一切使わない
+ * ——他媒体自身のアフィリエイトコードを再利用しない/実在しないURLを捏造しないの両方を守るため)。
+ * 一致しない店舗(ブランド公式サイトや個別セレクトショップ等)はこれまで通りURL無しのまま返し、
+ * 公開前に人間が確認して手動で付ける。
+ */
+function autoFillKnownChannelUrls(channels: PurchaseChannelInfo[], searchQuery: string | undefined): PurchaseChannelInfo[] {
+  if (!searchQuery) return channels
+  return channels.map((c) => {
+    const build = resolveKnownAffiliateBuilder(c.retailerName)
+    if (!build) return c
+    try {
+      return { ...c, url: build(searchQuery).url }
+    } catch {
+      return c
+    }
+  })
 }
 
 function buildUserPrompt(item: RawItem): string {
@@ -148,7 +169,11 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
 
   const result: DraftResult = JSON.parse(content)
   const youtubeVideoId = extractYoutubeVideoId(item.sourceUrl)
-  const suggestedPurchaseChannels = sanitizeSuggestedPurchaseChannels(result.suggestedPurchaseChannels)
+  const affiliateSearchKeyword = Array.isArray(result.suggestedAffiliateSearch) ? result.suggestedAffiliateSearch[0] : undefined
+  const suggestedPurchaseChannels = autoFillKnownChannelUrls(
+    sanitizeSuggestedPurchaseChannels(result.suggestedPurchaseChannels),
+    affiliateSearchKeyword
+  )
 
   return {
     id: generateId(`${item.sourceUrl}-draft`),

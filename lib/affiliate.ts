@@ -117,3 +117,24 @@ export const QUICK_AFFILIATE_RETAILERS: { label: string; retailer: string; build
   { label: "楽天市場で探す", retailer: "楽天市場", build: buildRakutenSearchLink },
   { label: "ZOZOTOWNで見る", retailer: "ZOZOTOWN" },
 ]
+
+/** 表記ゆれ(カタカナ/英字/「!」の有無等)を吸収するための店舗名エイリアス。上のQUICK_AFFILIATE_RETAILERSと
+ * 対応関係にあるが、AIが抽出した自由記述のretailerName(例: "Yahoo!ショッピング" "ヤフーショッピング")と
+ * 突き合わせる用途のため別で持つ */
+const RETAILER_URL_ALIASES: { aliases: string[]; build: (query: string) => AffiliateLink }[] = [
+  { aliases: ["メルカリ", "mercari"], build: buildMercariSearchLink },
+  { aliases: ["yahoo", "ヤフーショッピング", "Yahoo!ショッピング"], build: buildYahooShoppingSearchLink },
+  { aliases: ["スニダン", "snkrdunk"], build: buildSnkrdunkSearchLink },
+  { aliases: ["楽天"], build: buildRakutenSearchLink },
+]
+
+/**
+ * 店舗名(表記ゆれあり)から、既にDROPWIRE自身が提携済みのASPリンクbuilderを引く。
+ * 一致しなければundefined——未対応の店舗や出典元のURLをそのまま使ってURLを捏造しないため、
+ * 呼び出し側は必ずundefinedを許容し、その場合はURL欄を空のまま(人間が手動で確認して追加)にすること。
+ */
+export function resolveKnownAffiliateBuilder(retailerName: string): ((query: string) => AffiliateLink) | undefined {
+  const lower = retailerName.toLowerCase()
+  const found = RETAILER_URL_ALIASES.find((r) => r.aliases.some((a) => lower.includes(a.toLowerCase())))
+  return found?.build
+}
