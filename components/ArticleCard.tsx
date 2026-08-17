@@ -14,35 +14,49 @@ function formatDate(iso: string) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${week}`
 }
 
+/**
+ * スマホ幅ではサムネ小+テキスト横並びのリスト行(uptodate.tokyo等のニュースアプリでよく見る形)、
+ * sm以上では従来通り画像が上に大きく載るカード型に切り替える。1つのマークアップをTailwindの
+ * レスポンシブクラスだけで出し分け、ページ側(グリッドを組んでいる6箇所)は変更不要にしている。
+ */
 export function ArticleCard({ article, priority = false }: { article: Article; priority?: boolean }) {
   return (
-    <Link href={`/articles/${article.slug}`} className="group block">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted mb-3 border-2 border-accent">
+    <Link
+      href={`/articles/${article.slug}`}
+      className="group flex items-center gap-3 border-b border-border pb-4 sm:block sm:border-0 sm:pb-0"
+    >
+      <div className="relative size-24 shrink-0 overflow-hidden rounded-lg border-2 border-accent bg-muted sm:mb-3 sm:aspect-[4/3] sm:size-auto sm:rounded-xl">
         {/* eslint-disable-next-line @next/next/no-img-element -- 提携先ごとに画像ドメインが変わるためnext/imageのremotePatternsを固定できない */}
         <img
           src={article.youtubeVideoId ? `https://img.youtube.com/vi/${article.youtubeVideoId}/hqdefault.jpg` : article.coverImage}
           alt={article.coverImageAlt}
           loading={priority ? "eager" : "lazy"}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-105"
         />
         {article.youtubeVideoId && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="size-12 rounded-full bg-black/60 flex items-center justify-center">
-              <PlayIcon className="size-5 text-white translate-x-0.5" />
+            <div className="flex size-7 items-center justify-center rounded-full bg-black/60 sm:size-12">
+              <PlayIcon className="size-3 translate-x-0.5 text-white sm:size-5" />
             </div>
           </div>
         )}
-        <div className="absolute top-2 left-2 flex gap-1.5">
+        <div className="absolute top-1.5 left-1.5 hidden gap-1.5 sm:flex">
           {article.brands[0] && <Badge variant="default">{article.brands[0]}</Badge>}
         </div>
-        <div className="absolute top-2 right-2 flex gap-1.5">
-          {isNew(article.publishedAt) && <Badge variant="accent">NEW</Badge>}
+        <div className="absolute top-1.5 right-1.5 flex gap-1.5 sm:top-2 sm:right-2">
+          {isNew(article.publishedAt) && (
+            <Badge variant="accent" className="px-1.5 py-0 text-[9px] sm:px-2 sm:py-0.5 sm:text-[11px]">
+              NEW
+            </Badge>
+          )}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground mb-1">{formatDate(article.publishedAt)}</p>
-      <h3 className="text-sm font-bold leading-snug line-clamp-2 group-hover:underline decoration-2 underline-offset-2">
-        {article.title}
-      </h3>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground mb-1">{formatDate(article.publishedAt)}</p>
+        <h3 className="text-sm font-bold leading-snug line-clamp-2 group-hover:underline decoration-2 underline-offset-2">
+          {article.title}
+        </h3>
+      </div>
     </Link>
   )
 }
