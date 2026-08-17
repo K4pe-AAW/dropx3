@@ -70,6 +70,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
       url: c.url ?? "",
     }))
   )
+  const [additionalSummary, setAdditionalSummary] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -166,10 +167,10 @@ export function PublishForm({ draft }: { draft: Draft }) {
       body: JSON.stringify({
         title,
         excerpt,
-        bodyParagraphs: bodyText
-          .split(/\n\s*\n/)
-          .map((p) => p.trim())
-          .filter(Boolean),
+        bodyParagraphs: [
+          ...bodyText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+          ...additionalSummary.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+        ],
         category,
         brands: brandsText.split(",").map((b) => b.trim()).filter(Boolean),
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
@@ -454,6 +455,16 @@ export function PublishForm({ draft }: { draft: Draft }) {
           + 店舗を追加
         </button>
       </div>
+
+      <Field label="追加の概要・補足（任意・本文の続きとして公開されます）">
+        <textarea
+          className={inputClass}
+          rows={4}
+          value={additionalSummary}
+          onChange={(e) => setAdditionalSummary(e.target.value)}
+          placeholder="AIが書いた本文に付け加えたい情報があれば(空行区切りで複数段落可)"
+        />
+      </Field>
 
       <div>
         <p className="text-xs font-semibold mb-2">公式サイトへのリンク（非広告・任意）</p>
