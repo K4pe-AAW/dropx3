@@ -330,6 +330,7 @@ export function PublishForm({ draft }: { draft: Draft }) {
         </button>
       </div>
 
+      {colorways.length > 0 && (
       <div>
         <p className="text-xs font-semibold mb-2">カラーバリエーション（任意・色ごとの型番/価格/サイズ/発売日）</p>
         <div className="space-y-3">
@@ -387,19 +388,8 @@ export function PublishForm({ draft }: { draft: Draft }) {
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            setColorways((prev) => [
-              ...prev,
-              { colorName: "", image: "", styleCode: "", price: "", size: "", releaseDate: "", retailersText: "" },
-            ])
-          }
-          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
-        >
-          + カラーを追加
-        </button>
       </div>
+      )}
 
       <div>
         <p className="text-xs font-semibold mb-2">抽選情報・販売方法（任意・店舗ごとの抽選/通常販売と日程）</p>
