@@ -1,4 +1,4 @@
-import { RawItem, Draft, Category, OfficialLink } from "./types"
+import { RawItem, Draft, Category, OfficialLink, PurchaseChannelInfo } from "./types"
 import { generateId } from "./storage"
 import { siteConfig } from "./site-config"
 import { getOpenAIClient } from "./openai-client"
@@ -46,6 +46,13 @@ ${siteConfig.name}独自の文章としてゼロから書き直してくださ�
 
 必ず以下のJSON形式のみを返してください。前後に説明文は不要です。`
 
+type SuggestedPurchaseChannel = {
+  retailerName: string
+  channelType: "official" | "secondary"
+  saleMethod: "regular" | "lottery" | "unknown"
+  date?: string
+}
+
 type DraftResult = {
   title: string
   excerpt: string
@@ -54,6 +61,24 @@ type DraftResult = {
   brands: string[]
   tags: string[]
   suggestedAffiliateSearch: string[]
+  suggestedPurchaseChannels?: SuggestedPurchaseChannel[]
+}
+
+const CHANNEL_TYPES = new Set(["official", "secondary"])
+const SALE_METHODS = new Set(["regular", "lottery", "unknown"])
+
+/** AIの出力を信用せず型を検証する(URLは意図的に受け付けない——公開前に人間が実際のリンクを付ける運用) */
+function sanitizeSuggestedPurchaseChannels(input: unknown): PurchaseChannelInfo[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)
+    .map((c) => ({
+      retailerName: typeof c.retailerName === "string" ? c.retailerName.trim() : "",
+      channelType: CHANNEL_TYPES.has(c.channelType as string) ? (c.channelType as PurchaseChannelInfo["channelType"]) : "official",
+      saleMethod: SALE_METHODS.has(c.saleMethod as string) ? (c.saleMethod as PurchaseChannelInfo["saleMethod"]) : "unknown",
+      ...(typeof c.date === "string" && c.date.trim() ? { date: c.date.trim() } : {}),
+    }))
+    .filter((c) => c.retailerName)
 }
 
 function buildUserPrompt(item: RawItem): string {
@@ -70,6 +95,10 @@ function buildUserPrompt(item: RawItem): string {
 - 価格・サイズ展開・素材/機能(GORE-TEX、Vibram等の具体的な仕様)
 抜粋にこれらの記載が一切ない項目は、存在しない情報を作り出さず、素直に省略してよい。
 
+【重要・必須】抜粋の中に「販売店舗」「取扱店」「オンラインリンク」等の見出しの後に具体的な店舗名
+(ブランド公式サイト、mita sneakers、メルカリ、StockX等)が列挙されている場合、suggestedPurchaseChannels
+にその店舗名を拾うこと。店舗名の列挙が無ければ空配列のままにする(店舗名を推測・創作しない)。
+
 以下のJSONで返してください:
 {
   "title": "${siteConfig.name}らしい独自タイトル(40文字前後)",
@@ -78,11 +107,20 @@ function buildUserPrompt(item: RawItem): string {
   "category": "商品として最も近いものを ${CATEGORY_SLUGS.join(" / ")} から1つ選ぶ（tops=トップス, pants=パンツ, jacket=ジャケット/コート/アウター, boots=ブーツ/革靴, sneaker=スニーカー, accessory=バッグ/アクセサリー/バッグ以外の小物, figure=フィギュア/コレクタブル, vintage=古着/ヴィンテージ品, youtube=YouTube動画の紹介記事。新品ならジャンル別のカテゴリを優先し、古着・中古品として紹介する記事のみvintage、動画コンテンツの紹介記事のみyoutubeを選ぶ。どれにも当てはまらなければ最も近いものを選ぶ）",
   "brands": ["関連ブランド名"],
   "tags": ["タグ1", "タグ2"],
-  "suggestedAffiliateSearch": ["A8.net/バリューコマースで検索する際の商品名キーワード"]
+  "suggestedAffiliateSearch": ["A8.net/バリューコマースで検索する際の商品名キーワード"],
+  "suggestedPurchaseChannels": [
+    {
+      "retailerName": "抜粋に実際に名前が出てくる店舗名のみ(例: adidas公式オンライン、mita sneakers、メルカリ)",
+      "channelType": "official(ブランド公式サイト/正規販売店) または secondary(セレクトショップ・フリマ・二次流通)",
+      "saleMethod": "regular(通常販売) / lottery(抽選) / unknown(記載なし)",
+      "date": "その店舗固有の発売日・応募期間があれば(無ければこのキー自体を省略)"
+    }
+  ]
 }
 
 注意:
 - 実在しないアフィリエイトURLは絶対に生成しないこと(suggestedAffiliateSearchはあくまで検索キーワード)。
+- suggestedPurchaseChannelsにURLを含めないこと(項目自体が存在しない)。実際の販売リンクは公開前に人間が確認して付ける。店舗名の記載が抜粋に無ければ空配列のままにする。
 - 価格や発売日など、抜粋に書かれていない具体的な数値を断定的に書かないこと。不明な場合は「詳細は続報を待ちたい」のようにぼかす。
 - 出典記事の文章をそのまま使わず、必ず独自の表現で書き直すこと。
 - bodyParagraphsは4〜5段落、合計800〜1200字程度を目安に厚みを持たせること。単なる事実の要約で終わらせず、
@@ -110,6 +148,7 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
 
   const result: DraftResult = JSON.parse(content)
   const youtubeVideoId = extractYoutubeVideoId(item.sourceUrl)
+  const suggestedPurchaseChannels = sanitizeSuggestedPurchaseChannels(result.suggestedPurchaseChannels)
 
   return {
     id: generateId(`${item.sourceUrl}-draft`),
@@ -123,6 +162,7 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
     suggestedAffiliateSearch: Array.isArray(result.suggestedAffiliateSearch)
       ? result.suggestedAffiliateSearch
       : [],
+    ...(suggestedPurchaseChannels.length > 0 ? { suggestedPurchaseChannels } : {}),
     sourceRefs: [{ name: item.sourceName, url: item.sourceUrl }],
     createdAt: new Date().toISOString(),
     ...(youtubeVideoId

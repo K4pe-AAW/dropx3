@@ -16,6 +16,7 @@ const parser = new Parser<Record<string, never>, { mediaGroup?: { "media:descrip
 type FeedItem = {
   title?: string
   link?: string
+  content?: string
   contentSnippet?: string
   isoDate?: string
   pubDate?: string
@@ -31,16 +32,28 @@ function isYoutubeShorts(url: string): boolean {
   }
 }
 
+/** RSSのcontent(WordPress系フィードのcontent:encoded)はHTMLタグ入りのため、AIに渡す前にタグを除去する */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 function toRawItem(sourceName: string, item: FeedItem): RawItem | null {
   if (!item.title || !item.link) return null
   if (isYoutubeShorts(item.link)) return null
-  const snippet = item.contentSnippet || item.mediaGroup?.["media:description"]?.[0]
+  // content:encoded(本文全体)を優先する。WordPress系メディアの多くは記事末尾に「販売店舗・
+  // オンラインリンク」のような取り扱い店舗一覧を含めており、contentSnippet(要約のみ)だと
+  // ここが欠落してai-draft.tsが取り扱い店舗を拾えなくなるため
+  const raw = item.content || item.contentSnippet || item.mediaGroup?.["media:description"]?.[0]
+  const snippet = raw ? stripHtml(raw) : undefined
   return {
     id: generateId(item.link),
     sourceName,
     sourceUrl: item.link,
     title: item.title.trim(),
-    snippet: snippet?.slice(0, 300),
+    snippet: snippet?.slice(0, 3000),
     publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
     fetchedAt: new Date().toISOString(),
   }
