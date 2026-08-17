@@ -53,7 +53,7 @@ export function ArticleCard({ article, priority = false }: { article: Article; p
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted-foreground mb-1">{formatDate(article.publishedAt)}</p>
-        <h3 className="text-sm font-bold leading-snug line-clamp-2 group-hover:underline decoration-2 underline-offset-2">
+        <h3 className="text-sm font-bold leading-snug line-clamp-2 text-wrap-phrase group-hover:underline decoration-2 underline-offset-2">
           {article.title}
         </h3>
       </div>

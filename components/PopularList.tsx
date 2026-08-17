@@ -15,7 +15,7 @@ export function PopularList({ articles }: { articles: Article[] }) {
           <li key={a.id}>
             <Link href={`/articles/${a.slug}`} className="flex items-center gap-3 group">
               <span className="text-xl font-black text-muted-foreground/30 w-5 shrink-0">{i + 1}</span>
-              <span className="flex-1 text-sm font-semibold leading-snug line-clamp-2 group-hover:underline">
+              <span className="flex-1 text-sm font-semibold leading-snug line-clamp-2 text-wrap-phrase group-hover:underline">
                 {a.title}
               </span>
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -66,6 +66,16 @@
   .text-balance {
     text-wrap: balance;
   }
+  /**
+   * 日本語は分かち書きされないため、CSSの既定の改行判定は文字と文字の間ならどこでも改行しうる
+   * (「新たな」を「新た」/「な」のように単語の途中で割ることがある)。word-break: auto-phraseは
+   * ブラウザ内蔵の軽量な分かち書きモデル(BudouX)でフレーズ境界を判定し、自然な位置でだけ改行する
+   * (Chrome 119+、html lang="ja"が前提。未対応ブラウザではword-break:normalにフォールバックする
+   * だけなので後方互換は問題ない)。
+   */
+  .text-wrap-phrase {
+    word-break: auto-phrase;
+  }
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;

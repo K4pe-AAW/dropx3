@@ -136,7 +136,7 @@ export default async function ArticleDetailPage({
         </div>
       )}
 
-      <h1 className="text-2xl sm:text-3xl font-black leading-tight mb-3">{article.title}</h1>
+      <h1 className="text-2xl sm:text-3xl font-black leading-tight mb-3 text-balance text-wrap-phrase">{article.title}</h1>
       <p className={`text-sm text-muted-foreground ${article.affiliateLinks.length > 0 ? "mb-1" : "mb-6"}`}>
         {formatDate(article.publishedAt)}
       </p>
