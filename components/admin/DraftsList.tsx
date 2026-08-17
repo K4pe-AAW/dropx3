@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Draft } from "@/lib/types"
 import { categoryLabel } from "@/lib/site-config"
+import { cn } from "@/lib/utils"
 
 export function DraftsList({ drafts }: { drafts: Draft[] }) {
   const router = useRouter()
@@ -154,32 +155,41 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-6">
-        {drafts.map((d) => (
-          <div key={d.id} className="flex flex-col gap-2 border border-border rounded-xl p-4">
-            <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={selected.has(d.id)}
-                onChange={() => toggle(d.id)}
-                className="mt-1 size-4 shrink-0"
-                aria-label={`${d.title}を選択`}
-              />
-              <Link href={`/admin/drafts/${d.id}`} className="font-bold text-sm hover:underline line-clamp-2">
-                {d.title}
-              </Link>
-              {!d.suggestedCoverImage && (
-                <span className="ml-auto shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                  画像未設定
-                </span>
+        {drafts.map((d) => {
+          const missingImage = !d.suggestedCoverImage
+          return (
+            <div
+              key={d.id}
+              className={cn(
+                "flex flex-col gap-2 rounded-xl border p-4",
+                missingImage ? "border-amber-300 bg-amber-50" : "border-border"
               )}
+            >
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={selected.has(d.id)}
+                  onChange={() => toggle(d.id)}
+                  className="mt-1 size-4 shrink-0"
+                  aria-label={`${d.title}を選択`}
+                />
+                <Link href={`/admin/drafts/${d.id}`} className="font-bold text-sm hover:underline line-clamp-2">
+                  {d.title}
+                </Link>
+                {missingImage && (
+                  <span className="ml-auto shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                    画像未設定
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-3">{d.excerpt}</p>
+              <p className="text-[11px] text-muted-foreground/70 mt-auto pt-1">
+                {categoryLabel(d.category)} ・ {d.brands.join(", ") || "ブランドなし"} ・ 出典:{" "}
+                {d.sourceRefs.map((r) => r.name).join(", ")}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground line-clamp-3">{d.excerpt}</p>
-            <p className="text-[11px] text-muted-foreground/70 mt-auto pt-1">
-              {categoryLabel(d.category)} ・ {d.brands.join(", ") || "ブランドなし"} ・ 出典:{" "}
-              {d.sourceRefs.map((r) => r.name).join(", ")}
-            </p>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
