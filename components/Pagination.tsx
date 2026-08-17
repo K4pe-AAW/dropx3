@@ -1,5 +1,40 @@
 import Link from "next/link"
 
+const LEAD_COUNT = 3
+
+/**
+ * ページ数が多いと全件並べた際に折り返して見づらくなる(totalPages=12で2行になる等)ため、
+ * 先頭1〜3ページ + (必要なら現在地) + 最終ページ、の形に間引く。間に1ページしか挟まらない場合は
+ * "…"にせずその番号をそのまま出す(1個だけ省略しても行数がほぼ減らないため)。
+ */
+function getPageItems(currentPage: number, totalPages: number): (number | "ellipsis")[] {
+  if (totalPages <= LEAD_COUNT + 2) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1)
+  }
+
+  const items: (number | "ellipsis")[] = Array.from({ length: LEAD_COUNT }, (_, i) => i + 1)
+
+  if (currentPage > LEAD_COUNT && currentPage < totalPages) {
+    if (currentPage === LEAD_COUNT + 1) {
+      items.push(currentPage)
+    } else {
+      items.push("ellipsis", currentPage)
+    }
+  }
+
+  const tail = items[items.length - 1] as number
+  const gap = totalPages - tail
+  if (gap === 2) {
+    items.push(tail + 1, totalPages)
+  } else if (gap > 1) {
+    items.push("ellipsis", totalPages)
+  } else if (gap === 1) {
+    items.push(totalPages)
+  }
+
+  return items
+}
+
 export function Pagination({
   currentPage,
   totalPages,
@@ -31,11 +66,17 @@ export function Pagination({
           前へ
         </Link>
       )}
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-        <Link key={page} href={pageHref(page)} className={page === currentPage ? activePillClass : pillClass}>
-          {page}
-        </Link>
-      ))}
+      {getPageItems(currentPage, totalPages).map((item, i) =>
+        item === "ellipsis" ? (
+          <span key={`ellipsis-${i}`} className="px-1 text-muted-foreground select-none">
+            …
+          </span>
+        ) : (
+          <Link key={item} href={pageHref(item)} className={item === currentPage ? activePillClass : pillClass}>
+            {item}
+          </Link>
+        )
+      )}
       {currentPage < totalPages && (
         <Link href={pageHref(currentPage + 1)} className={pillClass}>
           次へ
