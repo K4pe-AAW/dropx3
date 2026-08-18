@@ -17,6 +17,7 @@ export async function GET() {
       brands: a.brands,
       publishedAt: a.publishedAt,
       excerpt: a.excerpt,
+      bodyParagraphs: a.bodyParagraphs,
       affiliateLinks: a.affiliateLinks,
       officialLinks: a.officialLinks,
       hasColorways: !!(a.colorways && a.colorways.length),
