@@ -14,8 +14,12 @@ export async function GET() {
     const bodyText = a.bodyParagraphs.join("\n")
     const channelDates = (a.purchaseChannels ?? []).map((c) => c.date).filter(Boolean).join(" / ")
     const haystack = `${bodyText}\n${channelDates}`
-    const years = [...new Set([...haystack.matchAll(/(20\d{2})年/g)].map((m) => Number(m[1])))]
+    const matches = [...haystack.matchAll(/(20\d{2})年/g)]
+    const years = [...new Set(matches.map((m) => Number(m[1])))]
     const suspicious = years.some((y) => y < publishedYear)
+    const contexts = matches
+      .filter((m) => Number(m[1]) < publishedYear)
+      .map((m) => haystack.slice(Math.max(0, (m.index ?? 0) - 25), (m.index ?? 0) + 25))
     return {
       slug: a.slug,
       title: a.title,
@@ -23,6 +27,7 @@ export async function GET() {
       publishedYear,
       yearsFoundInBody: years,
       suspicious,
+      contexts,
     }
   })
 
