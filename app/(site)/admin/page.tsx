@@ -57,6 +57,9 @@ export default async function AdminPage({
             使い方ガイド
           </a>
           <LogoutButton />
+          <Link href="/admin/source-watch" className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">
+            SOURCE WATCH
+          </Link>
         </div>
       </div>
 
@@ -80,9 +83,6 @@ export default async function AdminPage({
           }
         >
           公開済み ({articles.length})
-        </Link>
-        <Link href="/admin/source-watch" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
-          SOURCE WATCH
         </Link>
         <Link href="/admin/vintage-shop" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
           古着屋投稿

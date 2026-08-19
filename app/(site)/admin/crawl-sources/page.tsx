@@ -2,6 +2,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { getCrawlSources } from "@/lib/storage"
 import { CrawlSourcesManager } from "@/components/admin/CrawlSourcesManager"
+import { UrlDraftForm } from "@/components/admin/UrlDraftForm"
 
 export const metadata: Metadata = { title: "収集元の管理" }
 export const dynamic = "force-dynamic"
@@ -20,6 +21,8 @@ export default async function CrawlSourcesPage() {
       <p className="text-sm text-muted-foreground mb-8">
         RSS収集(6時間おき)が巡回するYouTubeチャンネルと、下書きレビュー時に画像取得先として提案するブランド公式サイトを管理します。
       </p>
+
+      <UrlDraftForm />
       <CrawlSourcesManager youtube={youtube} brands={brands} />
     </div>
   )
