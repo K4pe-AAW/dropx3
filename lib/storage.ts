@@ -281,7 +281,17 @@ export async function getDraftById(id: string): Promise<Draft | undefined> {
   return drafts.find((d) => d.id === id)
 }
 
-export async function addDrafts(newDrafts: Draft[]): Promise<{ saved: number; skipped: number }> {
+/**
+ * knownTitlesは「呼び出し時点で既に公開済みの記事タイトル」を渡すためのオプション。
+ * 別々のソースURLから独立生成された下書きが、AIの出力として偶然(または同一トピックの
+ * 別記事として)同じタイトルになることがあるため、URL一致だけでは防げない重複をここで防ぐ。
+ * delete-selected/articles[id]のように「公開済み記事自身をrejected draftへ戻す」呼び出しでは
+ * 渡さないこと(戻そうとしている記事自身のタイトルと必ず一致し、誤ってスキップされるため)。
+ */
+export async function addDrafts(
+  newDrafts: Draft[],
+  options?: { knownTitles?: Set<string> }
+): Promise<{ saved: number; skipped: number }> {
   let saved = 0
   let skipped = 0
   await mutateDrafts((data) => {
@@ -289,10 +299,12 @@ export async function addDrafts(newDrafts: Draft[]): Promise<{ saved: number; sk
     saved = 0
     skipped = 0
     for (const draft of newDrafts) {
-      const isDup = data.drafts.some((d) =>
+      const isUrlDup = data.drafts.some((d) =>
         d.sourceRefs.some((ref) => draft.sourceRefs.some((r) => r.url === ref.url))
       )
-      if (isDup) {
+      const isTitleDup =
+        data.drafts.some((d) => d.title === draft.title) || (options?.knownTitles?.has(draft.title) ?? false)
+      if (isUrlDup || isTitleDup) {
         skipped++
         continue
       }

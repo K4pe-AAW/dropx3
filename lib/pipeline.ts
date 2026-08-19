@@ -1,6 +1,6 @@
 import { collectFromRss } from "./collector"
 import { draftFromRawItems } from "./ai-draft"
-import { addDrafts, readDrafts } from "./storage"
+import { addDrafts, readDrafts, getAllArticles } from "./storage"
 
 export type CollectSummary = {
   fetched: number
@@ -18,18 +18,27 @@ export type CollectSummary = {
 const MAX_DRAFTS_PER_RUN = 20
 
 /**
- * RSS収集 -> 既存下書きとの重複除外 -> AIによる下書き生成 -> 保存、まで一括で行う。
+ * RSS収集 -> 既存下書き・公開済み記事との重複除外 -> AIによる下書き生成 -> 保存、まで一括で行う。
  * 自動公開はしない（drafts.jsonに入るだけ）。app/admin でレビュー・公開する。
  */
 export async function runCollectAndDraft(): Promise<CollectSummary> {
   const { items, errors: collectErrors } = await collectFromRss()
 
-  const existingDrafts = (await readDrafts()).drafts
-  const existingUrls = new Set(existingDrafts.flatMap((d) => d.sourceRefs.map((r) => r.url)))
+  // 下書きは公開されるとdrafts.jsonから消えるため、下書きのURLだけを見ていると
+  // 「一度公開された記事のソースURLが後日また新着として現れ、二重に下書き化される」
+  // という抜け道が生まれる。公開済み記事(articles.json)のsourceRefsも合わせてチェックする。
+  const [existingDrafts, existingArticles] = await Promise.all([readDrafts(), getAllArticles()])
+  const existingUrls = new Set([
+    ...existingDrafts.drafts.flatMap((d) => d.sourceRefs.map((r) => r.url)),
+    ...existingArticles.flatMap((a) => a.sourceRefs.map((r) => r.url)),
+  ])
   const targets = items.filter((item) => !existingUrls.has(item.sourceUrl)).slice(0, MAX_DRAFTS_PER_RUN)
 
   const { drafts, errors: draftErrors } = await draftFromRawItems(targets)
-  const { saved, skipped } = await addDrafts(drafts)
+  // URLが別々でもAIが独立生成したタイトルが偶然一致するケース(同じニュースを複数媒体が
+  // 別々に配信した場合等)があるため、公開済み記事のタイトルとも突き合わせて弾く
+  const knownTitles = new Set(existingArticles.map((a) => a.title))
+  const { saved, skipped } = await addDrafts(drafts, { knownTitles })
 
   return {
     fetched: items.length,
