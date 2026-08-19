@@ -23,7 +23,7 @@ export function isToday(iso: string): boolean {
 }
 
 export const QUICK_FILTER_PREDICATES: Record<QuickFilterKey, (card: ProductCard) => boolean> = {
-  hasImage: (c) => c.imageStatus.level !== "none",
+  hasImage: (c) => c.imageStatus.level === "usable",
   noImage: (c) => c.imageStatus.level === "none",
   imageReview: (c) => c.imageStatus.level === "review",
   domesticYes: (c) => c.product.domesticConfirmed,
