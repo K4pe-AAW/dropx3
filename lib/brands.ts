@@ -9,8 +9,19 @@ const BRAND_ALIASES: Record<string, string> = {
   jordan: "Jordan Brand",
   "air jordan": "Jordan Brand",
   "jordan brand": "Jordan Brand",
+  adidas: "adidas",
   アディダス: "adidas",
   guidi: "GUIDI",
+  "new balance": "New Balance",
+  ニューバランス: "New Balance",
+  asics: "ASICS",
+  アシックス: "ASICS",
+  vans: "VANS",
+  uniqlo: "ユニクロ",
+  ユニクロ: "ユニクロ",
+  "journal standard": "JOURNAL STANDARD",
+  ジャーナルスタンダード: "JOURNAL STANDARD",
+  "palace skateboards": "Palace Skateboards",
 }
 
 export function canonicalBrandName(raw: string): string {
