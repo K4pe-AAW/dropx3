@@ -2,7 +2,6 @@ import { cn } from "@/lib/utils"
 import { EditorialPlaceholder } from "@/components/EditorialPlaceholder"
 import type { ProductCard as ProductCardData } from "@/lib/source-watch/present"
 import { ReadinessBadge, SourceTypeBadge, TierBadge } from "./badges"
-import { ProductPipeline } from "./ProductPipeline"
 import { MissingInformation } from "./MissingInformation"
 import type { FocusTarget } from "./missing-actions"
 
@@ -56,8 +55,6 @@ export function ProductCard({
         </div>
         <h3 className="text-sm font-black leading-snug line-clamp-2">{product.productName ?? "商品名未確認"}</h3>
         {product.styleCode && <p className="font-mono text-[10px] text-muted-foreground">{product.styleCode}</p>}
-
-        <ProductPipeline card={card} />
 
         {card.sourceBadges.length > 0 && (
           <div className="flex flex-wrap items-center gap-1">

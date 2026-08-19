@@ -11,7 +11,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "REVIEW", label: "REVIEW" },
   { key: "HOLD", label: "HOLD" },
 ]
-const QUICK_KEYS: QuickFilterKey[] = ["noImage", "imageReview", "domesticYes", "domesticNo", "noPurchaseLink", "officialConfirmed", "addedToday"]
+const QUICK_KEYS: QuickFilterKey[] = ["hasImage", "noImage", "imageReview", "domesticYes", "domesticNo", "noPurchaseLink", "officialConfirmed", "addedToday"]
 const TIERS: ConfidenceTier[] = ["CONFIRMED", "REPORTED", "RUMOR"]
 
 const selectClass = "h-8 rounded-md border border-border px-2 text-xs outline-none focus:ring-2 focus:ring-ring bg-background"

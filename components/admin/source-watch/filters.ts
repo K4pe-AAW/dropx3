@@ -7,6 +7,7 @@ import type { ConfidenceTier } from "@/lib/source-watch/types"
 export type Tab = "all" | "READY" | "REVIEW" | "HOLD"
 
 export type QuickFilterKey =
+  | "hasImage"
   | "noImage"
   | "imageReview"
   | "domesticYes"
@@ -22,6 +23,7 @@ export function isToday(iso: string): boolean {
 }
 
 export const QUICK_FILTER_PREDICATES: Record<QuickFilterKey, (card: ProductCard) => boolean> = {
+  hasImage: (c) => c.imageStatus.level !== "none",
   noImage: (c) => c.imageStatus.level === "none",
   imageReview: (c) => c.imageStatus.level === "review",
   domesticYes: (c) => c.product.domesticConfirmed,
@@ -32,6 +34,7 @@ export const QUICK_FILTER_PREDICATES: Record<QuickFilterKey, (card: ProductCard)
 }
 
 export const QUICK_FILTER_LABEL: Record<QuickFilterKey, string> = {
+  hasImage: "画像あり",
   noImage: "画像なし",
   imageReview: "画像確認必要",
   domesticYes: "国内販売あり",

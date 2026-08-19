@@ -21,7 +21,9 @@ import { applyAdvancedFilters, applyQuickFilters, applyTab, EMPTY_ADVANCED, type
 export function SourceWatchDashboard({ initialCards }: { initialCards: ProductCardData[] }) {
   const [cards, setCards] = useState(initialCards)
   const [tab, setTab] = useState<Tab>("all")
-  const [activeQuick, setActiveQuick] = useState<Set<QuickFilterKey>>(new Set())
+  // デフォルトは「画像あり」のみ表示する。479件中475件が画像なしプレースホルダーのまま並び、
+  // 実際に手を付けられる候補が埋もれて見えなくなっていたため(2026-08-20)。
+  const [activeQuick, setActiveQuick] = useState<Set<QuickFilterKey>>(new Set(["hasImage"]))
   const [advanced, setAdvanced] = useState<AdvancedFilters>(EMPTY_ADVANCED)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [inspector, setInspector] = useState<{ id: string; focus?: FocusTarget } | null>(null)
