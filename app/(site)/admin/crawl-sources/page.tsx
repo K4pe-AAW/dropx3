@@ -4,6 +4,7 @@ import { getCrawlSources } from "@/lib/storage"
 import { CrawlSourcesManager } from "@/components/admin/CrawlSourcesManager"
 
 export const metadata: Metadata = { title: "収集元の管理" }
+export const dynamic = "force-dynamic"
 
 export default async function CrawlSourcesPage() {
   const { youtube, brands } = await getCrawlSources()
