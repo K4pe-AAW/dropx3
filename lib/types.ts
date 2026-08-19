@@ -181,3 +181,29 @@ export type Draft = {
 export type DraftsData = {
   drafts: Draft[]
 }
+
+// --- クローリング対象(RSS収集パイプラインが巡回するYouTubeチャンネル・ブランド公式サイト) ---
+// lib/sources.tsのハードコード配列(YOUTUBE_SOURCES/DIRECT_BRAND_SOURCES)をBlobへ移行したもの。
+// 管理画面(/admin/crawl-sources)から追加・削除できる。
+
+export type YoutubeCrawlSource = {
+  id: string
+  name: string
+  channelId: string
+  siteUrl: string
+  createdAt: string
+}
+
+export type BrandCrawlSource = {
+  id: string
+  name: string
+  url: string
+  /** Instagram等、公式サイト以外に画像取得を確認済みの補助ソースがあれば */
+  instagramUrl?: string
+  createdAt: string
+}
+
+export type CrawlSourcesData = {
+  youtube: YoutubeCrawlSource[]
+  brands: BrandCrawlSource[]
+}

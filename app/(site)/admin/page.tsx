@@ -87,6 +87,9 @@ export default async function AdminPage({
         <Link href="/admin/vintage-shop" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
           古着屋投稿
         </Link>
+        <Link href="/admin/crawl-sources" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
+          収集元の管理
+        </Link>
       </div>
 
       {activeView === "drafts" ? (

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { getDraftById } from "@/lib/storage"
+import { getDraftById, getCrawlSources } from "@/lib/storage"
 import { PublishForm } from "@/components/admin/PublishForm"
 
 export const metadata: Metadata = { title: "下書きレビュー" }
@@ -11,7 +11,7 @@ export default async function DraftReviewPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const draft = await getDraftById(id)
+  const [draft, crawlSources] = await Promise.all([getDraftById(id), getCrawlSources()])
   if (!draft) notFound()
 
   return (
@@ -39,7 +39,7 @@ export default async function DraftReviewPage({
         </p>
       )}
       {!draft.sourceWatchProductId && <div className="mb-6" />}
-      <PublishForm draft={draft} />
+      <PublishForm draft={draft} brandSources={crawlSources.brands} />
     </div>
   )
 }

@@ -1,10 +1,21 @@
 import crypto from "crypto"
 import { put, head, BlobPreconditionFailedError } from "@vercel/blob"
-import { Article, ArticlesData, Draft, DraftsData, ScheduledArticle, ScheduledArticlesData } from "./types"
+import {
+  Article,
+  ArticlesData,
+  Draft,
+  DraftsData,
+  ScheduledArticle,
+  ScheduledArticlesData,
+  CrawlSourcesData,
+  YoutubeCrawlSource,
+  BrandCrawlSource,
+} from "./types"
 
 const ARTICLES_PATH = "data/articles.json"
 const DRAFTS_PATH = "data/drafts.json"
 const SCHEDULED_PATH = "data/scheduled.json"
+const CRAWL_SOURCES_PATH = "data/crawl-sources.json"
 
 /** SOURCE WATCH等、他モジュールからも同じBlob read-modify-write規約を使うためexportする */
 export async function readJson<T>(pathname: string, fallback: T): Promise<T> {
@@ -401,4 +412,50 @@ export async function promoteDueScheduledArticles(): Promise<{ promoted: number;
   })
 
   return { promoted: due.length, titles: due.map((a) => a.title) }
+}
+
+// --- クローリング対象(YouTubeチャンネル・ブランド公式サイト) ---
+
+export async function getCrawlSources(): Promise<CrawlSourcesData> {
+  return readJson<CrawlSourcesData>(CRAWL_SOURCES_PATH, { youtube: [], brands: [] })
+}
+
+export async function mutateCrawlSources(
+  mutate: (data: CrawlSourcesData) => CrawlSourcesData
+): Promise<CrawlSourcesData> {
+  return mutateJson<CrawlSourcesData>(CRAWL_SOURCES_PATH, { youtube: [], brands: [] }, mutate)
+}
+
+export async function addYoutubeCrawlSource(input: {
+  name: string
+  channelId: string
+  siteUrl: string
+}): Promise<YoutubeCrawlSource> {
+  const source: YoutubeCrawlSource = { id: generateId(`youtube-${input.channelId}`), ...input, createdAt: new Date().toISOString() }
+  await mutateCrawlSources((data) => {
+    if (data.youtube.some((y) => y.channelId === source.channelId)) return data
+    return { ...data, youtube: [...data.youtube, source] }
+  })
+  return source
+}
+
+export async function removeYoutubeCrawlSource(id: string): Promise<void> {
+  await mutateCrawlSources((data) => ({ ...data, youtube: data.youtube.filter((y) => y.id !== id) }))
+}
+
+export async function addBrandCrawlSource(input: {
+  name: string
+  url: string
+  instagramUrl?: string
+}): Promise<BrandCrawlSource> {
+  const source: BrandCrawlSource = { id: generateId(`brand-${input.url}`), ...input, createdAt: new Date().toISOString() }
+  await mutateCrawlSources((data) => {
+    if (data.brands.some((b) => b.url === source.url)) return data
+    return { ...data, brands: [...data.brands, source] }
+  })
+  return source
+}
+
+export async function removeBrandCrawlSource(id: string): Promise<void> {
+  await mutateCrawlSources((data) => ({ ...data, brands: data.brands.filter((b) => b.id !== id) }))
 }

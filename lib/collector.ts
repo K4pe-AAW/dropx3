@@ -1,7 +1,8 @@
 import Parser from "rss-parser"
-import { SOURCES, YOUTUBE_SOURCES, PR_TIMES_RSS_URL, PR_TIMES_KEYWORDS } from "./sources"
+import { SOURCES, PR_TIMES_RSS_URL, PR_TIMES_KEYWORDS } from "./sources"
 import { RawItem } from "./types"
-import { generateId } from "./storage"
+import { generateId, getCrawlSources } from "./storage"
+import { youtubeChannelRssUrl } from "./source-watch/youtube"
 
 /**
  * customFields.item: YouTubeのチャンネルフィードはAtom+media namespaceで、動画の説明文が
@@ -63,7 +64,10 @@ export async function collectFromRss(): Promise<{ items: RawItem[]; errors: stri
   const items: RawItem[] = []
   const errors: string[] = []
 
-  for (const source of [...SOURCES, ...YOUTUBE_SOURCES]) {
+  const { youtube } = await getCrawlSources()
+  const youtubeSources = youtube.map((y) => ({ name: y.name, rssUrl: youtubeChannelRssUrl(y.channelId), siteUrl: y.siteUrl }))
+
+  for (const source of [...SOURCES, ...youtubeSources]) {
     try {
       const feed = await parser.parseURL(source.rssUrl)
       for (const entry of feed.items.slice(0, 10)) {

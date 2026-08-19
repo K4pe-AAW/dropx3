@@ -2,10 +2,9 @@
 
 import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import type { Draft, Category } from "@/lib/types"
+import type { Draft, Category, BrandCrawlSource } from "@/lib/types"
 import { siteConfig } from "@/lib/site-config"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
-import { DIRECT_BRAND_SOURCES } from "@/lib/sources"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
 type GalleryImageDraft = { url: string; alt: string }
@@ -30,7 +29,7 @@ type PurchaseChannelDraft = {
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
 
-export function PublishForm({ draft }: { draft: Draft }) {
+export function PublishForm({ draft, brandSources }: { draft: Draft; brandSources: BrandCrawlSource[] }) {
   const router = useRouter()
   const [title, setTitle] = useState(draft.title)
   const [excerpt, setExcerpt] = useState(draft.excerpt)
@@ -83,8 +82,8 @@ export function PublishForm({ draft }: { draft: Draft }) {
       .map((b) => b.trim().toLowerCase())
       .filter(Boolean)
     if (brandNames.length === 0) return []
-    return DIRECT_BRAND_SOURCES.filter((s) => brandNames.includes(s.name.toLowerCase()))
-  }, [brandsText])
+    return brandSources.filter((s) => brandNames.includes(s.name.toLowerCase()))
+  }, [brandsText, brandSources])
 
   function updateLink(i: number, patch: Partial<LinkDraft>) {
     setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
