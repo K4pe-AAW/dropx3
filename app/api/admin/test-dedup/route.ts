@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server"
-import { addDrafts, getAllArticles, generateId } from "@/lib/storage"
+import { addDrafts, getAllArticles, generateId, readDrafts } from "@/lib/storage"
 import { Draft } from "@/lib/types"
+
+/** 後片付け用: テストで作ったダミー下書き(タイトルに"重複排除テスト"を含むもの)のID一覧を返す */
+export async function GET() {
+  const { drafts } = await readDrafts()
+  const testDrafts = drafts.filter((d) => d.title.includes("重複排除テスト") || d.brands.includes("TestBrand"))
+  return NextResponse.json({ count: testDrafts.length, ids: testDrafts.map((d) => d.id), titles: testDrafts.map((d) => d.title) })
+}
 
 /**
  * 一時admin API。addDrafts()のタイトル重複排除ロジックを実データで検証する。
