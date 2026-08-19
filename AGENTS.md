@@ -7,7 +7,7 @@ App Router file conventions apply. Read the relevant guide in
 
 # What this project is
 
-DROPWIRE is a public affiliate media site (streetwear/sneaker news), modeled on the
+DROP DROP DROP is a public affiliate media site (streetwear/sneaker news), modeled on the
 structure of uptodate.tokyo but with an original design and its own content pipeline.
 It is a separate codebase from `../4over-fashion-news` (an internal Slack-notifying
 curation tool for a different, 40s-men-focused brand) — do not merge them.

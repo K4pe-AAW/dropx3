@@ -8,7 +8,7 @@ export const siteConfig = {
   tagline: "スニーカー & ストリートファッションの最新情報を毎日配信。",
   description:
     "DROP DROP DROPは、スニーカーとストリートファッションの発売・再販・コラボ情報を毎日更新するニュースメディアです。",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "https://dropwire.example.com",
+  url: process.env.NEXT_PUBLIC_SITE_URL || "https://dropdropdrop.example.com",
   operatorName: "DROP DROP DROP運営部", // 特定商取引法/プライバシーポリシー表記用。実運用前に要編集
   /** 未設定時にexample.comのような偽アドレスを表示しないよう、環境変数がなければnullにする */
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL || null,

@@ -129,7 +129,7 @@ const RETAILER_URL_ALIASES: { aliases: string[]; build: (query: string) => Affil
 ]
 
 /**
- * 店舗名(表記ゆれあり)から、既にDROPWIRE自身が提携済みのASPリンクbuilderを引く。
+ * 店舗名(表記ゆれあり)から、既にDROP DROP DROP自身が提携済みのASPリンクbuilderを引く。
  * 一致しなければundefined——未対応の店舗や出典元のURLをそのまま使ってURLを捏造しないため、
  * 呼び出し側は必ずundefinedを許容し、その場合はURL欄を空のまま(人間が手動で確認して追加)にすること。
  */

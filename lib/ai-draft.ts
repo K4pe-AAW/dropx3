@@ -71,7 +71,7 @@ type DraftResult = {
 const CHANNEL_TYPES = new Set(["official", "secondary"])
 const SALE_METHODS = new Set(["regular", "lottery", "unknown"])
 
-/** AIの出力を信用せず型を検証する(URLはAIには一切出力させていない——下でDROPWIRE自身の提携済みリンクのみ付与する) */
+/** AIの出力を信用せず型を検証する(URLはAIには一切出力させていない——下でDROP DROP DROP自身の提携済みリンクのみ付与する) */
 function sanitizeSuggestedPurchaseChannels(input: unknown): PurchaseChannelInfo[] {
   if (!Array.isArray(input)) return []
   return input
@@ -103,7 +103,7 @@ function sanitizeSuggestedOfficialLinks(input: unknown): OfficialLink[] {
 }
 
 /**
- * 店舗名がメルカリ/Yahoo!ショッピング/スニダン/楽天市場等、DROPWIRE自身が既に提携済みのASPと
+ * 店舗名がメルカリ/Yahoo!ショッピング/スニダン/楽天市場等、DROP DROP DROP自身が既に提携済みのASPと
  * 一致する場合のみ、実際のトラッキングリンクを自動生成して付与する(出典元のURLは一切使わない
  * ——他媒体自身のアフィリエイトコードを再利用しない/実在しないURLを捏造しないの両方を守るため)。
  * 一致しない店舗(ブランド公式サイトや個別セレクトショップ等)はこれまで通りURL無しのまま返し、

@@ -1,4 +1,4 @@
-# DROPWIRE
+# DROP DROP DROP
 
 スニーカー＆ストリートファッションのニュース・アフィリエイトメディア。
 [uptodate.tokyo](https://uptodate.tokyo/) の構成（新着/おすすめタブ、ブランドタグ、月別アーカイブ、
@@ -9,7 +9,7 @@
 ## まず最初にやること
 
 1. **ブランド名を決める** — [lib/site-config.ts](lib/site-config.ts) の `siteConfig.name` / `tagline` /
-   `operatorName` / `contactEmail` を編集する（"DROPWIRE" は仮名）。この1ファイルを直せばヘッダー・
+   `operatorName` / `contactEmail` を編集する（"DROP DROP DROP" は仮名）。この1ファイルを直せばヘッダー・
    フッター・メタタグ・法的ページ全部に反映される。
 2. `.env.example` を `.env.local` にコピーして値を埋める。
 3. `npm install && npm run dev` → http://localhost:3000
@@ -51,7 +51,7 @@ npm run collect
 
 [lib/sources.ts](lib/sources.ts) に登録した公式RSS（FASHIONSNAP / HYPEBEAST JAPAN /
 UPTODATE / FULLRESS）と、キーワードで絞り込んだPR TIMESのプレスリリースを取得し、OpenAI
-(`gpt-4o-mini`) にDROPWIRE独自の文章として書き直させ、`data/drafts.json` に保存する。
+(`gpt-4o-mini`) にDROP DROP DROP独自の文章として書き直させ、`data/drafts.json` に保存する。
 **この時点では一切公開されない。**AIは出典の文章を丸写しせず事実ベースでゼロから書くよう
 プロンプトで指示している（[lib/ai-draft.ts](lib/ai-draft.ts)）ため、収集元が増えても
 「他メディアの文章をそのまま転載する」ことにはならない設計。
@@ -119,7 +119,7 @@ Vercel Cronを設定済み。Vercel側で `CRON_SECRET` を設定していれば
 Vercel Cronは1日1回までなので、日中の更新頻度を上げたい場合はこちらを併用するとよい。
 
 ```
-0 * * * * cd /Users/koh/Desktop/claude01/dropwire && /usr/local/bin/npx tsx scripts/collect.ts >> /Users/koh/Desktop/claude01/dropwire/log.txt 2>&1
+0 * * * * cd /Users/koh/Desktop/claude01/drop-drop-drop && /usr/local/bin/npx tsx scripts/collect.ts >> /Users/koh/Desktop/claude01/drop-drop-drop/log.txt 2>&1
 ```
 
 - ログ: [log.txt](log.txt)（このファイル自体はgit管理しない想定。`.gitignore`に追記済み）
