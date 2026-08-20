@@ -1,37 +1,32 @@
 /**
- * 一次情報探索の完全自動化には汎用Web検索APIキーが必要(現状未設定)。
- * GOOGLE_CSE_API_KEY/GOOGLE_CSE_CXが両方設定されていればGoogle Programmable Search Engineの
- * JSON APIを実際に呼び出して検索結果を返す。未設定の場合は空配列を返し、呼び出し側
- * (find-primary API)は「検索URLを提示するだけ」の既存の半自動フローにフォールバックする。
+ * 一次情報探索の「自動でURLを引いてくる」経路。**現在は恒久的に無効。**
  *
- * セットアップ手順(有効化したい場合):
- * 1. https://programmablesearchengine.google.com/ で検索エンジンを作成し、検索対象を「ウェブ全体」に設定してCXを取得
- * 2. Google Cloud ConsoleでCustom Search JSON APIを有効化しAPIキーを発行
- * 3. Vercelの環境変数にGOOGLE_CSE_API_KEY/GOOGLE_CSE_CXを追加
+ * かつては Google Programmable Search Engine の Custom Search JSON API を
+ * 呼ぶ実装だったが、この API は新規利用者への提供が終了している。
+ * 既存の利用実績があるアカウントのみが 2027-01-01 のサービス終了まで使え、
+ * 新規に有効化したプロジェクトからは、課金設定も API 有効化も正常なのに
+ * 403 `This project does not have the access to Custom Search JSON API.`
+ * が返る（2026-08-20、Googleサポートの公式回答で確定）。
+ *
+ * **設定では直らない。** 課金アカウントの昇格も新規APIキーの発行も効果が無い。
+ * 同じ道を辿らないよう、鍵を足せば動くかのような記述は残していない。
+ *
+ * このプロジェクトではこの経路を一度も有効化していないため（本番Vercelに
+ * GOOGLE_CSE_* は存在しない）、無効化しても挙動は変わらない。呼び出し側
+ * (find-primary API) は元々「検索URLを提示するだけ」の半自動フローへ
+ * フォールバックする設計で、それが今後の既定の動作になる。
+ *
+ * 代替を入れるなら有料の検索APIになる。**入れる前に、半自動フローで
+ * 実際に困っている場面があるかを確認すること**（今は困っていない）。
  */
 export type WebSearchResult = { label: string; url: string }
 
+/** 常に false。自動検索の経路は無い（上のコメント参照） */
 export function isWebSearchConfigured(): boolean {
-  return Boolean(process.env.GOOGLE_CSE_API_KEY && process.env.GOOGLE_CSE_CX)
+  return false
 }
 
-export async function searchWeb(query: string, limit = 5): Promise<WebSearchResult[]> {
-  const apiKey = process.env.GOOGLE_CSE_API_KEY
-  const cx = process.env.GOOGLE_CSE_CX
-  if (!apiKey || !cx || !query.trim()) return []
-
-  try {
-    const url = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(apiKey)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${limit}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    if (!res.ok) return []
-    const data = await res.json()
-    if (!Array.isArray(data.items)) return []
-    return data.items
-      .filter((item: unknown): item is { title?: string; link?: string } => typeof item === "object" && item !== null)
-      .filter((item: { link?: string }) => typeof item.link === "string" && item.link)
-      .slice(0, limit)
-      .map((item: { title?: string; link?: string }) => ({ label: item.title || item.link!, url: item.link! }))
-  } catch {
-    return []
-  }
+/** 常に空配列。呼び出し側は検索URLを提示する半自動フローへフォールバックする */
+export async function searchWeb(_query: string, _limit = 5): Promise<WebSearchResult[]> {
+  return []
 }

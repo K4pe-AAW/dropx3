@@ -7,8 +7,8 @@ import { isWebSearchConfigured, searchWeb } from "@/lib/source-watch/web-search"
 
 /**
  * 一次情報の確認を支援する。
- * (a) bodyにurlが無い場合: GOOGLE_CSE_API_KEY/GOOGLE_CSE_CXが設定されていれば実際に検索し実URLを返す。
- *     未設定の場合は登録済み公式Source一覧+検索エンジンへのリンクを返すだけ(fetchしない)にフォールバックする。
+ * (a) bodyにurlが無い場合: 登録済み公式Source一覧+検索エンジンへのリンクを返す(fetchはしない)。
+ *     自動でURLを引いてくる経路は恒久的に無効（lib/source-watch/web-search.ts 参照）。
  * (b) 人間がその情報源を開いて確認し、見つかった公式URLをurlとして渡すと、SourceLinkとして保存し
  *     tier/readinessを再計算する(spec:「一次情報が見つかったら、記事のメインSourceを公式へ変更してください」)。
  */
