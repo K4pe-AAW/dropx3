@@ -240,7 +240,15 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
     title: result.title || item.title,
     excerpt: result.excerpt || "",
     bodyParagraphs: Array.isArray(result.bodyParagraphs) ? result.bodyParagraphs : [],
-    category: CATEGORY_SLUGS.includes(result.category) ? result.category : DEFAULT_CATEGORY,
+    // youtubeVideoIdはsourceUrl自体から機械的に判定できるため、AIの自己申告(result.category)より
+    // 優先する。逆(sourceUrlがYouTube動画でないのにAIが"youtube"を選ぶ誤判定)も同様に却下する
+    // ——実際に商品ジャンルに当てはまらない記事(読書イベント、教育系ニュース等)がAIの判断で
+    // 誤って"youtube"タブに紛れ込む不具合が発生していたための修正。
+    category: youtubeVideoId
+      ? "youtube"
+      : CATEGORY_SLUGS.includes(result.category) && result.category !== "youtube"
+        ? result.category
+        : DEFAULT_CATEGORY,
     brands: Array.isArray(result.brands) ? result.brands : [],
     tags: Array.isArray(result.tags) ? result.tags : [],
     suggestedAffiliateSearch: Array.isArray(result.suggestedAffiliateSearch)
