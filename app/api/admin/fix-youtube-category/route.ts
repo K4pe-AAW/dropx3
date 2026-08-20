@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { readDrafts, getAllArticles, mutateDrafts } from "@/lib/storage"
+import { readDrafts, getAllArticles, mutateDrafts, mutateArticles } from "@/lib/storage"
 import { extractYoutubeVideoId } from "@/lib/ai-draft"
 
 export const dynamic = "force-dynamic"
@@ -24,22 +24,41 @@ export async function GET() {
   return NextResponse.json({ draftHits, articleHits })
 }
 
-/** 下書きのみ一括修正する(公開済み記事は表示への影響を考慮し対象外、個別に確認してから扱う) */
-export async function POST() {
-  const { drafts } = await readDrafts()
-  const targetIds = new Set(findMiscategorized(drafts).map((d) => d.id))
+/** targetがtrueなら下書き・記事の両方、指定が無ければ下書きのみ一括修正する */
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}))
+  const includeArticles = body?.includeArticles === true
 
-  let fixed = 0
+  const { drafts } = await readDrafts()
+  const draftTargetIds = new Set(findMiscategorized(drafts).map((d) => d.id))
+
+  let fixedDrafts = 0
   await mutateDrafts((data) => {
-    fixed = 0
+    fixedDrafts = 0
     for (const draft of data.drafts) {
-      if (targetIds.has(draft.id)) {
+      if (draftTargetIds.has(draft.id)) {
         draft.category = "youtube"
-        fixed++
+        fixedDrafts++
       }
     }
     return data
   })
 
-  return NextResponse.json({ fixed })
+  let fixedArticles = 0
+  if (includeArticles) {
+    const articles = await getAllArticles()
+    const articleTargetIds = new Set(findMiscategorized(articles).map((a) => a.id))
+    await mutateArticles((data) => {
+      fixedArticles = 0
+      for (const article of data.articles) {
+        if (articleTargetIds.has(article.id)) {
+          article.category = "youtube"
+          fixedArticles++
+        }
+      }
+      return data
+    })
+  }
+
+  return NextResponse.json({ fixedDrafts, fixedArticles })
 }
