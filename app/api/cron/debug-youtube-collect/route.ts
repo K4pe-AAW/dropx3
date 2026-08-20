@@ -1,10 +1,21 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getCrawlSources, readDrafts, getAllArticles } from "@/lib/storage"
 import { youtubeChannelRssUrl } from "@/lib/source-watch/youtube"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+/**
+ * proxy.tsのmatcherは/api/admin/*と/api/drafts/*のみ保護対象にしており/api/cron/*は対象外
+ * (cronは管理画面ログインCookieを持てないため)。CRON_SECRETで認証する一時診断API。
+ */
+export async function GET(req: NextRequest) {
+  const bearer = req.headers.get("authorization")
+  const legacy = req.headers.get("x-cron-secret")
+  const provided = bearer?.replace(/^Bearer\s+/i, "") ?? legacy
+  if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+
   const [{ youtube }, { drafts }, articles] = await Promise.all([getCrawlSources(), readDrafts(), getAllArticles()])
 
   const youtubeDrafts = drafts
@@ -17,7 +28,6 @@ export async function GET() {
     .map((a) => ({ id: a.id, title: a.title, publishedAt: a.publishedAt, source: a.sourceRefs[0]?.name, url: a.sourceRefs[0]?.url }))
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
 
-  // 各登録チャンネルのRSSが実際に疎通するか、直近アイテムのタイトル・日付も合わせて確認する
   const feedChecks = await Promise.all(
     youtube.map(async (y) => {
       try {
