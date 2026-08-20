@@ -1,6 +1,7 @@
 import { putBlobFile } from "@/lib/storage"
 import { SHOP_INFO } from "@/lib/shop-update"
-import type { GalleryImage } from "@/lib/types"
+import { sanitizeAffiliateLinks } from "@/lib/affiliate"
+import type { AffiliateLink, GalleryImage } from "@/lib/types"
 
 /**
  * app/api/admin/vintage-shop/publish と .../drafts の両方が同じmultipart/form-data
@@ -12,7 +13,7 @@ export type ParsedVintageForm = {
   excerpt: string
   bodyParagraphs: string[]
   postUrl: string
-  mercariSearchQuery: string
+  affiliateLinks: AffiliateLink[]
   tags: string[]
   coverImage: string
   coverImageAlt: string
@@ -44,11 +45,11 @@ export async function parseVintageShopForm(form: FormData): Promise<ParseVintage
   const title = String(form.get("title") ?? "").trim()
   const excerpt = String(form.get("excerpt") ?? "").trim()
   const postUrl = String(form.get("postUrl") ?? "").trim()
-  const mercariSearchQuery = String(form.get("mercariSearchQuery") ?? "").trim()
   const coverImageAltInput = String(form.get("coverImageAlt") ?? "").trim()
 
   let bodyParagraphs: string[] = []
   let tags: string[] = ["古着"]
+  let affiliateLinks: AffiliateLink[] = []
   try {
     const rawParagraphs = JSON.parse(String(form.get("bodyParagraphs") ?? "[]"))
     if (Array.isArray(rawParagraphs)) {
@@ -58,8 +59,22 @@ export async function parseVintageShopForm(form: FormData): Promise<ParseVintage
     if (Array.isArray(rawTags) && rawTags.length > 0) {
       tags = rawTags.filter((t): t is string => typeof t === "string")
     }
+    const rawLinks = JSON.parse(String(form.get("affiliateLinks") ?? "[]"))
+    if (Array.isArray(rawLinks)) {
+      affiliateLinks = sanitizeAffiliateLinks(
+        rawLinks
+          .filter((l): l is Record<string, unknown> => typeof l === "object" && l !== null)
+          .map((l) => ({
+            label: typeof l.label === "string" ? l.label.trim() : "",
+            retailer: typeof l.retailer === "string" ? l.retailer.trim() : "",
+            url: typeof l.url === "string" ? l.url.trim() : "",
+            ...(typeof l.price === "string" && l.price.trim() ? { price: l.price.trim() } : {}),
+          }))
+          .filter((l) => l.label && l.url)
+      )
+    }
   } catch {
-    return { ok: false, error: "bodyParagraphs/tagsのJSON形式が不正です", status: 400 }
+    return { ok: false, error: "bodyParagraphs/tags/affiliateLinksのJSON形式が不正です", status: 400 }
   }
 
   const coverImageFile = form.get("coverImage")
@@ -83,6 +98,6 @@ export async function parseVintageShopForm(form: FormData): Promise<ParseVintage
 
   return {
     ok: true,
-    value: { shop, title, excerpt, bodyParagraphs, postUrl, mercariSearchQuery, tags, coverImage: cover.url, coverImageAlt, galleryImages },
+    value: { shop, title, excerpt, bodyParagraphs, postUrl, affiliateLinks, tags, coverImage: cover.url, coverImageAlt, galleryImages },
   }
 }

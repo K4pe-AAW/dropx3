@@ -12,11 +12,12 @@ export type ShopPostDraft = {
   title: string
   excerpt: string
   bodyParagraphs: string[]
-  mercariSearchQuery: string
+  /** 他の記事と同じ「商品名を入力→自動でリンクを追加」欄の初期値として使う検索キーワード提案 */
+  suggestedAffiliateQuery: string
   tags: string[]
 }
 
-const EMPTY_DRAFT: ShopPostDraft = { title: "", excerpt: "", bodyParagraphs: [], mercariSearchQuery: "", tags: ["古着"] }
+const EMPTY_DRAFT: ShopPostDraft = { title: "", excerpt: "", bodyParagraphs: [], suggestedAffiliateQuery: "", tags: ["古着"] }
 
 const SYSTEM_PROMPT = `あなたは古着屋のInstagram投稿から、ファッションメディア記事の下書きを書くアシスタントです。
 
@@ -27,7 +28,7 @@ const SYSTEM_PROMPT = `あなたは古着屋のInstagram投稿から、ファッ
 - bodyParagraphsは2〜3段落、各段落は2〜4文程度の日本語。1段落目で商品(アイテム名・特徴)を紹介し、
   価格等の情報があれば触れる。最後の段落でショップの簡単な紹介(営業時間・予約制かどうか等、
   本文から分かる範囲のみ)を添える。分からない情報については書かない。
-- mercariSearchQueryは、その投稿の具体的な商品名(例: "HELMUT LANG デニムショーツ"、ブランドが
+- suggestedAffiliateQueryは、その投稿の具体的な商品名(例: "HELMUT LANG デニムショーツ"、ブランドが
   分かれば"ブランド名 アイテム名")。"古着"や"スニーカー"のようなカテゴリ名だけは不可。
 - titleは30〜45文字程度で、ショップ名とアイテムの特徴を含める。
 
@@ -45,7 +46,7 @@ ${caption}
   "title": "記事タイトル",
   "excerpt": "1文の要約",
   "bodyParagraphs": ["段落1", "段落2", "段落3(任意)"],
-  "mercariSearchQuery": "具体的な商品名",
+  "suggestedAffiliateQuery": "具体的な商品名",
   "tags": ["古着", "エリア名等"]
 }`
 }
@@ -83,7 +84,7 @@ export async function extractShopPostDraft(shopLabel: string, caption: string, p
     title: str(parsed.title),
     excerpt: str(parsed.excerpt),
     bodyParagraphs: strArr(parsed.bodyParagraphs),
-    mercariSearchQuery: str(parsed.mercariSearchQuery),
+    suggestedAffiliateQuery: str(parsed.suggestedAffiliateQuery),
     tags: strArr(parsed.tags).length > 0 ? strArr(parsed.tags) : ["古着"],
   }
 }

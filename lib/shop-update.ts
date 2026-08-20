@@ -1,6 +1,6 @@
 import { readArticles, writeArticles, generateId, generateSlug } from "@/lib/storage"
-import { isSafeExternalUrl, sanitizeAffiliateLinks, buildMercariSearchLink } from "@/lib/affiliate"
-import type { Article, GalleryImage } from "@/lib/types"
+import { isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
+import type { AffiliateLink, Article, GalleryImage } from "@/lib/types"
 
 /**
  * 画像使用許諾済みの古着屋(tonari/ROOM)の投稿を1記事として公開する共有ロジック。
@@ -67,7 +67,7 @@ export type ShopUpdateInput = {
   postUrl: string
   tags: string[]
   extraBrands: string[]
-  mercariSearchQuery: string
+  affiliateLinks: AffiliateLink[]
 }
 
 export type ShopUpdateResult =
@@ -89,19 +89,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
     return { error: "postUrl(Instagram投稿URL)が必須です", status: 400 }
   }
   const postUrl = normalizePostUrl(input.postUrl)
-  if (!input.mercariSearchQuery) {
-    return {
-      error: "mercariSearchQueryが必須です(例: 'HELMUT LANG デニムショーツ'。'古着'のようなカテゴリ名のみは不可)",
-      status: 400,
-    }
-  }
-
-  let mercariLink
-  try {
-    mercariLink = buildMercariSearchLink(input.mercariSearchQuery)
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "mercariSearchQueryが不正です", status: 400 }
-  }
+  const affiliateLinks = sanitizeAffiliateLinks(input.affiliateLinks)
 
   const data = await readArticles()
 
@@ -119,9 +107,8 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
     existingToday.galleryImages.push({ url: input.coverImage, alt: input.coverImageAlt }, ...input.galleryImages)
     existingToday.bodyParagraphs.push(...input.bodyParagraphs)
     existingToday.sourceRefs.push({ name: shopInfo.label, url: postUrl })
-    if (!existingToday.affiliateLinks.some((l) => l.url === mercariLink.url)) {
-      existingToday.affiliateLinks.push(...sanitizeAffiliateLinks([mercariLink]))
-    }
+    const newLinks = affiliateLinks.filter((l) => !existingToday.affiliateLinks.some((existing) => existing.url === l.url))
+    existingToday.affiliateLinks.push(...newLinks)
     existingToday.updatedAt = new Date().toISOString()
     await writeArticles(data)
     return { ok: true, merged: true, slug: existingToday.slug, id: existingToday.id }
@@ -142,7 +129,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
     tags: input.tags,
     publishedAt: new Date().toISOString(),
     featured: false,
-    affiliateLinks: sanitizeAffiliateLinks([mercariLink]),
+    affiliateLinks,
     officialLinks: [{ label: shopInfo.label, url: shopInfo.officialUrl }],
     sourceRefs: [{ name: shopInfo.label, url: postUrl }],
   }

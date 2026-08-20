@@ -1,5 +1,5 @@
 import { readJson, writeJson, generateId } from "@/lib/storage"
-import type { GalleryImage } from "@/lib/types"
+import type { AffiliateLink, GalleryImage } from "@/lib/types"
 
 const VINTAGE_DRAFTS_PATH = "data/vintage-drafts.json"
 
@@ -17,7 +17,7 @@ export type VintageDraft = {
   title: string
   excerpt: string
   bodyParagraphs: string[]
-  mercariSearchQuery: string
+  affiliateLinks: AffiliateLink[]
   tags: string[]
   coverImage: string
   coverImageAlt: string

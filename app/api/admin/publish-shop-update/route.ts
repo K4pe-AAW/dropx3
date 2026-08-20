@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { publishShopUpdate, sanitizeGalleryImages, SHOP_INFO } from "@/lib/shop-update"
+import type { AffiliateLink } from "@/lib/types"
+
+function parseAffiliateLinks(input: unknown): AffiliateLink[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((l): l is Record<string, unknown> => typeof l === "object" && l !== null)
+    .map((l) => ({
+      label: typeof l.label === "string" ? l.label.trim() : "",
+      retailer: typeof l.retailer === "string" ? l.retailer.trim() : "",
+      url: typeof l.url === "string" ? l.url.trim() : "",
+      ...(typeof l.price === "string" && l.price.trim() ? { price: l.price.trim() } : {}),
+    }))
+    .filter((l) => l.label && l.url)
+}
 
 /**
  * 画像使用許諾済みの古着屋(tonari/ROOM)のInstagram投稿を1記事として公開するJSON body版API。
@@ -29,7 +43,7 @@ export async function POST(req: NextRequest) {
     postUrl: typeof body.postUrl === "string" ? body.postUrl.trim() : "",
     tags: Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : ["古着"],
     extraBrands: Array.isArray(body.extraBrands) ? body.extraBrands.filter((b: unknown) => typeof b === "string") : [],
-    mercariSearchQuery: typeof body.mercariSearchQuery === "string" ? body.mercariSearchQuery.trim() : "",
+    affiliateLinks: parseAffiliateLinks(body.affiliateLinks),
   })
 
   if ("error" in result) {

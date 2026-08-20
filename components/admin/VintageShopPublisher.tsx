@@ -1,9 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type ReactNode } from "react"
+import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
+
+type LinkDraft = { label: string; retailer: string; url: string; price: string }
 
 const SHOPS = [
   { key: "tonari", label: "tonari(祐天寺)" },
@@ -184,7 +187,8 @@ function PostEntryCard({
   const [title, setTitle] = useState("")
   const [excerpt, setExcerpt] = useState("")
   const [bodyText, setBodyText] = useState("")
-  const [mercariSearchQuery, setMercariSearchQuery] = useState("")
+  const [autoLinkQuery, setAutoLinkQuery] = useState("")
+  const [links, setLinks] = useState<LinkDraft[]>([])
   const [tagsText, setTagsText] = useState("古着")
   const [coverImageAlt, setCoverImageAlt] = useState("")
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null)
@@ -213,13 +217,51 @@ function PostEntryCard({
       setTitle(data.title)
       setExcerpt(data.excerpt)
       setBodyText((data.bodyParagraphs as string[]).join("\n\n"))
-      setMercariSearchQuery(data.mercariSearchQuery)
+      setAutoLinkQuery(data.suggestedAffiliateQuery)
       setTagsText((data.tags as string[]).join(", "))
     } catch (err) {
       setDraftError(err instanceof Error ? err.message : "下書き生成に失敗しました")
     } finally {
       setDrafting(false)
     }
+  }
+
+  function updateLink(i: number, patch: Partial<LinkDraft>) {
+    setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
+  }
+
+  function removeLink(i: number) {
+    setLinks((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  /** 商品名を1回入力するだけで、自動生成できる店舗(メルカリ・Yahoo!ショッピング等)のリンクをまとめて追加する */
+  function addAutoLinks() {
+    const query = autoLinkQuery.trim()
+    if (!query) {
+      window.alert("商品名やキーワードを入力してください（例: HELMUT LANG デニムショーツ）")
+      return
+    }
+    const added: LinkDraft[] = []
+    const failed: string[] = []
+    for (const item of QUICK_AFFILIATE_RETAILERS) {
+      if (!item.build) continue
+      try {
+        const link = item.build(query)
+        added.push({ label: link.label, retailer: link.retailer, url: link.url, price: "" })
+      } catch {
+        failed.push(item.retailer)
+      }
+    }
+    if (added.length > 0) {
+      setLinks((prev) => [...prev, ...added])
+    }
+    if (failed.length > 0) {
+      window.alert(`${failed.join("・")}のリンクは作成できませんでした（キーワードが具体的か確認してください）`)
+    }
+  }
+
+  function addManualLink(item: (typeof QUICK_AFFILIATE_RETAILERS)[number]) {
+    setLinks((prev) => [...prev, { label: item.label, retailer: item.retailer, url: "", price: "" }])
   }
 
   function buildFormData(): FormData {
@@ -238,7 +280,19 @@ function PostEntryCard({
       )
     )
     fd.set("tags", JSON.stringify(tagsText.split(",").map((t) => t.trim()).filter(Boolean)))
-    fd.set("mercariSearchQuery", mercariSearchQuery.trim())
+    fd.set(
+      "affiliateLinks",
+      JSON.stringify(
+        links
+          .filter((l) => l.url.trim())
+          .map((l) => ({
+            label: l.label.trim() || "商品を見る",
+            retailer: l.retailer.trim(),
+            url: l.url.trim(),
+            ...(l.price.trim() ? { price: l.price.trim() } : {}),
+          }))
+      )
+    )
     fd.set("coverImageAlt", coverImageAlt.trim())
     fd.set("coverImage", coverImageFile as File)
     for (const f of galleryFiles) fd.append("galleryImages", f)
@@ -363,9 +417,92 @@ function PostEntryCard({
         <Field label="本文（空行区切りで段落）">
           <textarea className={inputClass} rows={8} value={bodyText} onChange={(e) => setBodyText(e.target.value)} />
         </Field>
-        <Field label="メルカリ検索キーワード（具体的な商品名。カテゴリ名のみ不可）">
-          <input className={inputClass} value={mercariSearchQuery} onChange={(e) => setMercariSearchQuery(e.target.value)} />
-        </Field>
+        <div>
+          <p className="text-xs font-semibold mb-1.5">アフィリエイトリンク（複数可）</p>
+
+          <div className="flex flex-wrap gap-2 mb-1.5">
+            <input
+              className={`${inputClass} flex-1 min-w-[220px]`}
+              placeholder="商品名・型番を入力（例: HELMUT LANG デニムショーツ）"
+              value={autoLinkQuery}
+              onChange={(e) => setAutoLinkQuery(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={addAutoLinks}
+              className="shrink-0 rounded-full bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:opacity-90"
+            >
+              自動でリンクを追加
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3">
+            {QUICK_AFFILIATE_RETAILERS.filter((item) => item.build)
+              .map((item) => item.retailer)
+              .join("・")}
+            の検索リンクを、このキーワードでまとめて追加します。
+          </p>
+
+          <div className="flex flex-wrap gap-2 mb-1.5">
+            {QUICK_AFFILIATE_RETAILERS.filter((item) => !item.build).map((item) => (
+              <button
+                key={item.retailer}
+                type="button"
+                onClick={() => addManualLink(item)}
+                className="h-8 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary"
+              >
+                + {item.retailer}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3">
+            上のボタンは文言・店舗名だけ自動入力します。URLはA8.net/バリューコマースの管理画面で発行してコピペしてください。
+          </p>
+
+          <div className="space-y-2">
+            {links.map((link, i) => (
+              <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-2">
+                <input
+                  className={inputClass}
+                  placeholder="ボタン文言（例: メルカリで見る）"
+                  value={link.label}
+                  onChange={(e) => updateLink(i, { label: e.target.value })}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="販売店名"
+                  value={link.retailer}
+                  onChange={(e) => updateLink(i, { retailer: e.target.value })}
+                />
+                <input
+                  className={`${inputClass} col-span-2`}
+                  placeholder="アフィリエイトURL"
+                  value={link.url}
+                  onChange={(e) => updateLink(i, { url: e.target.value })}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="価格（任意）"
+                  value={link.price}
+                  onChange={(e) => updateLink(i, { price: e.target.value })}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeLink(i)}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  削除
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setLinks((prev) => [...prev, { label: "", retailer: "", url: "", price: "" }])}
+            className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            + リンクを追加
+          </button>
+        </div>
         <Field label="タグ（カンマ区切り）">
           <input className={inputClass} value={tagsText} onChange={(e) => setTagsText(e.target.value)} />
         </Field>

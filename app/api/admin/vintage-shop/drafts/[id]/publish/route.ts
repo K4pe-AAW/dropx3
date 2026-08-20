@@ -19,7 +19,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     postUrl: draft.postUrl,
     tags: draft.tags,
     extraBrands: [],
-    mercariSearchQuery: draft.mercariSearchQuery,
+    affiliateLinks: draft.affiliateLinks,
   })
 
   if ("error" in result) {
