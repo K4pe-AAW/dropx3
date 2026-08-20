@@ -2,8 +2,13 @@ import { getAllArticles, getFeaturedArticles, getAllBrands, getArchiveMonths } f
 import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
+import { siteConfig } from "@/lib/site-config"
 
 const PAGE_SIZE = 12
+
+function absoluteUrl(path: string): string {
+  return new URL(path, siteConfig.url).toString()
+}
 
 export default async function HomePage({
   searchParams,
@@ -20,8 +25,51 @@ export default async function HomePage({
   const archive = await getArchiveMonths()
   const popular = await getFeaturedArticles(6)
 
+  // トップが何のサイトかを機械に伝える。記事ページ側と違い、ここには
+  // 個別のArticleが無いのでサイト自体を主語にする。
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        name: siteConfig.name,
+        description: siteConfig.description,
+        url: absoluteUrl("/"),
+        publisher: { "@type": "Organization", name: siteConfig.name, url: absoluteUrl("/") },
+      },
+      {
+        "@type": "CollectionPage",
+        name: siteConfig.name,
+        description: siteConfig.description,
+        url: absoluteUrl("/"),
+        // 一覧に出している記事を明示する。AI検索は「このページに何があるか」を
+        // ここから読むので、本文のカードだけに任せない
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: list.map((a, i) => ({
+            "@type": "ListItem",
+            position: (currentPage - 1) * PAGE_SIZE + i + 1,
+            url: absoluteUrl(`/articles/${a.slug}`),
+            name: a.title,
+          })),
+        },
+      },
+    ],
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/*
+        トップにh1が無く、機械から見て「何のページか」が分からない状態だった。
+        見た目はヘッダのロゴが担っているので、視覚的には出さずに見出しだけ置く。
+        2ページ目以降は内容が違うので、同じ見出しにしない。
+      */}
+      <h1 className="sr-only">
+        {currentPage === 1
+          ? `${siteConfig.name}｜${siteConfig.tagline}`
+          : `${siteConfig.name}｜記事一覧 ${currentPage}ページ目`}
+      </h1>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10">
         <div>
           {list.length === 0 ? (
