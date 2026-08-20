@@ -22,7 +22,7 @@ export function CrawlSourcesManager({
   )
 }
 
-function YoutubeSection({ youtube }: { youtube: YoutubeCrawlSource[] }) {
+export function YoutubeSection({ youtube }: { youtube: YoutubeCrawlSource[] }) {
   const router = useRouter()
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
