@@ -6,7 +6,9 @@ import { DraftReviewContent } from "./DraftReviewContent"
 import { takeDraftHandoff } from "@/lib/draft-handoff-client"
 
 const POLL_INTERVAL_MS = 1500
-const MAX_POLLS = 10
+// サーバー側でブロッキング再試行していた時の実測(2026-08-21)で伝播遅延が10秒を超えるケースがあった。
+// こちらはページ表示済みでの非ブロッキングなポーリングなので、その実測を上回る余裕を持たせる
+const MAX_POLLS = 20
 
 /**
  * サーバー側の初回読み取りでまだ見つからなかった下書き(生成直後のBlob伝播遅延)を、
