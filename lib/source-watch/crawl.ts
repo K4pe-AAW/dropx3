@@ -40,6 +40,10 @@ const RELIABLE_CATEGORIES = new Set(["official", "press", "retailer", "early_med
 // 初回巡回だけでOpenAI抽出コールが大量発生し時間・コストの両方で問題になる。新しい順に
 // 優先して処理し、残りは間隔を空けて次回以降の巡回で徐々に消化する(バックプレッシャー)。
 const MAX_ITEMS_PER_CRAWL = 15
+// 1回のcron実行で処理するdueソース数の上限。画像候補が空のアイテムは記事ページを追加取得する
+// ようになった分、全dueソースを一度に処理しようとするとVercelのFUNCTION_INVOCATION_TIMEOUT
+// (maxDuration=300でも)に達することを実際に確認したため(2026-08-21)。残りは次回の巡回に持ち越す。
+const MAX_SOURCES_PER_RUN = 8
 
 function isSourceDue(source: Source, latestLog: CrawlLog | undefined): boolean {
   if (!latestLog) return true
@@ -460,6 +464,7 @@ export async function runDueCrawls(sourceId?: string): Promise<{ results: CrawlL
   const results: CrawlLog[] = []
   for (const source of targets) {
     if (!sourceId) {
+      if (results.length >= MAX_SOURCES_PER_RUN) break
       const latest = await getLatestCrawlLog(source.id)
       if (!isSourceDue(source, latest)) continue
     }
