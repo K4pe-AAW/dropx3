@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readDrafts, getAllArticles } from "@/lib/storage"
+import { readDrafts, mutateDrafts, getAllArticles } from "@/lib/storage"
+import { fetchPageText } from "@/lib/source-watch/fetchers/html"
 
 export const dynamic = "force-dynamic"
 
@@ -11,6 +12,29 @@ export async function GET(req: NextRequest) {
 
   if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+
+  const action = req.nextUrl.searchParams.get("action")
+
+  // 修正後のimageCandidates抽出が実ページで機能するか(副作用なし、下書きは作らない)
+  if (action === "fetch-images") {
+    const url = req.nextUrl.searchParams.get("url")
+    if (!url) return NextResponse.json({ error: "url必須" }, { status: 400 })
+    const page = await fetchPageText(url)
+    return NextResponse.json({ page })
+  }
+
+  // 修正前に生成済みの下書きへ、カバー画像候補を後から補完する(この1件限りの救済措置)
+  if (action === "patch-cover") {
+    const id = req.nextUrl.searchParams.get("id")
+    const coverUrl = req.nextUrl.searchParams.get("url")
+    if (!id || !coverUrl) return NextResponse.json({ error: "id/url必須" }, { status: 400 })
+    const result = await mutateDrafts((data) => {
+      const target = data.drafts.find((d) => d.id === id)
+      if (target) target.suggestedCoverImage = coverUrl
+      return data
+    })
+    return NextResponse.json({ patched: result.drafts.find((d) => d.id === id) ?? null })
   }
 
   const targetId = req.nextUrl.searchParams.get("id") ?? "b9277501fa7841b9a97b31f0dc9a2601"
