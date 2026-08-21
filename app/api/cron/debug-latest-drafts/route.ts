@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
       title: d.title,
       createdAt: d.createdAt,
       suggestedColorways: d.suggestedColorways ?? null,
+      bodyParagraphs: d.bodyParagraphs,
     })),
   })
 }
