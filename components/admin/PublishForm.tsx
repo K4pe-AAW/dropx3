@@ -97,6 +97,9 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   const [brushingUp, setBrushingUp] = useState(false)
   const [brushUpError, setBrushUpError] = useState<string | null>(null)
   const [brushUpDone, setBrushUpDone] = useState(false)
+  const [imageInfoText, setImageInfoText] = useState("")
+  const [extractingImages, setExtractingImages] = useState(false)
+  const [extractImagesError, setExtractImagesError] = useState<string | null>(null)
 
   // RSS収集の下書きは著作権保護のためカバー画像を自動設定しない(YouTube以外)。ここでは画像を
   // 保存・転載するのではなく、著作権者が明確な情報源(ブランド公式サイト)を人間に示すだけに留める。
@@ -396,6 +399,81 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
     }
   }
 
+  /**
+   * 商品ページのコピペ・メモ等、形式を問わない自由記述のテキストをAIに読ませ、色ごとの
+   * 型番/価格/サイズ/発売日と、色に紐付かない画像URLを商品画像・カラーバリエーション表へ
+   * 自動で振り分ける。色名が既存行と一致すれば値を補い、無ければ新規行として追加する
+   * (画像URLはテキストに実際に書かれているものだけをAIに拾わせている)。
+   */
+  async function handleExtractImages() {
+    const text = imageInfoText.trim()
+    if (!text) {
+      setExtractImagesError("テキストを入力してください")
+      return
+    }
+    setExtractingImages(true)
+    setExtractImagesError(null)
+    try {
+      const res = await fetch("/api/admin/drafts/extract-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "読み取りに失敗しました")
+
+      const colorways = data.colorways as
+        | { colorName: string; styleCode?: string; price?: string; size?: string; releaseDate?: string; image?: string }[]
+        | undefined
+      if (colorways && colorways.length > 0) {
+        setImageRows((prev) => {
+          const next = [...prev]
+          for (const f of colorways) {
+            const idx = next.findIndex((r) => r.colorName.trim().toLowerCase() === f.colorName.trim().toLowerCase())
+            if (idx >= 0) {
+              next[idx] = {
+                ...next[idx],
+                url: next[idx].url || f.image || "",
+                styleCode: f.styleCode || next[idx].styleCode,
+                price: f.price || next[idx].price,
+                size: f.size || next[idx].size,
+                releaseDate: f.releaseDate || next[idx].releaseDate,
+              }
+            } else {
+              next.push({
+                ...emptyImageRow(),
+                url: f.image ?? "",
+                colorName: f.colorName,
+                styleCode: f.styleCode ?? "",
+                price: f.price ?? "",
+                size: f.size ?? "",
+                releaseDate: f.releaseDate ?? "",
+              })
+            }
+          }
+          return next
+        })
+      }
+
+      const galleryImages = data.galleryImages as { url: string; alt: string }[] | undefined
+      if (galleryImages && galleryImages.length > 0) {
+        setImageRows((prev) => {
+          const existingUrls = new Set(prev.map((r) => r.url).filter(Boolean))
+          const newRows = galleryImages
+            .filter((g) => !existingUrls.has(g.url))
+            .map((g) => ({ ...emptyImageRow(), url: g.url, alt: g.alt || title }))
+          return newRows.length > 0 ? [...prev, ...newRows] : prev
+        })
+      }
+
+      setImageInfoText("")
+    } catch (err) {
+      setExtractImagesError(err instanceof Error ? err.message : "読み取りに失敗しました")
+    } finally {
+      setExtractingImages(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="rounded-xl border border-accent bg-accent/5 p-4">
@@ -540,6 +618,27 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         <p className="text-[11px] text-muted-foreground mb-2">
           カラー名を空欄のままにすると通常のギャラリー画像として表示されます。カラー名を入れると、その色の型番・価格・サイズ・発売日・取扱店を入力できます（カラーバリエーションとして表示）。
         </p>
+        <div className="mb-3 rounded-lg border border-border bg-secondary/30 p-3">
+          <p className="text-[11px] text-muted-foreground mb-1.5">
+            商品ページのコピペ・メモ等を貼り付けると、AIが色ごとの型番・価格・サイズ・発売日と画像URLを読み取り、下の表に自動で振り分けます。
+          </p>
+          <textarea
+            className={inputClass}
+            rows={3}
+            placeholder="例: Black/Black ABC-123 12,000円 JP24-29 9月上旬発売&#10;https://example.com/black.jpg …"
+            value={imageInfoText}
+            onChange={(e) => setImageInfoText(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={handleExtractImages}
+            disabled={extractingImages}
+            className="mt-2 h-8 px-3 rounded-full bg-accent text-accent-foreground text-xs font-bold disabled:opacity-50"
+          >
+            {extractingImages ? "読み取り中…" : "AIで振り分け"}
+          </button>
+          {extractImagesError && <p className="text-xs text-destructive mt-1.5">{extractImagesError}</p>}
+        </div>
         <div className="space-y-3">
           {imageRows.map((row, i) => {
             const isColorway = row.colorName.trim().length > 0

@@ -128,6 +128,12 @@ export function sanitizeSuggestedColorways(input: unknown): ColorwayInfo[] {
       ...(typeof c.price === "string" && c.price.trim() ? { price: c.price.trim() } : {}),
       ...(typeof c.size === "string" && c.size.trim() ? { size: c.size.trim() } : {}),
       ...(typeof c.releaseDate === "string" && c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
+      // imageはai-draft.ts自体のプロンプトでは使わないが(YouTube以外は著作権保護のためAIに画像を扱わせない
+      // 方針)、image-colorway-extract.tsは人間が貼り付けたテキスト中の実URLだけを拾う用途で使うため、
+      // この共通サニタイズ関数でも安全性検証(isSafeExternalUrl)込みで対応しておく
+      ...(typeof c.image === "string" && c.image.trim() && isSafeExternalUrl(c.image.trim())
+        ? { image: c.image.trim() }
+        : {}),
     }))
     .filter((c) => c.colorName || c.styleCode || c.price || c.releaseDate || c.size)
 }
