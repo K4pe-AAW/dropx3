@@ -7,17 +7,28 @@ import { siteConfig } from "@/lib/site-config"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
-type GalleryImageDraft = { url: string; alt: string; credit: string }
 type OfficialLinkDraft = { label: string; url: string }
 type SourceRefDraft = { name: string; url: string }
-type ColorwayDraft = {
+/**
+ * 「追加の画像」と「カラーバリエーション」は元は別々の入力欄だったが、どちらも
+ * 「画像URL+付随情報」という同じ形をしており、画像を2箇所に分けて入力する手間が
+ * 分かりにくいという声があったため1つの表に統合した(2026-08-21)。カラー名が空なら
+ * 送信時にgalleryImagesへ、入っていればcolorwaysへ振り分ける(データの持ち方・
+ * 記事側の表示は従来通り分けたまま — 統合したのは入力フォームだけ)。
+ */
+type ImageRowDraft = {
+  url: string
   colorName: string
-  image: string
+  alt: string
+  credit: string
   styleCode: string
   price: string
   size: string
   releaseDate: string
   retailersText: string
+}
+function emptyImageRow(): ImageRowDraft {
+  return { url: "", colorName: "", alt: "", credit: "", styleCode: "", price: "", size: "", releaseDate: "", retailersText: "" }
 }
 type PurchaseChannelDraft = {
   retailerName: string
@@ -46,26 +57,30 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   const [scheduledPublishAt, setScheduledPublishAt] = useState("")
   const [links, setLinks] = useState<LinkDraft[]>([])
   const [autoLinkQuery, setAutoLinkQuery] = useState(draft.suggestedAffiliateSearch[0] ?? "")
-  const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>(
-    (draft.suggestedGalleryImages ?? []).map((g) => ({ url: g.url, alt: g.alt, credit: g.credit ?? "" }))
-  )
   const [officialLinks, setOfficialLinks] = useState<OfficialLinkDraft[]>(
     (draft.suggestedOfficialLinks ?? []).map((l) => ({ label: l.label, url: l.url }))
   )
   const [sourceRefs, setSourceRefs] = useState<SourceRefDraft[]>(
     draft.sourceRefs.map((r) => ({ name: r.name, url: r.url }))
   )
-  const [colorways, setColorways] = useState<ColorwayDraft[]>(
-    (draft.suggestedColorways ?? []).map((c) => ({
+  const [imageRows, setImageRows] = useState<ImageRowDraft[]>([
+    ...(draft.suggestedGalleryImages ?? []).map((g) => ({
+      ...emptyImageRow(),
+      url: g.url,
+      alt: g.alt,
+      credit: g.credit ?? "",
+    })),
+    ...(draft.suggestedColorways ?? []).map((c) => ({
+      ...emptyImageRow(),
+      url: c.image ?? "",
       colorName: c.colorName,
-      image: c.image ?? "",
       styleCode: c.styleCode ?? "",
       price: c.price ?? "",
       size: c.size ?? "",
       releaseDate: c.releaseDate ?? "",
       retailersText: (c.retailers ?? []).join(", "),
-    }))
-  )
+    })),
+  ])
   const [purchaseChannels, setPurchaseChannels] = useState<PurchaseChannelDraft[]>(
     (draft.suggestedPurchaseChannels ?? []).map((c) => ({
       retailerName: c.retailerName,
@@ -135,19 +150,11 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
     setLinks((prev) => [...prev, { label: item.label, retailer: item.retailer, url: "", price: "" }])
   }
 
-  function updateGalleryImage(i: number, patch: Partial<GalleryImageDraft>) {
-    setGalleryImages((prev) => prev.map((g, idx) => (idx === i ? { ...g, ...patch } : g)))
+  function updateImageRow(i: number, patch: Partial<ImageRowDraft>) {
+    setImageRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
   }
-
-  function removeGalleryImage(i: number) {
-    setGalleryImages((prev) => prev.filter((_, idx) => idx !== i))
-  }
-
-  function updateColorway(i: number, patch: Partial<ColorwayDraft>) {
-    setColorways((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
-  }
-  function removeColorway(i: number) {
-    setColorways((prev) => prev.filter((_, idx) => idx !== i))
+  function removeImageRow(i: number) {
+    setImageRows((prev) => prev.filter((_, idx) => idx !== i))
   }
   function updateOfficialLink(i: number, patch: Partial<OfficialLinkDraft>) {
     setOfficialLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
@@ -182,6 +189,28 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         ...(l.price.trim() ? { price: l.price.trim() } : {}),
       }))
 
+    // カラー名が空欄=通常のギャラリー画像、入っていれば色ごとのカラーバリエーションとして振り分ける
+    const galleryImages = imageRows
+      .filter((r) => r.url.trim() && !r.colorName.trim())
+      .map((r) => ({
+        url: r.url.trim(),
+        alt: r.alt.trim() || title,
+        ...(r.credit.trim() ? { credit: r.credit.trim() } : {}),
+      }))
+    const colorways = imageRows
+      .filter((r) => r.colorName.trim())
+      .map((r) => ({
+        colorName: r.colorName.trim(),
+        ...(r.url.trim() ? { image: r.url.trim() } : {}),
+        ...(r.styleCode.trim() ? { styleCode: r.styleCode.trim() } : {}),
+        ...(r.price.trim() ? { price: r.price.trim() } : {}),
+        ...(r.size.trim() ? { size: r.size.trim() } : {}),
+        ...(r.releaseDate.trim() ? { releaseDate: r.releaseDate.trim() } : {}),
+        ...(r.retailersText.trim()
+          ? { retailers: r.retailersText.split(",").map((x) => x.trim()).filter(Boolean) }
+          : {}),
+      }))
+
     return {
       title,
       excerpt,
@@ -198,21 +227,9 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
       featured,
       ...(youtubeVideoId.trim() ? { youtubeVideoId: youtubeVideoId.trim() } : {}),
       affiliateLinks,
-      galleryImages: galleryImages.filter((g) => g.url.trim()),
+      galleryImages,
       officialLinks: officialLinks.filter((l) => l.url.trim()),
-      colorways: colorways
-        .filter((c) => c.colorName.trim())
-        .map((c) => ({
-          colorName: c.colorName.trim(),
-          ...(c.image.trim() ? { image: c.image.trim() } : {}),
-          ...(c.styleCode.trim() ? { styleCode: c.styleCode.trim() } : {}),
-          ...(c.price.trim() ? { price: c.price.trim() } : {}),
-          ...(c.size.trim() ? { size: c.size.trim() } : {}),
-          ...(c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
-          ...(c.retailersText.trim()
-            ? { retailers: c.retailersText.split(",").map((r) => r.trim()).filter(Boolean) }
-            : {}),
-        })),
+      colorways,
       purchaseChannels: purchaseChannels
         .filter((c) => c.retailerName.trim())
         .map((c) => ({
@@ -306,14 +323,14 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
           title,
           excerpt,
           bodyParagraphs: bodyText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
-          colorways: colorways
-            .filter((c) => c.colorName.trim())
-            .map((c) => ({
-              colorName: c.colorName.trim(),
-              ...(c.styleCode.trim() ? { styleCode: c.styleCode.trim() } : {}),
-              ...(c.price.trim() ? { price: c.price.trim() } : {}),
-              ...(c.size.trim() ? { size: c.size.trim() } : {}),
-              ...(c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
+          colorways: imageRows
+            .filter((r) => r.colorName.trim())
+            .map((r) => ({
+              colorName: r.colorName.trim(),
+              ...(r.styleCode.trim() ? { styleCode: r.styleCode.trim() } : {}),
+              ...(r.price.trim() ? { price: r.price.trim() } : {}),
+              ...(r.size.trim() ? { size: r.size.trim() } : {}),
+              ...(r.releaseDate.trim() ? { releaseDate: r.releaseDate.trim() } : {}),
             })),
         }),
       })
@@ -328,20 +345,24 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         | { colorName: string; styleCode?: string; price?: string; size?: string; releaseDate?: string }[]
         | undefined
       if (freshColorways && freshColorways.length > 0) {
-        setColorways((prev) =>
-          freshColorways.map((f) => {
-            const match = prev.find((e) => e.colorName.trim().toLowerCase() === f.colorName.trim().toLowerCase())
-            return {
-              colorName: f.colorName || match?.colorName || "",
-              image: match?.image ?? "",
-              styleCode: f.styleCode || match?.styleCode || "",
-              price: f.price || match?.price || "",
-              size: f.size || match?.size || "",
-              releaseDate: f.releaseDate || match?.releaseDate || "",
-              retailersText: match?.retailersText ?? "",
+        setImageRows((prev) => {
+          const next = [...prev]
+          for (const f of freshColorways) {
+            const idx = next.findIndex((r) => r.colorName.trim().toLowerCase() === f.colorName.trim().toLowerCase())
+            if (idx >= 0) {
+              next[idx] = {
+                ...next[idx],
+                styleCode: f.styleCode || next[idx].styleCode,
+                price: f.price || next[idx].price,
+                size: f.size || next[idx].size,
+                releaseDate: f.releaseDate || next[idx].releaseDate,
+              }
+            } else {
+              next.push({ ...emptyImageRow(), colorName: f.colorName, styleCode: f.styleCode ?? "", price: f.price ?? "", size: f.size ?? "", releaseDate: f.releaseDate ?? "" })
             }
-          })
-        )
+          }
+          return next
+        })
       }
 
       const sourceRef = data.sourceRef as { name: string; url: string } | undefined
@@ -351,19 +372,20 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
 
       const imageCandidates = Array.isArray(data.imageCandidates) ? (data.imageCandidates as string[]) : []
       if (imageCandidates.length > 0) {
-        const existingUrls = new Set([coverImage, ...galleryImages.map((g) => g.url)].filter(Boolean))
+        const existingUrls = new Set([coverImage, ...imageRows.map((r) => r.url)].filter(Boolean))
         let nextCoverImage = coverImage
-        if (!nextCoverImage && imageCandidates[0]) {
-          nextCoverImage = imageCandidates[0]
-          setCoverImage(nextCoverImage)
-          existingUrls.add(nextCoverImage)
+        const newRows: ImageRowDraft[] = []
+        for (const u of imageCandidates) {
+          if (existingUrls.has(u)) continue
+          existingUrls.add(u)
+          if (!nextCoverImage) {
+            nextCoverImage = u
+            continue
+          }
+          newRows.push({ ...emptyImageRow(), url: u, alt: data.title || title })
         }
-        const newGalleryImages = imageCandidates
-          .filter((u) => !existingUrls.has(u))
-          .map((u) => ({ url: u, alt: data.title || title, credit: "" }))
-        if (newGalleryImages.length > 0) {
-          setGalleryImages((prev) => [...prev, ...newGalleryImages])
-        }
+        if (nextCoverImage !== coverImage) setCoverImage(nextCoverImage)
+        if (newRows.length > 0) setImageRows((prev) => [...prev, ...newRows])
       }
 
       setBrushUpDone(true)
@@ -514,107 +536,95 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
       )}
 
       <div>
-        <p className="text-xs font-semibold mb-2">追加の画像（記事内にギャラリー表示・任意）</p>
+        <p className="text-xs font-semibold mb-2">商品画像・カラーバリエーション（任意）</p>
+        <p className="text-[11px] text-muted-foreground mb-2">
+          カラー名を空欄のままにすると通常のギャラリー画像として表示されます。カラー名を入れると、その色の型番・価格・サイズ・発売日・取扱店を入力できます（カラーバリエーションとして表示）。
+        </p>
         <div className="space-y-3">
-          {galleryImages.map((img, i) => (
-            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
-              <input
-                className={`${inputClass} col-span-2`}
-                placeholder="画像URL（https://... または /images/...）"
-                value={img.url}
-                onChange={(e) => updateGalleryImage(i, { url: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="代替テキスト"
-                value={img.alt}
-                onChange={(e) => updateGalleryImage(i, { alt: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="画像クレジット（任意）"
-                value={img.credit}
-                onChange={(e) => updateGalleryImage(i, { credit: e.target.value })}
-              />
-              <button
-                type="button"
-                onClick={() => removeGalleryImage(i)}
-                className="text-xs text-muted-foreground hover:text-destructive"
-              >
-                削除
-              </button>
-            </div>
-          ))}
+          {imageRows.map((row, i) => {
+            const isColorway = row.colorName.trim().length > 0
+            return (
+              <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
+                <input
+                  className={`${inputClass} col-span-2`}
+                  placeholder="画像URL（https://... または /images/...）"
+                  value={row.url}
+                  onChange={(e) => updateImageRow(i, { url: e.target.value })}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="カラー名（空欄なら通常のギャラリー画像。例: Black/Black）"
+                  value={row.colorName}
+                  onChange={(e) => updateImageRow(i, { colorName: e.target.value })}
+                />
+                {isColorway ? (
+                  <>
+                    <input
+                      className={inputClass}
+                      placeholder="スタイルコード（任意）"
+                      value={row.styleCode}
+                      onChange={(e) => updateImageRow(i, { styleCode: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="販売価格（例: 38,500円（税込））"
+                      value={row.price}
+                      onChange={(e) => updateImageRow(i, { price: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="サイズ（例: JP24.0 – JP29）"
+                      value={row.size}
+                      onChange={(e) => updateImageRow(i, { size: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="発売予定日（例: 2026年8月7日）"
+                      value={row.releaseDate}
+                      onChange={(e) => updateImageRow(i, { releaseDate: e.target.value })}
+                    />
+                    <input
+                      className={`${inputClass} col-span-2`}
+                      placeholder="取扱店（カンマ区切り）"
+                      value={row.retailersText}
+                      onChange={(e) => updateImageRow(i, { retailersText: e.target.value })}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <input
+                      className={inputClass}
+                      placeholder="代替テキスト"
+                      value={row.alt}
+                      onChange={(e) => updateImageRow(i, { alt: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="画像クレジット（任意）"
+                      value={row.credit}
+                      onChange={(e) => updateImageRow(i, { credit: e.target.value })}
+                    />
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeImageRow(i)}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  削除
+                </button>
+              </div>
+            )
+          })}
         </div>
         <button
           type="button"
-          onClick={() => setGalleryImages((prev) => [...prev, { url: "", alt: "", credit: "" }])}
+          onClick={() => setImageRows((prev) => [...prev, emptyImageRow()])}
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
-          + 画像を追加
+          + 画像/カラーを追加
         </button>
       </div>
-
-      {colorways.length > 0 && (
-      <div>
-        <p className="text-xs font-semibold mb-2">カラーバリエーション（任意・色ごとの型番/価格/サイズ/発売日）</p>
-        <div className="space-y-3">
-          {colorways.map((cw, i) => (
-            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
-              <input
-                className={inputClass}
-                placeholder="カラー名（例: Black/Black）"
-                value={cw.colorName}
-                onChange={(e) => updateColorway(i, { colorName: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="画像URL（任意）"
-                value={cw.image}
-                onChange={(e) => updateColorway(i, { image: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="スタイルコード（任意）"
-                value={cw.styleCode}
-                onChange={(e) => updateColorway(i, { styleCode: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="販売価格（例: 38,500円（税込））"
-                value={cw.price}
-                onChange={(e) => updateColorway(i, { price: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="サイズ（例: JP24.0 – JP29）"
-                value={cw.size}
-                onChange={(e) => updateColorway(i, { size: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="発売予定日（例: 2026年8月7日）"
-                value={cw.releaseDate}
-                onChange={(e) => updateColorway(i, { releaseDate: e.target.value })}
-              />
-              <input
-                className={`${inputClass} col-span-2`}
-                placeholder="取扱店（カンマ区切り）"
-                value={cw.retailersText}
-                onChange={(e) => updateColorway(i, { retailersText: e.target.value })}
-              />
-              <button
-                type="button"
-                onClick={() => removeColorway(i)}
-                className="text-xs text-muted-foreground hover:text-destructive"
-              >
-                削除
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-      )}
 
       <div>
         <p className="text-xs font-semibold mb-2">抽選情報・販売方法（任意・店舗ごとの抽選/通常販売と日程）</p>
