@@ -40,10 +40,11 @@ const RELIABLE_CATEGORIES = new Set(["official", "press", "retailer", "early_med
 // 初回巡回だけでOpenAI抽出コールが大量発生し時間・コストの両方で問題になる。新しい順に
 // 優先して処理し、残りは間隔を空けて次回以降の巡回で徐々に消化する(バックプレッシャー)。
 // 画像候補が空のアイテムは記事ページを追加取得するようになった分、8ソース×15件でも
-// maxDuration=300でタイムアウトすることを実際に確認したため(2026-08-21)、両方を絞った。
-const MAX_ITEMS_PER_CRAWL = 8
+// maxDuration=300でタイムアウトすることを実際に確認したため(2026-08-21)。sitemap取得自体も
+// 子sitemap2件×50件ずつのURL一覧取得で新着0件でも約15秒かかると計測できたため、両方をさらに絞った。
+const MAX_ITEMS_PER_CRAWL = 5
 // 1回のcron実行で処理するdueソース数の上限。残りは次回の巡回(4時間後)に持ち越す。
-const MAX_SOURCES_PER_RUN = 4
+const MAX_SOURCES_PER_RUN = 2
 
 function isSourceDue(source: Source, latestLog: CrawlLog | undefined): boolean {
   if (!latestLog) return true
