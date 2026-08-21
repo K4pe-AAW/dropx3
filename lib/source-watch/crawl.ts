@@ -118,11 +118,11 @@ function mergeColorway(
   return [...existing, merged]
 }
 
-async function buildImageAssets(source: Source, item: SourceItem, extracted: ExtractedProductInfo): Promise<ImageAsset[]> {
-  if (source.imagePolicy === "do_not_use" || !extracted.imageCandidates?.length) return []
+async function buildImageAssets(source: Source, item: SourceItem): Promise<ImageAsset[]> {
+  if (source.imagePolicy === "do_not_use" || !item.imageCandidates?.length) return []
   const sourceType = imageSourceTypeFor(source)
   const assets: ImageAsset[] = []
-  for (const url of extracted.imageCandidates.slice(0, 5)) {
+  for (const url of item.imageCandidates.slice(0, 5)) {
     try {
       new URL(url) // 不正なURLは無視
     } catch {
@@ -188,7 +188,7 @@ export async function processSourceItem(source: Source, item: SourceItem, existi
     checkedAt: new Date().toISOString(),
   })
 
-  const newImageAssets = await buildImageAssets(source, item, extracted)
+  const newImageAssets = await buildImageAssets(source, item)
 
   const canMatch = Boolean(matchKey.styleCode || (matchKey.normalizedBrand && matchKey.normalizedModelName))
   let product: Product | undefined = canMatch
@@ -399,10 +399,15 @@ export async function crawlSource(source: Source): Promise<CrawlLog> {
 
       let title = fetched.title
       let rawText = fetched.rawText
-      if (!title) {
+      let imageCandidates = fetched.imageCandidates ?? []
+      // RSS/sitemap由来で画像候補が空の場合、記事ページを直接取得して機械的に画像を拾う
+      // (imagePolicyがdo_not_useのソースは使う予定が無いので追加リクエストを省く)
+      const needsPageFetch = !title || (imageCandidates.length === 0 && source.imagePolicy !== "do_not_use")
+      if (needsPageFetch) {
         const page = await fetchPageText(fetched.url)
-        title = page?.title ?? normalizeUrl(fetched.url)
+        title = title || page?.title || normalizeUrl(fetched.url)
         rawText = rawText ?? page?.text
+        if (imageCandidates.length === 0) imageCandidates = page?.imageCandidates ?? []
       }
 
       const item = await createSourceItem({
@@ -412,6 +417,7 @@ export async function crawlSource(source: Source): Promise<CrawlLog> {
         publishedAt: fetched.publishedAt,
         detectedAt: new Date().toISOString(),
         rawText,
+        imageCandidates,
         processingStatus: "new",
       })
       newCount++

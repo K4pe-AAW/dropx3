@@ -114,6 +114,8 @@ export type SourceItem = {
   detectedAt: string
   rawText?: string
   rawMetadata?: Record<string, unknown>
+  /** 記事ページのHTML/RSSから機械的に集めた画像URL候補(og:image・本文img・enclosure等) */
+  imageCandidates?: string[]
   processingStatus: SourceItemStatus
   /** html方式の変更検出用。同一URLでも内容が変わっていなければ再解析しない */
   contentHash?: string
@@ -144,7 +146,6 @@ export type ExtractedProductInfo = {
   lotteryInfo: string | null
   /** true=再販, false=新作, null=不明 */
   isReissue: boolean | null
-  imageCandidates: string[] | null
 }
 
 export type ConfidenceTier = "CONFIRMED" | "REPORTED" | "RUMOR"

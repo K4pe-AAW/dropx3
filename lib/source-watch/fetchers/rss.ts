@@ -1,6 +1,8 @@
 import Parser from "rss-parser"
+import * as cheerio from "cheerio"
 import type { Source } from "../types"
 import type { FetchResult } from "./types"
+import { extractImageCandidatesFromHtml } from "./html"
 
 const parser = new Parser({ timeout: 15000 })
 
@@ -27,12 +29,22 @@ export async function fetchRss(source: Source): Promise<FetchResult> {
         return PR_TIMES_KEYWORDS.some((kw) => haystack.includes(kw))
       })
       .filter((entry) => entry.title && entry.link)
-      .map((entry) => ({
-        url: entry.link as string,
-        title: (entry.title as string).trim(),
-        publishedAt: entry.isoDate || entry.pubDate,
-        rawText: entry.contentSnippet?.slice(0, 2000) || entry.content?.slice(0, 2000),
-      }))
+      .map((entry) => {
+        const imageCandidates: string[] = []
+        if (entry.enclosure?.url && entry.enclosure.type?.startsWith("image/")) {
+          imageCandidates.push(entry.enclosure.url)
+        }
+        if (entry.content) {
+          imageCandidates.push(...extractImageCandidatesFromHtml(cheerio.load(entry.content), entry.link as string))
+        }
+        return {
+          url: entry.link as string,
+          title: (entry.title as string).trim(),
+          publishedAt: entry.isoDate || entry.pubDate,
+          rawText: entry.contentSnippet?.slice(0, 2000) || entry.content?.slice(0, 2000),
+          imageCandidates: [...new Set(imageCandidates)].slice(0, 8),
+        }
+      })
 
     return { items, errors: [], httpStatus: 200 }
   } catch (err) {

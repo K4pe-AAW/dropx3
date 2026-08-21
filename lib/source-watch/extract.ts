@@ -18,7 +18,6 @@ const EMPTY_EXTRACTION: ExtractedProductInfo = {
   retailers: null,
   lotteryInfo: null,
   isReissue: null,
-  imageCandidates: null,
 }
 
 const SYSTEM_PROMPT = `あなたはストリートファッション/スニーカーニュースの一次情報抽出アシスタントです。
@@ -60,8 +59,7 @@ ${item.rawText ?? "(本文なし。タイトルのみで判断できる範囲で
   "collabPartner": "コラボ相手 or null",
   "retailers": ["販売店名"] or null,
   "lotteryInfo": "抽選情報(応募期間・条件等) or null",
-  "isReissue": true/false/null,
-  "imageCandidates": ["本文中で言及されている画像URL"] or null
+  "isReissue": true/false/null
 }`
 }
 
@@ -112,6 +110,5 @@ export async function extractProductInfo(item: SourceItem): Promise<ExtractedPro
     retailers: strArr(parsed.retailers),
     lotteryInfo: str(parsed.lotteryInfo),
     isReissue: boolOrNull(parsed.isReissue),
-    imageCandidates: strArr(parsed.imageCandidates),
   }
 }
