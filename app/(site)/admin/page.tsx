@@ -5,6 +5,7 @@ import { CollectButton } from "@/components/admin/CollectButton"
 import { DeleteAllDraftsButton } from "@/components/admin/DeleteAllDraftsButton"
 import { LogoutButton } from "@/components/admin/LogoutButton"
 import { ArticleSearch } from "@/components/admin/ArticleSearch"
+import { DraftSearch } from "@/components/admin/DraftSearch"
 import { ArticlesList } from "@/components/admin/ArticlesList"
 import { DraftsList } from "@/components/admin/DraftsList"
 import { ScheduledList } from "@/components/admin/ScheduledList"
@@ -118,6 +119,10 @@ export default async function AdminPage({
           </div>
 
           <ScheduledList scheduled={scheduled} />
+
+          {drafts.length > 0 && (
+            <DraftSearch drafts={drafts.map((d) => ({ id: d.id, title: d.title, brands: d.brands }))} />
+          )}
 
           {drafts.length === 0 && !isUrlGenerateTab ? (
             <p className="text-sm text-muted-foreground leading-relaxed">
