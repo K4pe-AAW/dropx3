@@ -54,7 +54,7 @@ export async function fetchHtmlListing(source: Source): Promise<FetchResult> {
   if (!url) return { items: [], errors: ["urlが未設定"] }
 
   try {
-    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(10000) })
+    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(6000) })
     if (!res.ok) return { items: [], errors: [`HTTP ${res.status}`], httpStatus: res.status }
     const html = await res.text()
     const $ = cheerio.load(html)
@@ -89,7 +89,7 @@ export async function fetchHtmlListing(source: Source): Promise<FetchResult> {
 /** 新着URLの本文テキストを取得する(タイトルしか分からないsitemap方式の補完、画像候補の収集にも使う) */
 export async function fetchPageText(url: string): Promise<{ title?: string; text?: string; imageCandidates: string[] } | null> {
   try {
-    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(10000) })
+    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(6000) })
     if (!res.ok) return null
     const html = await res.text()
     const $ = cheerio.load(html)
