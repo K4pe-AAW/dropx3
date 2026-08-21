@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { url, title, excerpt, bodyParagraphs, colorways } = body
     if (typeof url !== "string" || !url.trim()) {
-      return NextResponse.json({ error: "公式サイトのURLを入力してください" }, { status: 400 })
+      return NextResponse.json({ error: "URLを入力してください" }, { status: 400 })
     }
 
     const current: BrushUpCurrentDraft = {

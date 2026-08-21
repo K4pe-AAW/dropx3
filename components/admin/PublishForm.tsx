@@ -284,14 +284,14 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   }
 
   /**
-   * ブランド公式サイトのURLを渡し、公式情報でタイトル/要約/本文/カラー展開/画像候補/公式リンクを
-   * 補って書き直す。まだ何も保存はしない(このフォームの入力欄が更新されるだけ)ので、結果が
-   * 気に入らなければページを再読み込みすれば元の下書きの状態に戻る。
+   * 参考ページ(公式サイトとは限らない)のURLを渡し、その内容でタイトル/要約/本文/カラー展開/
+   * 画像候補/情報元リンクを補って書き直す。まだ何も保存はしない(このフォームの入力欄が
+   * 更新されるだけ)ので、結果が気に入らなければページを再読み込みすれば元の下書きの状態に戻る。
    */
   async function handleBrushUp() {
     const url = brushUpUrl.trim()
     if (!url) {
-      setBrushUpError("公式サイトのURLを入力してください")
+      setBrushUpError("URLを入力してください")
       return
     }
     setBrushingUp(true)
@@ -344,9 +344,9 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         )
       }
 
-      const officialLink = data.officialLink as { label: string; url: string } | undefined
-      if (officialLink?.url) {
-        setOfficialLinks((prev) => (prev.some((l) => l.url === officialLink.url) ? prev : [...prev, officialLink]))
+      const sourceRef = data.sourceRef as { name: string; url: string } | undefined
+      if (sourceRef?.url) {
+        setSourceRefs((prev) => (prev.some((r) => r.url === sourceRef.url) ? prev : [...prev, sourceRef]))
       }
 
       const imageCandidates = Array.isArray(data.imageCandidates) ? (data.imageCandidates as string[]) : []
@@ -377,15 +377,15 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="rounded-xl border border-accent bg-accent/5 p-4">
-        <p className="text-xs font-bold mb-1">公式サイトの内容でブラッシュアップ（任意）</p>
+        <p className="text-xs font-bold mb-1">URLでブラッシュアップ（任意）</p>
         <p className="text-[11px] text-muted-foreground mb-3">
-          ブランド公式サイトのURLを貼ると、その内容でタイトル・要約・本文・カラー展開・公式リンク・画像候補を補って書き直します。タイトル・要約・本文は上書きされます（結果が気に入らなければページを再読み込みしてください）。
+          参考にしたいページのURL（公式サイトに限らず、詳しいニュース記事等でも可）を貼ると、その内容でタイトル・要約・本文・カラー展開・情報元リンク・画像候補を補って書き直します。タイトル・要約・本文は上書きされます（結果が気に入らなければページを再読み込みしてください）。
         </p>
         <div className="flex flex-wrap gap-2 items-start">
           <input
             value={brushUpUrl}
             onChange={(e) => setBrushUpUrl(e.target.value)}
-            placeholder="https://ブランド公式サイトのURL"
+            placeholder="https://参考にしたいページのURL"
             type="url"
             className={`${inputClass} flex-1 min-w-72`}
           />
@@ -400,7 +400,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         </div>
         {brushUpError && <p className="text-xs text-destructive mt-2">{brushUpError}</p>}
         {brushUpDone && !brushUpError && (
-          <p className="text-xs text-accent-foreground mt-2">公式サイトの情報を反映しました。内容を確認してください。</p>
+          <p className="text-xs text-accent-foreground mt-2">参考ページの情報を反映しました。内容を確認してください。</p>
         )}
       </div>
 
