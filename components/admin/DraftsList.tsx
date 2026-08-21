@@ -7,6 +7,11 @@ import type { Draft } from "@/lib/types"
 import { categoryLabel } from "@/lib/site-config"
 import { cn } from "@/lib/utils"
 
+function shortDate(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
 export function DraftsList({ drafts }: { drafts: Draft[] }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -186,6 +191,7 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
               <p className="text-[11px] text-muted-foreground/70 mt-auto pt-1">
                 {categoryLabel(d.category)} ・ {d.brands.join(", ") || "ブランドなし"} ・ 出典:{" "}
                 {d.sourceRefs.map((r) => r.name).join(", ")}
+                {d.sourcePublishedAt && <> ・ 元ネタ: {shortDate(d.sourcePublishedAt)}</>}
               </p>
             </div>
           )

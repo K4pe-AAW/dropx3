@@ -163,6 +163,11 @@ export async function buildDraftFromProduct(product: Product): Promise<Draft> {
     .filter((l) => isConfirmedLinkType(l.type))
     .map((l) => ({ label: `${l.publisher}で見る`, url: l.url }))
   const suggestedPurchaseChannels = buildSuggestedPurchaseChannels(product, sourceLinks)
+  // 複数ソースが同じ商品を報じている場合、最も早く世に出た日時を「元ネタの投稿日」とする
+  const sourcePublishedAt = items
+    .map((i) => i.publishedAt ?? i.detectedAt)
+    .filter((d): d is string => Boolean(d))
+    .sort()[0]
 
   const draft: Draft = {
     id: generateId(`sw-draft-${product.id}-${Date.now()}`),
@@ -176,6 +181,7 @@ export async function buildDraftFromProduct(product: Product): Promise<Draft> {
     suggestedAffiliateSearch: [product.brand, product.productName, product.styleCode].filter((v): v is string => Boolean(v)),
     sourceRefs: sourceLinks.map((l) => ({ name: l.publisher, url: l.url })),
     createdAt: new Date().toISOString(),
+    ...(sourcePublishedAt ? { sourcePublishedAt } : {}),
     sourceWatchProductId: product.id,
     ...(suggestedGalleryImages[0] ? { suggestedCoverImage: suggestedGalleryImages[0].url } : {}),
     suggestedGalleryImages,

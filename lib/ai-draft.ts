@@ -308,6 +308,7 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
     ...(suggestedColorways.length > 0 ? { suggestedColorways } : {}),
     sourceRefs: [{ name: item.sourceName, url: item.sourceUrl }],
     createdAt: new Date().toISOString(),
+    sourcePublishedAt: item.publishedAt,
     // カテゴリ判定がyoutube以外(商品ジャンル)になった場合でも動画へのリンクは必ず残す
     ...(youtubeVideoId
       ? {

@@ -163,6 +163,9 @@ export type Draft = {
   suggestedAffiliateSearch: string[]
   sourceRefs: SourceRef[]
   createdAt: string
+  /** 元ネタ(出典記事/動画)が実際に投稿・公開された日時。管理画面の新しい順/古い順ソートに使う。
+   * createdAt(このDropDropDropが収集した時刻)とは別物 — 収集が遅れれば両者はずれる */
+  sourcePublishedAt?: string
   /**
    * SOURCE WATCH(lib/source-watch/)がCONFIRMED商品から生成したDraftにのみ設定される。
    * PublishForm側でこれらを初期値として使うと、画像/リンク/カラー展開を毎回ゼロから

@@ -21,16 +21,22 @@ const ADMIN_GUIDE_URL = "https://claude.ai/code/artifact/643aaaf7-ac93-4cc5-8924
 const PAGE_SIZE = 15
 
 type ViewKey = "drafts" | "published"
+type SortKey = "newest" | "oldest"
 
 /** 下書きの分類タブ(DraftGroupKey)とは別枠の、URL即時生成フォームを開くための擬似タブ */
 const URL_GENERATE_TAB = "url-generate" as const
 
+/** 元ネタ(出典)の投稿日を並べ替えキーにする。無い古いデータはcreatedAt(収集日)で代替する */
+function sourceDateOf(d: { sourcePublishedAt?: string; createdAt: string }): string {
+  return d.sourcePublishedAt ?? d.createdAt
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; tab?: string; view?: string }>
+  searchParams: Promise<{ page?: string; tab?: string; view?: string; sort?: string }>
 }) {
-  const { page, tab, view } = await searchParams
+  const { page, tab, view, sort } = await searchParams
   const [drafts, articles, scheduled, crawlSources] = await Promise.all([
     getPendingDrafts(),
     getAllArticles(),
@@ -39,11 +45,15 @@ export default async function AdminPage({
   ])
 
   const activeView: ViewKey = view === "published" ? "published" : "drafts"
+  const activeSort: SortKey = sort === "oldest" ? "oldest" : "newest"
 
   const activeTab: DraftGroupKey | typeof URL_GENERATE_TAB =
     tab === URL_GENERATE_TAB ? URL_GENERATE_TAB : DRAFT_GROUPS.some((g) => g.key === tab) ? (tab as DraftGroupKey) : DRAFT_GROUPS[0].key
   const isUrlGenerateTab = activeTab === URL_GENERATE_TAB
-  const tabDrafts = isUrlGenerateTab ? [] : drafts.filter((d) => draftGroupOf(d.category) === activeTab)
+  const tabDrafts = (isUrlGenerateTab ? [] : drafts.filter((d) => draftGroupOf(d.category) === activeTab)).sort((a, b) => {
+    const cmp = sourceDateOf(a).localeCompare(sourceDateOf(b))
+    return activeSort === "newest" ? -cmp : cmp
+  })
 
   const activeList = activeView === "drafts" ? tabDrafts : articles
   const totalPages = Math.max(1, Math.ceil(activeList.length / PAGE_SIZE))
@@ -147,6 +157,32 @@ export default async function AdminPage({
                 </Link>
               </div>
 
+              {!isUrlGenerateTab && (
+                <div className="flex items-center gap-1.5 mb-4">
+                  <span className="text-xs text-muted-foreground mr-1">元ネタ:</span>
+                  <Link
+                    href={`/admin?view=drafts&tab=${activeTab}&sort=newest`}
+                    className={
+                      activeSort === "newest"
+                        ? "h-7 flex items-center rounded-full bg-foreground px-3 text-[11px] font-bold text-background"
+                        : "h-7 flex items-center rounded-full border border-border px-3 text-[11px] font-semibold text-muted-foreground hover:bg-secondary"
+                    }
+                  >
+                    新しい順
+                  </Link>
+                  <Link
+                    href={`/admin?view=drafts&tab=${activeTab}&sort=oldest`}
+                    className={
+                      activeSort === "oldest"
+                        ? "h-7 flex items-center rounded-full bg-foreground px-3 text-[11px] font-bold text-background"
+                        : "h-7 flex items-center rounded-full border border-border px-3 text-[11px] font-semibold text-muted-foreground hover:bg-secondary"
+                    }
+                  >
+                    古い順
+                  </Link>
+                </div>
+              )}
+
               {isUrlGenerateTab ? (
                 <div className="space-y-12">
                   <UrlDraftForm />
@@ -161,7 +197,7 @@ export default async function AdminPage({
                     currentPage={currentPage}
                     totalPages={totalPages}
                     basePath="/admin"
-                    extraParams={{ view: "drafts", tab: activeTab }}
+                    extraParams={{ view: "drafts", tab: activeTab, sort: activeSort }}
                   />
                 </>
               )}
