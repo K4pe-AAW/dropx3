@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { stashDraftHandoff } from "@/lib/draft-handoff-client"
 import type { ProductCard as ProductCardData } from "@/lib/source-watch/present"
 import { formatCountdown, isUrgent, pickRelevantDeadline } from "@/lib/source-watch/countdown"
 import { ImageStatusChip, QualityGradeBadge, ReadinessBadge, SaleMethodBadge, TierBadge } from "./badges"
@@ -210,6 +211,7 @@ export function SourceInspector({
   async function handleDraft() {
     try {
       const data = await act("draft")
+      if (data.draft) stashDraftHandoff(data.draft)
       router.push(`/admin/drafts/${data.draftId}`)
     } catch {
       /* noop */

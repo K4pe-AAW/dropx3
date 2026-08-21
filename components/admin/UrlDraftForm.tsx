@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { stashDraftHandoff } from "@/lib/draft-handoff-client"
 
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
@@ -24,6 +25,7 @@ export function UrlDraftForm() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "生成に失敗しました")
+      if (data.draft) stashDraftHandoff(data.draft)
       router.push(`/admin/drafts/${data.draftId}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "生成に失敗しました")

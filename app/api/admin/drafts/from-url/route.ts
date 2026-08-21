@@ -11,7 +11,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "URLを入力してください" }, { status: 400 })
     }
     const draft = await draftFromUrl(url.trim())
-    return NextResponse.json({ draftId: draft.id })
+    return NextResponse.json({ draftId: draft.id, draft })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "生成に失敗しました" }, { status: 500 })
   }

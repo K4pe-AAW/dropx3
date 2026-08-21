@@ -288,21 +288,15 @@ export async function getPendingDrafts(): Promise<Draft[]> {
 }
 
 /**
- * 「URLから記事を生成」はaddDrafts()で保存した直後、クライアントがrouter.pushでこのIDの
- * レビュー画面へ即座に遷移する。その直後の読み取りはBlobの書き込み伝播遅延で古い
- * スナップショットを返すことがあり、見つからないと即notFound()になって「生成したのに
- * 画面が開かない」不具合になる。実測(2026-08-21)では解消まで約5〜6秒かかるケースがあった
- * ため、それを上回る余裕を持って見つかるまで読み直す(通常時=見つかる場合は追加の待ちなしで従来通り)。
+ * 生成直後(draftFromUrl/buildDraftFromProduct)にクライアントがこのIDのレビュー画面へ
+ * 即座に遷移するフローがあり、書き込み直後はBlobの伝播遅延で別リクエストからの読み取りが
+ * 古いスナップショットを返すことがある(実測で解消まで10秒を超えることもあり、ここで
+ * ブロッキング再試行するのは割に合わないと判明——2026-08-21)。この関数自体は単純な単発読み取りのままにし、
+ * 遅延への耐性は呼び出し側(DraftReviewPending: sessionStorage受け渡し+ポーリング)で持たせる。
  */
 export async function getDraftById(id: string): Promise<Draft | undefined> {
-  const maxAttempts = 14
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const { drafts } = await readDrafts()
-    const found = drafts.find((d) => d.id === id)
-    if (found) return found
-    if (attempt < maxAttempts - 1) await new Promise((resolve) => setTimeout(resolve, 700))
-  }
-  return undefined
+  const { drafts } = await readDrafts()
+  return drafts.find((d) => d.id === id)
 }
 
 /**

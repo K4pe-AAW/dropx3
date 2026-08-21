@@ -16,7 +16,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   try {
     const draft = await buildDraftFromProduct(product)
-    return NextResponse.json({ ok: true, draftId: draft.id })
+    return NextResponse.json({ ok: true, draftId: draft.id, draft })
   } catch (err) {
     if (err instanceof NotConfirmedError) {
       return NextResponse.json({ error: err.message }, { status: 403 })
