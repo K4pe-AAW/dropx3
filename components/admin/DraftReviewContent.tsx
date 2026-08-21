@@ -23,7 +23,7 @@ export function DraftReviewContent({ draft, brandSources }: { draft: Draft; bran
       </p>
       {draft.sourceWatchProductId && (
         <p className="text-xs text-accent-foreground bg-accent/60 inline-block px-2 py-1 rounded mb-6">
-          SOURCE WATCH由来(CONFIRMED) — 画像・リンク・カラー展開は自動入力された候補です。公開前に必ず内容を確認してください。
+          SOURCE WATCH由来(CONFIRMED) — 画像・リンクは自動入力された候補です(カラー展開はAIが入れた値をそのまま使います)。公開前に必ず内容を確認してください。
         </p>
       )}
       {!draft.sourceWatchProductId && <div className="mb-6" />}
