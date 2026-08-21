@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { runDueCrawls } from "@/lib/source-watch/crawl"
 
-// 複数ソースを順番に巡回するため、デフォルトの実行時間制限では足りない場合がある(Vercel Pro向け)
-export const maxDuration = 120
+// 複数ソースを順番に巡回するため、デフォルトの実行時間制限では足りない場合がある(Vercel Pro向け)。
+// 画像候補が空のソースは記事ページを追加取得するようになった分、120秒では不足するようになったため
+// lib/pipeline.tsのrunCollectAndDraftと同じ上限まで伸ばす(2026-08-21、実際にタイムアウトを確認して対応)。
+export const maxDuration = 300
 
 /**
  * 外部スケジューラから叩く想定。app/api/cron/collect/route.tsと同じ認証方式を踏襲する。
