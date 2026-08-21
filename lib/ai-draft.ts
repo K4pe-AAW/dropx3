@@ -118,7 +118,7 @@ function sanitizeSuggestedOfficialLinks(input: unknown): OfficialLink[] {
  * 情報は書かない」ルールをAI側に課しているが、最終的な正しさの担保は公開前の人間レビュー。
  * 全項目が空(colorNameすらない)の要素は構造化データとして無意味なため除外する。
  */
-function sanitizeSuggestedColorways(input: unknown): ColorwayInfo[] {
+export function sanitizeSuggestedColorways(input: unknown): ColorwayInfo[] {
   if (!Array.isArray(input)) return []
   return input
     .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)

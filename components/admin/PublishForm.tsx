@@ -78,6 +78,10 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   const [additionalSummary, setAdditionalSummary] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [brushUpUrl, setBrushUpUrl] = useState("")
+  const [brushingUp, setBrushingUp] = useState(false)
+  const [brushUpError, setBrushUpError] = useState<string | null>(null)
+  const [brushUpDone, setBrushUpDone] = useState(false)
 
   // RSS収集の下書きは著作権保護のためカバー画像を自動設定しない(YouTube以外)。ここでは画像を
   // 保存・転載するのではなく、著作権者が明確な情報源(ブランド公式サイト)を人間に示すだけに留める。
@@ -279,8 +283,127 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
     router.refresh()
   }
 
+  /**
+   * ブランド公式サイトのURLを渡し、公式情報でタイトル/要約/本文/カラー展開/画像候補/公式リンクを
+   * 補って書き直す。まだ何も保存はしない(このフォームの入力欄が更新されるだけ)ので、結果が
+   * 気に入らなければページを再読み込みすれば元の下書きの状態に戻る。
+   */
+  async function handleBrushUp() {
+    const url = brushUpUrl.trim()
+    if (!url) {
+      setBrushUpError("公式サイトのURLを入力してください")
+      return
+    }
+    setBrushingUp(true)
+    setBrushUpError(null)
+    setBrushUpDone(false)
+    try {
+      const res = await fetch("/api/admin/drafts/brushup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url,
+          title,
+          excerpt,
+          bodyParagraphs: bodyText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+          colorways: colorways
+            .filter((c) => c.colorName.trim())
+            .map((c) => ({
+              colorName: c.colorName.trim(),
+              ...(c.styleCode.trim() ? { styleCode: c.styleCode.trim() } : {}),
+              ...(c.price.trim() ? { price: c.price.trim() } : {}),
+              ...(c.size.trim() ? { size: c.size.trim() } : {}),
+              ...(c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
+            })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "ブラッシュアップに失敗しました")
+
+      setTitle(data.title)
+      setExcerpt(data.excerpt)
+      setBodyText((data.bodyParagraphs as string[]).join("\n\n"))
+
+      const freshColorways = data.colorways as
+        | { colorName: string; styleCode?: string; price?: string; size?: string; releaseDate?: string }[]
+        | undefined
+      if (freshColorways && freshColorways.length > 0) {
+        setColorways((prev) =>
+          freshColorways.map((f) => {
+            const match = prev.find((e) => e.colorName.trim().toLowerCase() === f.colorName.trim().toLowerCase())
+            return {
+              colorName: f.colorName || match?.colorName || "",
+              image: match?.image ?? "",
+              styleCode: f.styleCode || match?.styleCode || "",
+              price: f.price || match?.price || "",
+              size: f.size || match?.size || "",
+              releaseDate: f.releaseDate || match?.releaseDate || "",
+              retailersText: match?.retailersText ?? "",
+            }
+          })
+        )
+      }
+
+      const officialLink = data.officialLink as { label: string; url: string } | undefined
+      if (officialLink?.url) {
+        setOfficialLinks((prev) => (prev.some((l) => l.url === officialLink.url) ? prev : [...prev, officialLink]))
+      }
+
+      const imageCandidates = Array.isArray(data.imageCandidates) ? (data.imageCandidates as string[]) : []
+      if (imageCandidates.length > 0) {
+        const existingUrls = new Set([coverImage, ...galleryImages.map((g) => g.url)].filter(Boolean))
+        let nextCoverImage = coverImage
+        if (!nextCoverImage && imageCandidates[0]) {
+          nextCoverImage = imageCandidates[0]
+          setCoverImage(nextCoverImage)
+          existingUrls.add(nextCoverImage)
+        }
+        const newGalleryImages = imageCandidates
+          .filter((u) => !existingUrls.has(u))
+          .map((u) => ({ url: u, alt: data.title || title, credit: "" }))
+        if (newGalleryImages.length > 0) {
+          setGalleryImages((prev) => [...prev, ...newGalleryImages])
+        }
+      }
+
+      setBrushUpDone(true)
+    } catch (err) {
+      setBrushUpError(err instanceof Error ? err.message : "ブラッシュアップに失敗しました")
+    } finally {
+      setBrushingUp(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="rounded-xl border border-accent bg-accent/5 p-4">
+        <p className="text-xs font-bold mb-1">公式サイトの内容でブラッシュアップ（任意）</p>
+        <p className="text-[11px] text-muted-foreground mb-3">
+          ブランド公式サイトのURLを貼ると、その内容でタイトル・要約・本文・カラー展開・公式リンク・画像候補を補って書き直します。タイトル・要約・本文は上書きされます（結果が気に入らなければページを再読み込みしてください）。
+        </p>
+        <div className="flex flex-wrap gap-2 items-start">
+          <input
+            value={brushUpUrl}
+            onChange={(e) => setBrushUpUrl(e.target.value)}
+            placeholder="https://ブランド公式サイトのURL"
+            type="url"
+            className={`${inputClass} flex-1 min-w-72`}
+          />
+          <button
+            type="button"
+            onClick={handleBrushUp}
+            disabled={brushingUp}
+            className="h-9 px-4 rounded-full bg-accent text-accent-foreground text-sm font-bold disabled:opacity-50 whitespace-nowrap"
+          >
+            {brushingUp ? "ブラッシュアップ中…(数十秒かかります)" : "ブラッシュアップする"}
+          </button>
+        </div>
+        {brushUpError && <p className="text-xs text-destructive mt-2">{brushUpError}</p>}
+        {brushUpDone && !brushUpError && (
+          <p className="text-xs text-accent-foreground mt-2">公式サイトの情報を反映しました。内容を確認してください。</p>
+        )}
+      </div>
+
       <Field label="タイトル">
         <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
