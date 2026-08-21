@@ -293,6 +293,23 @@ export async function getDraftById(id: string): Promise<Draft | undefined> {
 }
 
 /**
+ * 出典サイトの優先順位。数字が小さいほど優先。UPTODATE/FULLRESSは同じニュースを同時に
+ * 報じることが多く、型番(styleCode)が一致すれば同一商品とみなしてUPTODATE側だけを残す
+ * (ユーザー指定、2026-08-21)。リストに無いソースは最低優先度(=道を譲る側にはなるが、
+ * 競合する型番一致が無ければ普通に採用される)。
+ */
+const SOURCE_PRIORITY: Record<string, number> = { UPTODATE: 0, FULLRESS: 1 }
+
+function sourcePriorityOf(draft: Draft): number {
+  const name = draft.sourceRefs[0]?.name
+  return name && name in SOURCE_PRIORITY ? SOURCE_PRIORITY[name] : Number.MAX_SAFE_INTEGER
+}
+
+function styleCodesOf(draft: Draft): string[] {
+  return (draft.suggestedColorways ?? []).map((c) => c.styleCode).filter((s): s is string => Boolean(s))
+}
+
+/**
  * knownTitlesは「呼び出し時点で既に公開済みの記事タイトル」を渡すためのオプション。
  * 別々のソースURLから独立生成された下書きが、AIの出力として偶然(または同一トピックの
  * 別記事として)同じタイトルになることがあるため、URL一致だけでは防げない重複をここで防ぐ。
@@ -319,6 +336,22 @@ export async function addDrafts(
         skipped++
         continue
       }
+
+      const newStyleCodes = styleCodesOf(draft)
+      if (newStyleCodes.length > 0) {
+        const conflicting = data.drafts.find((d) => styleCodesOf(d).some((sc) => newStyleCodes.includes(sc)))
+        if (conflicting) {
+          if (sourcePriorityOf(draft) < sourcePriorityOf(conflicting)) {
+            // 新しい方が優先ソース(UPTODATE等)→既存(FULLRESS等)を追い出して入れ替える
+            data.drafts = data.drafts.filter((d) => d.id !== conflicting.id)
+          } else {
+            // 既存の方が優先度が高い、または同等→新しい方は採用しない
+            skipped++
+            continue
+          }
+        }
+      }
+
       data.drafts.unshift(draft)
       saved++
     }
