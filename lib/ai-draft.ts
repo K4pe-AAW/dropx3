@@ -282,11 +282,14 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
     ? [{ label: `${item.sourceName}で見る`, url: item.sourceUrl } satisfies OfficialLink, ...brandLinksFromAi]
     : brandLinksFromAi
   const suggestedColorways = sanitizeSuggestedColorways(result.suggestedColorways)
+  // YouTube動画は公式CDNのサムネイルを優先するため、それ以外の場合のみページから拾った画像候補を使う
+  const pageImages = !youtubeVideoId ? (item.imageCandidates ?? []) : []
+  const draftTitle = result.title || item.title
 
   return {
     id: generateId(`${item.sourceUrl}-draft`),
     status: "pending",
-    title: result.title || item.title,
+    title: draftTitle,
     excerpt: result.excerpt || "",
     bodyParagraphs: Array.isArray(result.bodyParagraphs) ? result.bodyParagraphs : [],
     // youtubeVideoIdはsourceUrl自体から機械的に判定できるため、AIの自己申告(result.category)より
@@ -315,6 +318,12 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
           suggestedYoutubeVideoId: youtubeVideoId,
           suggestedCoverImage: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`,
         }
+      : {}),
+    // ページのog:image等から拾った候補。カバー画像必須欄を空のまま人力検索させていた分の穴埋め
+    // (あくまで候補 — 権利元の確認や差し替えは引き続き人間がPublishFormで行う)
+    ...(pageImages[0] ? { suggestedCoverImage: pageImages[0] } : {}),
+    ...(pageImages.length > 1
+      ? { suggestedGalleryImages: pageImages.slice(1).map((url) => ({ url, alt: draftTitle })) }
       : {}),
   }
 }

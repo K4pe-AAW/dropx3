@@ -146,6 +146,8 @@ export type RawItem = {
   snippet?: string
   publishedAt: string
   fetchedAt: string
+  /** 取得済みページのog:image等から機械抽出した画像候補(あれば)。draftFromRawItemの初期カバー画像に使う */
+  imageCandidates?: string[]
 }
 
 export type DraftStatus = "pending" | "approved" | "rejected"

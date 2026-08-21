@@ -30,6 +30,7 @@ export async function draftFromUrl(url: string): Promise<Draft> {
     snippet: page.text,
     publishedAt: new Date().toISOString(),
     fetchedAt: new Date().toISOString(),
+    imageCandidates: page.imageCandidates,
   }
 
   const draft = await draftFromRawItem(item)
