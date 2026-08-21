@@ -1,4 +1,4 @@
-import { RawItem, Draft, Category, OfficialLink, PurchaseChannelInfo } from "./types"
+import { RawItem, Draft, Category, OfficialLink, PurchaseChannelInfo, ColorwayInfo } from "./types"
 import { generateId } from "./storage"
 import { siteConfig } from "./site-config"
 import { getOpenAIClient } from "./openai-client"
@@ -56,6 +56,14 @@ type SuggestedPurchaseChannel = {
 
 type SuggestedOfficialLink = { label: string; url: string }
 
+type SuggestedColorway = {
+  colorName?: string
+  styleCode?: string
+  price?: string
+  size?: string
+  releaseDate?: string
+}
+
 type DraftResult = {
   title: string
   excerpt: string
@@ -66,6 +74,7 @@ type DraftResult = {
   suggestedAffiliateSearch: string[]
   suggestedPurchaseChannels?: SuggestedPurchaseChannel[]
   suggestedOfficialLinks?: SuggestedOfficialLink[]
+  suggestedColorways?: SuggestedColorway[]
 }
 
 const CHANNEL_TYPES = new Set(["official", "secondary"])
@@ -100,6 +109,27 @@ function sanitizeSuggestedOfficialLinks(input: unknown): OfficialLink[] {
       url: typeof l.url === "string" ? l.url.trim() : "",
     }))
     .filter((l) => l.url && isSafeExternalUrl(l.url))
+}
+
+/**
+ * AIの出力を信用せず型を検証する。[アイテム情報]ブロック(bodyParagraphs内のプレーンテキスト)と
+ * 同じ情報を構造化データ(Product+Offer、app/(site)/articles/[slug]/page.tsx参照)としても
+ * 検索エンジン/AI検索に渡せるようにするためのフィールド。プレーンテキストと同じ「抜粋に無い
+ * 情報は書かない」ルールをAI側に課しているが、最終的な正しさの担保は公開前の人間レビュー。
+ * 全項目が空(colorNameすらない)の要素は構造化データとして無意味なため除外する。
+ */
+function sanitizeSuggestedColorways(input: unknown): ColorwayInfo[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)
+    .map((c) => ({
+      colorName: typeof c.colorName === "string" ? c.colorName.trim() : "",
+      ...(typeof c.styleCode === "string" && c.styleCode.trim() ? { styleCode: c.styleCode.trim() } : {}),
+      ...(typeof c.price === "string" && c.price.trim() ? { price: c.price.trim() } : {}),
+      ...(typeof c.size === "string" && c.size.trim() ? { size: c.size.trim() } : {}),
+      ...(typeof c.releaseDate === "string" && c.releaseDate.trim() ? { releaseDate: c.releaseDate.trim() } : {}),
+    }))
+    .filter((c) => c.colorName || c.styleCode || c.price || c.releaseDate || c.size)
 }
 
 /**
@@ -153,6 +183,13 @@ function buildUserPrompt(item: RawItem): string {
 (この箇条書きブロックで色ごとに分けて列挙する必要はない)。抜粋に記載が無い項目は書かず省略し、
 [アイテム情報]ブロックに書ける項目が1つも無ければブロックごと省略してよい(存在しない情報を作り出さない)。
 
+【重要・必須】上記[アイテム情報]ブロックに何か1項目でも書いた場合、同じ内容をsuggestedColorwaysにも
+構造化データとして重複で入れること(検索エンジン/AI検索が商品情報を直接読み取れるようにするため)。
+[アイテム情報]ブロックとsuggestedColorwaysは常に同じ事実を指す——一方にだけ書いて他方を空にしない。
+カラー展開が複数あり、それぞれ型番/価格が違うと抜粋から分かる場合は配列に複数要素を返してよい
+(全カラー共通の情報しか無ければ要素1つでよい)。[アイテム情報]ブロック自体を省略した場合は
+suggestedColorwaysも空配列のままにする。
+
 【重要・必須】抜粋の中に「販売店舗」「取扱店」「オンラインリンク」等の見出しの後に具体的な店舗名
 (ブランド公式サイト、mita sneakers、メルカリ、StockX等)が列挙されている場合、suggestedPurchaseChannels
 にその店舗名を拾うこと。店舗名の列挙が無ければ空配列のままにする(店舗名を推測・創作しない)。
@@ -181,6 +218,15 @@ suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと
   ],
   "suggestedOfficialLinks": [
     { "label": "ブランド/店舗名", "url": "抜粋に実際に記載されているそのブランド/店舗の公式URL" }
+  ],
+  "suggestedColorways": [
+    {
+      "colorName": "カラー名(抜粋に記載があれば。単色展開で色名の言及が無ければキー自体を省略)",
+      "styleCode": "型番/品番(抜粋にあれば、無ければキー自体を省略)",
+      "price": "価格(抜粋の表記そのまま。例: '¥24,200（税込）'。無ければキー自体を省略)",
+      "size": "サイズ展開(抜粋にあれば、無ければキー自体を省略)",
+      "releaseDate": "発売日(抜粋の表記そのまま。年は実際に書かれている場合のみ。無ければキー自体を省略)"
+    }
   ]
 }
 
@@ -189,6 +235,8 @@ suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと
 - suggestedPurchaseChannelsにURLを含めないこと(項目自体が存在しない)。実際の販売リンクは公開前に人間が確認して付ける。店舗名の記載が抜粋に無ければ空配列のままにする。
 - suggestedOfficialLinksのurlは、抜粋の本文中に実際に存在するURL文字列をそのまま転記する場合のみ使うこと。ブランド名や店舗名からURLを推測して作らない(例: 「ブランド名.com」のような形で創作しない)。抜粋にURL自体が書かれていなければ空配列のままにする。
 - 価格や発売日など、抜粋に書かれていない具体的な数値を断定的に書かないこと。不明な場合は「詳細は続報を待ちたい」のようにぼかす。
+- suggestedColorwaysも同じ規律に従うこと。抜粋に無い型番・価格・発売日を構造化データにだけ書き添えるのは、
+  bodyParagraphsで書くのと同じく捏造として扱う。分からない項目はキー自体を省略する。
 - 発売日の「年」は特に注意すること。抜粋に月日しか書かれていない発売日に、あなたの判断で年を付け足すのは絶対禁止(過去の学習データにある年をそのまま使ってしまう典型的な誤りのため)。年が必要な文脈でも抜粋に年の記載が無ければ、年を省いた表現に留める。
 - GORE-TEX・Vibram・Cordura等の具体的な素材/技術名も年と同じく特に注意すること。商品ジャンル(スニーカー・ブーツ・アウトドアウェア等)や商品名の響き(例:「ゴアドーム」)から「採用していそう」「使われている可能性がある」と推測で書き添えるのは絶対禁止。抜粋にその商品自身の仕様として明記されていない限り、素材・機能への言及自体を避け、一般的なデザイン・着こなし・背景の話に留めること。
 - 出典記事の文章をそのまま使わず、必ず独自の表現で書き直すこと。
@@ -233,6 +281,7 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
   const suggestedOfficialLinks = youtubeVideoId
     ? [{ label: `${item.sourceName}で見る`, url: item.sourceUrl } satisfies OfficialLink, ...brandLinksFromAi]
     : brandLinksFromAi
+  const suggestedColorways = sanitizeSuggestedColorways(result.suggestedColorways)
 
   return {
     id: generateId(`${item.sourceUrl}-draft`),
@@ -256,6 +305,7 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
       : [],
     ...(suggestedPurchaseChannels.length > 0 ? { suggestedPurchaseChannels } : {}),
     ...(suggestedOfficialLinks.length > 0 ? { suggestedOfficialLinks } : {}),
+    ...(suggestedColorways.length > 0 ? { suggestedColorways } : {}),
     sourceRefs: [{ name: item.sourceName, url: item.sourceUrl }],
     createdAt: new Date().toISOString(),
     // カテゴリ判定がyoutube以外(商品ジャンル)になった場合でも動画へのリンクは必ず残す
