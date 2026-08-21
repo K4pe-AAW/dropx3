@@ -116,6 +116,9 @@ export const QUICK_AFFILIATE_RETAILERS: { label: string; retailer: string; build
   { label: "スニダンで探す", retailer: "SNKRDUNK", build: buildSnkrdunkSearchLink },
   { label: "楽天市場で探す", retailer: "楽天市場", build: buildRakutenSearchLink },
   { label: "ZOZOTOWNで見る", retailer: "ZOZOTOWN" },
+  // Amazonアソシエイトのトラッキングタグが無いため、他店舗のようなURL自動生成はまだできない
+  // (2026-08-22時点)。タグを取得したらbuildAmazonSearchLinkを追加してbuildを持たせる。
+  { label: "Amazonで見る", retailer: "Amazon" },
 ]
 
 /** 表記ゆれ(カタカナ/英字/「!」の有無等)を吸収するための店舗名エイリアス。上のQUICK_AFFILIATE_RETAILERSと

@@ -38,3 +38,32 @@ export async function draftFromUrl(url: string): Promise<Draft> {
   if (saved === 0) throw new Error("似たタイトルの下書き・記事が既に存在するため保存をスキップしました")
   return draft
 }
+
+export type UrlDraftBatchResult = { url: string; draft?: Draft; error?: string }
+
+/** 1回のリクエストで一気に生成しすぎるとVercelの実行時間上限に当たるため、件数を絞る */
+const MAX_URLS_PER_BATCH = 6
+/** OpenAIのレート制限と、失敗した1件が全体を巻き込まないことのバランスを取る(draftFromRawItemsと同じ考え方) */
+const BATCH_CONCURRENCY = 3
+
+/**
+ * 複数URLを一括で下書き化する(URLから記事を生成の複数貼り付け対応)。1件の失敗が他を
+ * 巻き込まないよう、Promise.allSettledで独立に処理しURLごとの成否を返す。
+ */
+export async function draftsFromUrls(urls: string[]): Promise<UrlDraftBatchResult[]> {
+  const targets = urls.slice(0, MAX_URLS_PER_BATCH)
+  const results: UrlDraftBatchResult[] = []
+  for (let i = 0; i < targets.length; i += BATCH_CONCURRENCY) {
+    const batch = targets.slice(i, i + BATCH_CONCURRENCY)
+    const settled = await Promise.allSettled(batch.map((url) => draftFromUrl(url)))
+    settled.forEach((r, idx) => {
+      const url = batch[idx]
+      results.push(
+        r.status === "fulfilled"
+          ? { url, draft: r.value }
+          : { url, error: r.reason instanceof Error ? r.reason.message : String(r.reason) }
+      )
+    })
+  }
+  return results
+}
