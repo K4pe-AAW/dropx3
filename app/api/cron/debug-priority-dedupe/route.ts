@@ -40,6 +40,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ removed: targets.length })
   }
 
+  if (action === "peek") {
+    const { drafts } = await readDrafts()
+    const matching = drafts
+      .filter((d) => d.suggestedColorways?.some((c) => c.styleCode === TEST_STYLE_CODE))
+      .map((d) => ({ id: d.id, title: d.title, source: d.sourceRefs[0]?.name, createdAt: d.createdAt }))
+    return NextResponse.json({ totalDrafts: drafts.length, matching })
+  }
+
   // Step1: FULLRESS由来を先に追加
   const fullress = makeDraft("FULLRESS", "【デバッグ】FULLRESS由来のテスト記事")
   const r1 = await addDrafts([fullress])
