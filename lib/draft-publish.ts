@@ -11,6 +11,7 @@ import type {
   GalleryImage,
   OfficialLink,
   PurchaseChannelInfo,
+  SourceRef,
 } from "@/lib/types"
 
 /** ローカルパス(/images/xxx.jpg)か、http(s)の絶対URLのみ許可する（//host/pathのprotocol-relativeは除外） */
@@ -66,12 +67,25 @@ function sanitizePurchaseChannels(input: unknown): PurchaseChannelInfo[] {
 function sanitizeGalleryImages(input: unknown): GalleryImage[] {
   if (!Array.isArray(input)) return []
   return input
-    .filter((img): img is { url?: unknown; alt?: unknown } => typeof img === "object" && img !== null)
+    .filter((img): img is { url?: unknown; alt?: unknown; credit?: unknown } => typeof img === "object" && img !== null)
     .map((img) => ({
       url: typeof img.url === "string" ? img.url.trim() : "",
       alt: typeof img.alt === "string" ? img.alt : "",
+      ...(typeof img.credit === "string" && img.credit.trim() ? { credit: img.credit.trim() } : {}),
     }))
     .filter((img) => img.url && isAllowedImageUrl(img.url))
+}
+
+/** 出典は外部URLへのリンクなのでisSafeExternalUrlで検証する(捏造・不正URL混入を防ぐ) */
+function sanitizeSourceRefs(input: unknown): SourceRef[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((r): r is { name?: unknown; url?: unknown } => typeof r === "object" && r !== null)
+    .map((r) => ({
+      name: typeof r.name === "string" ? r.name.trim() : "",
+      url: typeof r.url === "string" ? r.url.trim() : "",
+    }))
+    .filter((r) => r.name && r.url && isSafeExternalUrl(r.url))
 }
 
 function sanitizeOfficialLinks(input: unknown): OfficialLink[] {
@@ -110,6 +124,8 @@ export function buildArticleFromDraft(draft: Draft, body: Record<string, unknown
   const tags: string[] = Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : draft.tags
   const coverImageInput: string = typeof body.coverImage === "string" ? body.coverImage.trim() : ""
   const coverImageAlt: string = typeof body.coverImageAlt === "string" && body.coverImageAlt.trim() ? body.coverImageAlt : title
+  const coverImageCredit: string | undefined =
+    typeof body.coverImageCredit === "string" && body.coverImageCredit.trim() ? body.coverImageCredit.trim() : undefined
   const affiliateLinks: AffiliateLink[] = sanitizeAffiliateLinks(
     Array.isArray(body.affiliateLinks) ? (body.affiliateLinks as AffiliateLink[]) : []
   )
@@ -119,6 +135,9 @@ export function buildArticleFromDraft(draft: Draft, body: Record<string, unknown
   const officialLinks: OfficialLink[] = sanitizeOfficialLinks(body.officialLinks)
   const colorways: ColorwayInfo[] = sanitizeColorways(body.colorways)
   const purchaseChannels: PurchaseChannelInfo[] = sanitizePurchaseChannels(body.purchaseChannels)
+  // 出典編集欄が送られてこなかった場合(未対応クライアント等)はdraft生成時の値を保つ
+  const sourceRefsInput = sanitizeSourceRefs(body.sourceRefs)
+  const sourceRefs: SourceRef[] = sourceRefsInput.length > 0 ? sourceRefsInput : draft.sourceRefs
 
   if (!coverImageInput) {
     return { ok: false, error: "カバー画像URLは必須です", status: 400 }
@@ -139,6 +158,7 @@ export function buildArticleFromDraft(draft: Draft, body: Record<string, unknown
     bodyParagraphs,
     coverImage: coverImageInput,
     coverImageAlt,
+    ...(coverImageCredit ? { coverImageCredit } : {}),
     galleryImages,
     category,
     brands,
@@ -149,7 +169,7 @@ export function buildArticleFromDraft(draft: Draft, body: Record<string, unknown
     ...(purchaseChannels.length > 0 ? { purchaseChannels } : {}),
     affiliateLinks,
     officialLinks,
-    sourceRefs: draft.sourceRefs,
+    sourceRefs,
   }
 
   return { ok: true, article }

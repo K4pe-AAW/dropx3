@@ -12,6 +12,7 @@ import type {
   ColorwayInfo,
   PurchaseChannelInfo,
   RelatedArticleLink,
+  SourceRef,
 } from "@/lib/types"
 
 type ColorwayDraft = ColorwayInfo & { retailersText: string }
@@ -35,11 +36,13 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [tagsText, setTagsText] = useState(article.tags.join(", "))
   const [coverImage, setCoverImage] = useState(article.coverImage)
   const [coverImageAlt, setCoverImageAlt] = useState(article.coverImageAlt)
+  const [coverImageCredit, setCoverImageCredit] = useState(article.coverImageCredit ?? "")
   const [featured, setFeatured] = useState(article.featured)
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(article.galleryImages)
   const [colorways, setColorways] = useState<ColorwayDraft[]>((article.colorways ?? []).map(toColorwayDraft))
   const [purchaseChannels, setPurchaseChannels] = useState<PurchaseChannelInfo[]>(article.purchaseChannels ?? [])
   const [officialLinks, setOfficialLinks] = useState<OfficialLink[]>(article.officialLinks)
+  const [sourceRefs, setSourceRefs] = useState<SourceRef[]>(article.sourceRefs)
   const [relatedArticles, setRelatedArticles] = useState<RelatedArticleLink[]>(article.relatedArticles ?? [])
   const [officialProducts, setOfficialProducts] = useState<OfficialProductLink[]>(article.officialProducts ?? [])
   const [links, setLinks] = useState<(AffiliateLink & { price?: string })[]>(
@@ -56,6 +59,12 @@ export function EditArticleForm({ article }: { article: Article }) {
   }
   function removeGalleryImage(i: number) {
     setGalleryImages((prev) => prev.filter((_, idx) => idx !== i))
+  }
+  function updateSourceRef(i: number, patch: Partial<SourceRef>) {
+    setSourceRefs((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
+  }
+  function removeSourceRef(i: number) {
+    setSourceRefs((prev) => prev.filter((_, idx) => idx !== i))
   }
   function updateColorway(i: number, patch: Partial<ColorwayDraft>) {
     setColorways((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
@@ -152,10 +161,12 @@ export function EditArticleForm({ article }: { article: Article }) {
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
         coverImage,
         coverImageAlt,
+        ...(coverImageCredit.trim() ? { coverImageCredit: coverImageCredit.trim() } : {}),
         featured,
         affiliateLinks,
         galleryImages: galleryImages.filter((g) => g.url.trim()),
         officialLinks: officialLinks.filter((l) => l.url.trim()),
+        sourceRefs: sourceRefs.filter((r) => r.name.trim() && r.url.trim()),
         relatedArticles: relatedArticles.filter((l) => l.title.trim() && l.slug.trim()),
         officialProducts: officialProducts
           .filter((p) => p.name.trim() && p.image.trim() && p.url.trim())
@@ -263,6 +274,15 @@ export function EditArticleForm({ article }: { article: Article }) {
         <input className={inputClass} value={coverImageAlt} onChange={(e) => setCoverImageAlt(e.target.value)} />
       </Field>
 
+      <Field label="画像クレジット（撮影者/提供元。任意）">
+        <input
+          className={inputClass}
+          value={coverImageCredit}
+          onChange={(e) => setCoverImageCredit(e.target.value)}
+          placeholder="例: 画像提供: AURALEE"
+        />
+      </Field>
+
       <div>
         <p className="text-xs font-semibold mb-2">追加の画像（記事内にギャラリー表示・任意）</p>
         <div className="space-y-3">
@@ -279,6 +299,12 @@ export function EditArticleForm({ article }: { article: Article }) {
                 placeholder="代替テキスト"
                 value={img.alt}
                 onChange={(e) => updateGalleryImage(i, { alt: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="画像クレジット（任意）"
+                value={img.credit ?? ""}
+                onChange={(e) => updateGalleryImage(i, { credit: e.target.value })}
               />
               <button
                 type="button"
@@ -461,6 +487,43 @@ export function EditArticleForm({ article }: { article: Article }) {
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
           + リンクを追加
+        </button>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold mb-2">情報元・参考（出典）</p>
+        <p className="text-[11px] text-muted-foreground mb-2">記事下部の「情報元・参考」に表示される、この記事の元ネタ。</p>
+        <div className="space-y-3">
+          {sourceRefs.map((ref, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
+              <input
+                className={inputClass}
+                placeholder="出典名（例: FASHIONSNAP）"
+                value={ref.name}
+                onChange={(e) => updateSourceRef(i, { name: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="URL"
+                value={ref.url}
+                onChange={(e) => updateSourceRef(i, { url: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removeSourceRef(i)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setSourceRefs((prev) => [...prev, { name: "", url: "" }])}
+          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          + 出典を追加
         </button>
       </div>
 

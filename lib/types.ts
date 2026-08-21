@@ -31,6 +31,8 @@ export type RelatedArticleLink = {
 export type GalleryImage = {
   url: string
   alt: string
+  /** 撮影者/提供元クレジット。表示用の文字列をそのまま持つ(例: "Photo: AURALEE" "画像提供: 〇〇") */
+  credit?: string
 }
 
 /**
@@ -83,6 +85,8 @@ export type Article = {
   bodyParagraphs: string[]
   coverImage: string
   coverImageAlt: string
+  /** カバー画像の撮影者/提供元クレジット(任意)。GalleryImage.creditと同じ用途 */
+  coverImageCredit?: string
   /** 記事詳細ページでcoverImageの後に並べる追加カット。一覧・カードには出さない */
   galleryImages: GalleryImage[]
   /** YouTube公式の埋め込みプレイヤー用video ID。サムネイル画像の自己ホストは行わず、埋め込みで表示する */

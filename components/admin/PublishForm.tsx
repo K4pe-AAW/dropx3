@@ -7,8 +7,9 @@ import { siteConfig } from "@/lib/site-config"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
-type GalleryImageDraft = { url: string; alt: string }
+type GalleryImageDraft = { url: string; alt: string; credit: string }
 type OfficialLinkDraft = { label: string; url: string }
+type SourceRefDraft = { name: string; url: string }
 type ColorwayDraft = {
   colorName: string
   image: string
@@ -39,16 +40,20 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   const [tagsText, setTagsText] = useState(draft.tags.join(", "))
   const [coverImage, setCoverImage] = useState(draft.suggestedCoverImage ?? "")
   const [coverImageAlt, setCoverImageAlt] = useState(draft.title)
+  const [coverImageCredit, setCoverImageCredit] = useState("")
   const [youtubeVideoId, setYoutubeVideoId] = useState(draft.suggestedYoutubeVideoId ?? "")
   const [featured, setFeatured] = useState(false)
   const [scheduledPublishAt, setScheduledPublishAt] = useState("")
   const [links, setLinks] = useState<LinkDraft[]>([])
   const [autoLinkQuery, setAutoLinkQuery] = useState(draft.suggestedAffiliateSearch[0] ?? "")
   const [galleryImages, setGalleryImages] = useState<GalleryImageDraft[]>(
-    (draft.suggestedGalleryImages ?? []).map((g) => ({ url: g.url, alt: g.alt }))
+    (draft.suggestedGalleryImages ?? []).map((g) => ({ url: g.url, alt: g.alt, credit: g.credit ?? "" }))
   )
   const [officialLinks, setOfficialLinks] = useState<OfficialLinkDraft[]>(
     (draft.suggestedOfficialLinks ?? []).map((l) => ({ label: l.label, url: l.url }))
+  )
+  const [sourceRefs, setSourceRefs] = useState<SourceRefDraft[]>(
+    draft.sourceRefs.map((r) => ({ name: r.name, url: r.url }))
   )
   const [colorways, setColorways] = useState<ColorwayDraft[]>(
     (draft.suggestedColorways ?? []).map((c) => ({
@@ -148,6 +153,14 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
     setOfficialLinks((prev) => prev.filter((_, idx) => idx !== i))
   }
 
+  function updateSourceRef(i: number, patch: Partial<SourceRefDraft>) {
+    setSourceRefs((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
+  }
+
+  function removeSourceRef(i: number) {
+    setSourceRefs((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
   function updatePurchaseChannel(i: number, patch: Partial<PurchaseChannelDraft>) {
     setPurchaseChannels((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
   }
@@ -177,6 +190,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
       tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
       coverImage,
       coverImageAlt,
+      ...(coverImageCredit.trim() ? { coverImageCredit: coverImageCredit.trim() } : {}),
       featured,
       ...(youtubeVideoId.trim() ? { youtubeVideoId: youtubeVideoId.trim() } : {}),
       affiliateLinks,
@@ -204,6 +218,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
           ...(c.date.trim() ? { date: c.date.trim() } : {}),
           ...(c.url.trim() ? { url: c.url.trim() } : {}),
         })),
+      sourceRefs: sourceRefs.filter((r) => r.name.trim() && r.url.trim()),
     }
   }
 
@@ -355,6 +370,15 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         <input className={inputClass} value={coverImageAlt} onChange={(e) => setCoverImageAlt(e.target.value)} />
       </Field>
 
+      <Field label="画像クレジット（撮影者/提供元。任意）">
+        <input
+          className={inputClass}
+          value={coverImageCredit}
+          onChange={(e) => setCoverImageCredit(e.target.value)}
+          placeholder="例: 画像提供: AURALEE"
+        />
+      </Field>
+
       {category === "youtube" && (
         <Field label="YouTube動画ID（記事内で公式プレイヤーとして埋め込み表示）">
           <input
@@ -383,6 +407,12 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
                 value={img.alt}
                 onChange={(e) => updateGalleryImage(i, { alt: e.target.value })}
               />
+              <input
+                className={inputClass}
+                placeholder="画像クレジット（任意）"
+                value={img.credit}
+                onChange={(e) => updateGalleryImage(i, { credit: e.target.value })}
+              />
               <button
                 type="button"
                 onClick={() => removeGalleryImage(i)}
@@ -395,7 +425,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         </div>
         <button
           type="button"
-          onClick={() => setGalleryImages((prev) => [...prev, { url: "", alt: "" }])}
+          onClick={() => setGalleryImages((prev) => [...prev, { url: "", alt: "", credit: "" }])}
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
           + 画像を追加
@@ -563,6 +593,43 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
           + リンクを追加
+        </button>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold mb-2">情報元・参考（出典）</p>
+        <p className="text-[11px] text-muted-foreground mb-2">記事下部の「情報元・参考」に表示される、この記事の元ネタ。</p>
+        <div className="space-y-3">
+          {sourceRefs.map((ref, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
+              <input
+                className={inputClass}
+                placeholder="出典名（例: FASHIONSNAP）"
+                value={ref.name}
+                onChange={(e) => updateSourceRef(i, { name: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="URL"
+                value={ref.url}
+                onChange={(e) => updateSourceRef(i, { url: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removeSourceRef(i)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setSourceRefs((prev) => [...prev, { name: "", url: "" }])}
+          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          + 出典を追加
         </button>
       </div>
 

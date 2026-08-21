@@ -149,9 +149,14 @@ export default async function ArticleDetailPage({
           <YouTubeEmbed videoId={article.youtubeVideoId} title={article.title} />
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-muted mb-8">
-          {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を横長枠にcropせず、実際の縦横比のまま表示する */}
-          <img src={article.coverImage} alt={article.coverImageAlt} className="w-full h-auto" />
+        <div className="mb-8">
+          <div className="overflow-hidden rounded-xl bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を横長枠にcropせず、実際の縦横比のまま表示する */}
+            <img src={article.coverImage} alt={article.coverImageAlt} className="w-full h-auto" />
+          </div>
+          {article.coverImageCredit && (
+            <p className="mt-1 text-[10px] text-muted-foreground/60">{article.coverImageCredit}</p>
+          )}
         </div>
       )}
 
@@ -168,9 +173,12 @@ export default async function ArticleDetailPage({
       {article.galleryImages.length > 0 && (
         <div className="grid grid-cols-2 gap-3 mt-8 items-start">
           {article.galleryImages.map((img, i) => (
-            <div key={i} className="overflow-hidden rounded-xl bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を正方形枠にcropせず、実際の縦横比のまま表示する */}
-              <img src={img.url} alt={img.alt} loading="lazy" className="w-full h-auto" />
+            <div key={i}>
+              <div className="overflow-hidden rounded-xl bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を正方形枠にcropせず、実際の縦横比のまま表示する */}
+                <img src={img.url} alt={img.alt} loading="lazy" className="w-full h-auto" />
+              </div>
+              {img.credit && <p className="mt-1 text-[10px] text-muted-foreground/60">{img.credit}</p>}
             </div>
           ))}
         </div>

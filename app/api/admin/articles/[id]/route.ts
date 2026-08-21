@@ -13,6 +13,7 @@ import type {
   OfficialProductLink,
   PurchaseChannelInfo,
   RelatedArticleLink,
+  SourceRef,
 } from "@/lib/types"
 
 function isAllowedImageUrl(url: string): boolean {
@@ -67,12 +68,25 @@ function sanitizePurchaseChannels(input: unknown): PurchaseChannelInfo[] {
 function sanitizeGalleryImages(input: unknown): GalleryImage[] {
   if (!Array.isArray(input)) return []
   return input
-    .filter((img): img is { url?: unknown; alt?: unknown } => typeof img === "object" && img !== null)
+    .filter((img): img is { url?: unknown; alt?: unknown; credit?: unknown } => typeof img === "object" && img !== null)
     .map((img) => ({
       url: typeof img.url === "string" ? img.url.trim() : "",
       alt: typeof img.alt === "string" ? img.alt : "",
+      ...(typeof img.credit === "string" && img.credit.trim() ? { credit: img.credit.trim() } : {}),
     }))
     .filter((img) => img.url && isAllowedImageUrl(img.url))
+}
+
+/** 出典は外部URLへのリンクなのでisSafeExternalUrlで検証する(捏造・不正URL混入を防ぐ) */
+function sanitizeSourceRefs(input: unknown): SourceRef[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((r): r is { name?: unknown; url?: unknown } => typeof r === "object" && r !== null)
+    .map((r) => ({
+      name: typeof r.name === "string" ? r.name.trim() : "",
+      url: typeof r.url === "string" ? r.url.trim() : "",
+    }))
+    .filter((r) => r.name && r.url && isSafeExternalUrl(r.url))
 }
 
 function sanitizeRelatedArticles(input: unknown): RelatedArticleLink[] {
@@ -148,11 +162,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const coverImage: string = typeof body.coverImage === "string" ? body.coverImage.trim() : existing.coverImage
   const coverImageAlt: string =
     typeof body.coverImageAlt === "string" && body.coverImageAlt.trim() ? body.coverImageAlt.trim() : title
+  const coverImageCredit: string | undefined =
+    typeof body.coverImageCredit === "string" && body.coverImageCredit.trim() ? body.coverImageCredit.trim() : existing.coverImageCredit
   const featured: boolean = typeof body.featured === "boolean" ? body.featured : existing.featured
   const galleryImages: GalleryImage[] = body.galleryImages ? sanitizeGalleryImages(body.galleryImages) : existing.galleryImages
   const officialLinks: OfficialLink[] = body.officialLinks
     ? sanitizeOfficialLinks(body.officialLinks)
     : existing.officialLinks
+  const sourceRefs: SourceRef[] = body.sourceRefs ? sanitizeSourceRefs(body.sourceRefs) : existing.sourceRefs
   const affiliateLinks: AffiliateLink[] = body.affiliateLinks
     ? sanitizeAffiliateLinks(body.affiliateLinks as AffiliateLink[])
     : existing.affiliateLinks
@@ -183,6 +200,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     tags,
     coverImage,
     coverImageAlt,
+    coverImageCredit,
     featured,
     galleryImages,
     officialLinks,
@@ -191,6 +209,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     purchaseChannels,
     relatedArticles,
     officialProducts,
+    sourceRefs,
   })
 
   return NextResponse.json({ ok: true, slug: updated.slug })
