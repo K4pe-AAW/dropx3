@@ -69,6 +69,9 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   const [brushingUp, setBrushingUp] = useState(false)
   const [brushUpError, setBrushUpError] = useState<string | null>(null)
   const [brushUpDone, setBrushUpDone] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
+  const [saveDraftError, setSaveDraftError] = useState<string | null>(null)
+  const [saveDraftDone, setSaveDraftDone] = useState(false)
 
   // RSS収集の下書きは著作権保護のためカバー画像を自動設定しない(YouTube以外)。ここでは画像を
   // 保存・転載するのではなく、著作権者が明確な情報源(ブランド公式サイト)を人間に示すだけに留める。
@@ -254,6 +257,27 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
     await fetch(`/api/drafts/${draft.id}`, { method: "DELETE" })
     router.push("/admin")
     router.refresh()
+  }
+
+  /** 公開はせず、今の編集内容だけを下書きに書き戻す(ページを離れても内容が消えないように) */
+  async function handleSaveDraft() {
+    setSavingDraft(true)
+    setSaveDraftError(null)
+    setSaveDraftDone(false)
+    try {
+      const res = await fetch(`/api/drafts/${draft.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildRequestBody()),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "下書きの保存に失敗しました")
+      setSaveDraftDone(true)
+    } catch (err) {
+      setSaveDraftError(err instanceof Error ? err.message : "下書きの保存に失敗しました")
+    } finally {
+      setSavingDraft(false)
+    }
   }
 
   /**
@@ -792,12 +816,24 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         </button>
         <button
           type="button"
+          onClick={handleSaveDraft}
+          disabled={savingDraft}
+          className="h-11 px-6 rounded-full border border-border text-sm font-semibold hover:bg-secondary disabled:opacity-50"
+        >
+          {savingDraft ? "保存中..." : "下書きを保存"}
+        </button>
+        <button
+          type="button"
           onClick={handleReject}
           className="h-11 px-6 rounded-full border border-border text-sm font-semibold hover:bg-secondary"
         >
           却下する
         </button>
       </div>
+      {saveDraftError && <p className="text-sm text-destructive">{saveDraftError}</p>}
+      {saveDraftDone && !saveDraftError && (
+        <p className="text-sm text-accent-foreground">下書きを保存しました(公開はまだされていません)。</p>
+      )}
     </form>
   )
 }

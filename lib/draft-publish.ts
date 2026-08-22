@@ -20,7 +20,7 @@ function isAllowedImageUrl(url: string): boolean {
   return isSafeExternalUrl(url)
 }
 
-function sanitizeColorways(input: unknown): ColorwayInfo[] {
+export function sanitizeColorways(input: unknown): ColorwayInfo[] {
   if (!Array.isArray(input)) return []
   return input
     .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)
@@ -46,7 +46,7 @@ function sanitizeColorways(input: unknown): ColorwayInfo[] {
 const CHANNEL_TYPES = new Set(["official", "secondary"])
 const SALE_METHODS = new Set(["regular", "lottery", "unknown"])
 
-function sanitizePurchaseChannels(input: unknown): PurchaseChannelInfo[] {
+export function sanitizePurchaseChannels(input: unknown): PurchaseChannelInfo[] {
   if (!Array.isArray(input)) return []
   return input
     .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)
@@ -64,7 +64,7 @@ function sanitizePurchaseChannels(input: unknown): PurchaseChannelInfo[] {
     .filter((c) => c.retailerName)
 }
 
-function sanitizeGalleryImages(input: unknown): GalleryImage[] {
+export function sanitizeGalleryImages(input: unknown): GalleryImage[] {
   if (!Array.isArray(input)) return []
   return input
     .filter((img): img is { url?: unknown; alt?: unknown; credit?: unknown } => typeof img === "object" && img !== null)
@@ -77,7 +77,7 @@ function sanitizeGalleryImages(input: unknown): GalleryImage[] {
 }
 
 /** 出典は外部URLへのリンクなのでisSafeExternalUrlで検証する(捏造・不正URL混入を防ぐ) */
-function sanitizeSourceRefs(input: unknown): SourceRef[] {
+export function sanitizeSourceRefs(input: unknown): SourceRef[] {
   if (!Array.isArray(input)) return []
   return input
     .filter((r): r is { name?: unknown; url?: unknown } => typeof r === "object" && r !== null)
@@ -88,7 +88,7 @@ function sanitizeSourceRefs(input: unknown): SourceRef[] {
     .filter((r) => r.name && r.url && isSafeExternalUrl(r.url))
 }
 
-function sanitizeOfficialLinks(input: unknown): OfficialLink[] {
+export function sanitizeOfficialLinks(input: unknown): OfficialLink[] {
   if (!Array.isArray(input)) return []
   return input
     .filter((l): l is { label?: unknown; url?: unknown } => typeof l === "object" && l !== null)
@@ -107,21 +107,26 @@ export type BuildArticleResult =
  * 下書きレビューのリクエストボディ(PublishForm由来)から、公開直前の状態のArticle(publishedAtを
  * 除く)を組み立てる。/api/drafts/[id]/publish(即時公開)と/api/drafts/[id]/schedule(予約公開)の
  * 両方で共有するバリデーション・サニタイズ本体。
+ *
+ * draftはbodyに無い項目を補うフォールバックとしてのみ使う(PublishFormは編集可能な全項目を
+ * 既にbodyへ含めて送ってくるため、通常は参照されない)。生成直後にすぐ公開しようとすると
+ * Blobの書き込み伝播遅延でgetDraftByIdが見つけられないことがあり(2026-08-22に実際に報告あり)、
+ * それだけで公開をブロックしないようにするため、draftはundefinedを許容する。
  */
-export function buildArticleFromDraft(draft: Draft, body: Record<string, unknown>): BuildArticleResult {
-  const title: string = typeof body.title === "string" && body.title.trim() ? body.title : draft.title
-  const excerpt: string = typeof body.excerpt === "string" ? body.excerpt : draft.excerpt
+export function buildArticleFromDraft(draft: Draft | undefined, id: string, body: Record<string, unknown>): BuildArticleResult {
+  const title: string = typeof body.title === "string" && body.title.trim() ? body.title : (draft?.title ?? "")
+  const excerpt: string = typeof body.excerpt === "string" ? body.excerpt : (draft?.excerpt ?? "")
   const bodyParagraphs: string[] =
     Array.isArray(body.bodyParagraphs) && body.bodyParagraphs.length > 0
       ? body.bodyParagraphs.filter((p: unknown): p is string => typeof p === "string" && p.trim().length > 0)
-      : draft.bodyParagraphs
+      : (draft?.bodyParagraphs ?? [])
   const category: Category = siteConfig.categories.some((c) => c.slug === body.category)
     ? (body.category as Category)
-    : draft.category
+    : (draft?.category ?? "sneaker")
   const brands: string[] = canonicalBrandNames(
-    Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string") : draft.brands
+    Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string") : (draft?.brands ?? [])
   )
-  const tags: string[] = Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : draft.tags
+  const tags: string[] = Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : (draft?.tags ?? [])
   const coverImageInput: string = typeof body.coverImage === "string" ? body.coverImage.trim() : ""
   const coverImageAlt: string = typeof body.coverImageAlt === "string" && body.coverImageAlt.trim() ? body.coverImageAlt : title
   const coverImageCredit: string | undefined =
@@ -137,8 +142,11 @@ export function buildArticleFromDraft(draft: Draft, body: Record<string, unknown
   const purchaseChannels: PurchaseChannelInfo[] = sanitizePurchaseChannels(body.purchaseChannels)
   // 出典編集欄が送られてこなかった場合(未対応クライアント等)はdraft生成時の値を保つ
   const sourceRefsInput = sanitizeSourceRefs(body.sourceRefs)
-  const sourceRefs: SourceRef[] = sourceRefsInput.length > 0 ? sourceRefsInput : draft.sourceRefs
+  const sourceRefs: SourceRef[] = sourceRefsInput.length > 0 ? sourceRefsInput : (draft?.sourceRefs ?? [])
 
+  if (!title.trim()) {
+    return { ok: false, error: "タイトルが空です", status: 400 }
+  }
   if (!coverImageInput) {
     return { ok: false, error: "カバー画像URLは必須です", status: 400 }
   }
@@ -149,7 +157,7 @@ export function buildArticleFromDraft(draft: Draft, body: Record<string, unknown
     return { ok: false, error: "本文が空です", status: 400 }
   }
 
-  const newId = generateId(`${draft.id}-${Date.now()}`)
+  const newId = generateId(`${id}-${Date.now()}`)
   const article: Omit<Article, "publishedAt"> = {
     id: newId,
     slug: generateSlug(title, newId),

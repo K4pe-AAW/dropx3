@@ -9,10 +9,8 @@ import type { ScheduledArticle } from "@/lib/types"
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  // publishと同じ理由でgetDraftByIdの結果が無くてもブロックしない(draft-publish.ts参照)
   const draft = await getDraftById(id)
-  if (!draft) {
-    return NextResponse.json({ error: "下書きが見つかりません" }, { status: 404 })
-  }
 
   const body = await req.json().catch(() => ({}))
 
@@ -25,14 +23,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "公開日時は未来の時刻を指定してください" }, { status: 400 })
   }
 
-  const result = buildArticleFromDraft(draft, body)
+  const result = buildArticleFromDraft(draft, id, body)
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
   const scheduled: ScheduledArticle = { ...result.article, scheduledPublishAt: scheduledDate.toISOString() }
   await addScheduledArticle(scheduled)
-  await removeDraft(draft.id)
+  await removeDraft(id)
 
   return NextResponse.json({ ok: true, scheduledPublishAt: scheduled.scheduledPublishAt })
 }
