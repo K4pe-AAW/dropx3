@@ -1,4 +1,16 @@
-export type Category = "tops" | "pants" | "jacket" | "boots" | "sneaker" | "accessory" | "figure" | "vintage" | "youtube"
+export type Category =
+  | "tops"
+  | "pants"
+  | "jacket"
+  | "apparel"
+  | "boots"
+  | "sneaker"
+  | "accessory"
+  | "figure"
+  | "vintage"
+  | "news"
+  | "brand"
+  | "youtube"
 
 export type AffiliateLink = {
   label: string // 例: "ZOZOTOWNで見る"

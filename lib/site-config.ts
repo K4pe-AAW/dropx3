@@ -12,15 +12,24 @@ export const siteConfig = {
   operatorName: "DROP DROP DROP運営部", // 特定商取引法/プライバシーポリシー表記用。実運用前に要編集
   /** 未設定時にexample.comのような偽アドレスを表示しないよう、環境変数がなければnullにする */
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL || null,
+  /**
+   * 商品タイプ(トップス〜フィギュア)→古着→コンテンツ種別(ニュース/ブランド/Youtube)の順に並べる。
+   * アパレルは「トップス/パンツ/ジャケットのどれとも言い切れない」ものの受け皿として、その3つの
+   * 直後に置く。ニュース/ブランドは商品ではなく記事の切り口を表す分類なので、既存のYoutube
+   * (これも切り口分類)と同じ末尾グループにまとめる(2026-08-22追加)。
+   */
   categories: [
     { slug: "tops" as Category, label: "トップス" },
     { slug: "pants" as Category, label: "パンツ" },
     { slug: "jacket" as Category, label: "ジャケット" },
+    { slug: "apparel" as Category, label: "アパレル" },
     { slug: "boots" as Category, label: "ブーツ" },
     { slug: "sneaker" as Category, label: "スニーカー" },
     { slug: "accessory" as Category, label: "アクセサリー" },
     { slug: "figure" as Category, label: "フィギュア" },
     { slug: "vintage" as Category, label: "古着" },
+    { slug: "news" as Category, label: "ニュース" },
+    { slug: "brand" as Category, label: "ブランド" },
     { slug: "youtube" as Category, label: "Youtube" },
   ],
 }
