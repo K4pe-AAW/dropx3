@@ -72,6 +72,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   const [savingDraft, setSavingDraft] = useState(false)
   const [saveDraftError, setSaveDraftError] = useState<string | null>(null)
   const [saveDraftDone, setSaveDraftDone] = useState(false)
+  const [publishedMessage, setPublishedMessage] = useState<string | null>(null)
 
   // RSS収集の下書きは著作権保護のためカバー画像を自動設定しない(YouTube以外)。ここでは画像を
   // 保存・転載するのではなく、著作権者が明確な情報源(ブランド公式サイト)を人間に示すだけに留める。
@@ -226,8 +227,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
       return
     }
 
-    router.push("/admin")
-    router.refresh()
+    setPublishedMessage(isScheduled ? "予約を設定しました。" : "公開しました。")
   }
 
   async function handleScheduleNext() {
@@ -239,17 +239,20 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(buildRequestBody()),
     })
+    const data = await res.json().catch(() => ({}))
 
     setSubmitting(false)
 
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
       setError(data.error || "予約に失敗しました")
       return
     }
 
-    router.push("/admin")
-    router.refresh()
+    const when =
+      typeof data.scheduledPublishAt === "string"
+        ? new Date(data.scheduledPublishAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })
+        : null
+    setPublishedMessage(when ? `${when}に予約しました。` : "予約しました。")
   }
 
   async function handleReject() {
@@ -793,7 +796,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
           <button
             type="button"
             onClick={handleScheduleNext}
-            disabled={submitting}
+            disabled={submitting || Boolean(publishedMessage)}
             className="h-8 px-3 rounded-full border border-border text-xs font-semibold hover:bg-secondary disabled:opacity-50"
           >
             次の空き枠へ予約する
@@ -809,7 +812,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
       <div className="flex items-center gap-3 pt-4 border-t border-border">
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || Boolean(publishedMessage)}
           className="h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
         >
           {submitting ? "処理中..." : scheduledPublishAt ? "予約公開する" : "公開する"}
@@ -817,7 +820,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         <button
           type="button"
           onClick={handleSaveDraft}
-          disabled={savingDraft}
+          disabled={savingDraft || Boolean(publishedMessage)}
           className="h-11 px-6 rounded-full border border-border text-sm font-semibold hover:bg-secondary disabled:opacity-50"
         >
           {savingDraft ? "保存中..." : "下書きを保存"}
@@ -825,15 +828,34 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         <button
           type="button"
           onClick={handleReject}
-          className="h-11 px-6 rounded-full border border-border text-sm font-semibold hover:bg-secondary"
+          disabled={Boolean(publishedMessage)}
+          className="h-11 px-6 rounded-full border border-border text-sm font-semibold hover:bg-secondary disabled:opacity-50"
         >
           却下する
         </button>
       </div>
+      {publishedMessage && (
+        <p className="text-sm font-semibold text-accent-foreground bg-accent/10 rounded-lg px-4 py-3">
+          {publishedMessage}
+        </p>
+      )}
       {saveDraftError && <p className="text-sm text-destructive">{saveDraftError}</p>}
       {saveDraftDone && !saveDraftError && (
         <p className="text-sm text-accent-foreground">下書きを保存しました(公開はまだされていません)。</p>
       )}
+
+      <div className="pt-4 border-t border-border">
+        <button
+          type="button"
+          onClick={() => {
+            router.push("/admin")
+            router.refresh()
+          }}
+          className="w-full h-11 rounded-full border border-border text-sm font-semibold hover:bg-secondary"
+        >
+          管理画面に戻る
+        </button>
+      </div>
     </form>
   )
 }
