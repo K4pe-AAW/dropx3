@@ -67,6 +67,44 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
     .slice(0, 10)
     .each((_, el) => add($(el).attr("src") || $(el).attr("data-src")))
 
+  /**
+   * 楽天市場の商品ページ等、<article>/<main>のような意味づけを持たない古い形式のページでは
+   * 上のセレクタが何もヒットせずog:image1枚しか拾えない(実際は同じ商品の別カットが多数
+   * 掲載されているのに)。og:imageが見つかっていれば、その画像と同じフォルダに置かれた画像は
+   * 同一商品の別カットである可能性が高いという経験則で追加収集する(ページ内の「おすすめ商品」
+   * 等は別フォルダに置かれることが多く、意図せず混入しにくい)。パス(ホスト名を除く)で比較する
+   * ——楽天は同じ画像を`shop.r10s.jp`と`image.rakuten.co.jp`等、複数ホスト名で配信するため。
+   * フォルダの階層が浅い(例: "/images/")場合は無関係画像まで拾ってしまうため対象外とする。
+   * og:image自体が見つからないページでは実行しない。
+   */
+  if (urls.length > 0) {
+    const primaryPath = (() => {
+      try {
+        return new URL(urls[0]).pathname
+      } catch {
+        return ""
+      }
+    })()
+    const primaryDir = primaryPath.slice(0, primaryPath.lastIndexOf("/") + 1)
+    const isSpecificEnough = primaryDir.split("/").filter(Boolean).length >= 3
+    if (isSpecificEnough) {
+      $("img")
+        .slice(0, 60)
+        .each((_, el) => {
+          const src = $(el).attr("src") || $(el).attr("data-src")
+          const resolved = resolveImageUrl(src, pageUrl)
+          if (!resolved) return
+          let path: string
+          try {
+            path = new URL(resolved).pathname
+          } catch {
+            return
+          }
+          if (path.startsWith(primaryDir)) add(src)
+        })
+    }
+  }
+
   return urls.slice(0, 8)
 }
 
