@@ -149,15 +149,27 @@ export async function fetchHtmlListing(source: Source): Promise<FetchResult> {
   }
 }
 
+export type PageTextResult = {
+  title?: string
+  text?: string
+  imageCandidates: string[]
+  /**
+   * 取得自体が失敗した理由(人間の編集者にそのまま見せられる短い日本語の説明)。BEAMS等、
+   * ボット対策と見られる無応答(タイムアウト)でVercel本番からも到達不能なサイトが実際にあった
+   * (2026-08-22に発覚)。取得できたが本文が空、のようなケースとは区別できるようにする。
+   */
+  failureReason?: string
+}
+
 /**
  * 新着URLの本文テキストを取得する(タイトルしか分からないsitemap方式の補完、画像候補の収集にも使う)。
  * 楽天市場等、応答が遅いサイトが実際にあった(実測10秒超)ため、fetchHtmlListing(巡回の一覧取得、
  * SOURCE WATCHのcron時間予算が厳しい)より長めのタイムアウトを持たせている。
  */
-export async function fetchPageText(url: string): Promise<{ title?: string; text?: string; imageCandidates: string[] } | null> {
+export async function fetchPageText(url: string): Promise<PageTextResult> {
   try {
     const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(12000) })
-    if (!res.ok) return null
+    if (!res.ok) return { imageCandidates: [], failureReason: `サイトがエラーを返しました(HTTP ${res.status})` }
     const buf = new Uint8Array(await res.arrayBuffer())
     const charset = detectCharset(res.headers.get("content-type"), buf.slice(0, 2048))
     const html = new TextDecoder(charset ?? "utf-8").decode(buf)
@@ -167,7 +179,13 @@ export async function fetchPageText(url: string): Promise<{ title?: string; text
     $("script, style, nav, footer, header, noscript").remove()
     const text = $("body").text().replace(/\s+/g, " ").trim().slice(0, 4000)
     return { title: title || undefined, text: text || undefined, imageCandidates }
-  } catch {
-    return null
+  } catch (err) {
+    const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
+    return {
+      imageCandidates: [],
+      failureReason: isTimeout
+        ? "サイトから応答がありませんでした(アクセス制限がかかっている可能性があります)"
+        : "サイトに接続できませんでした",
+    }
   }
 }

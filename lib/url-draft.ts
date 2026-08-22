@@ -20,7 +20,13 @@ export async function draftFromUrl(url: string): Promise<Draft> {
   if (alreadyExists) throw new Error("このURLからは既に下書きまたは記事が作成済みです")
 
   const page = await fetchPageText(url)
-  if (!page?.title) throw new Error("記事の取得に失敗しました(タイトルを読み取れませんでした)")
+  if (!page.title) {
+    throw new Error(
+      page.failureReason
+        ? `記事の取得に失敗しました。${page.failureReason}。`
+        : "記事の取得に失敗しました(タイトルを読み取れませんでした)"
+    )
+  }
 
   const item: RawItem = {
     id: generateId(url),

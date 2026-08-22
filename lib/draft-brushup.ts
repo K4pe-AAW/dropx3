@@ -95,7 +95,13 @@ export async function brushUpDraftWithUrl(current: BrushUpCurrentDraft, sourceUr
   if (!isSafeExternalUrl(sourceUrl)) throw new Error("URLの形式が正しくありません")
 
   const page = await fetchPageText(sourceUrl)
-  if (!page?.title && !page?.text) throw new Error("ページの取得に失敗しました")
+  if (!page.title && !page.text) {
+    throw new Error(
+      page.failureReason
+        ? `参考ページを取得できませんでした。${page.failureReason}。本文を直接「追加の概要・補足」欄に貼り付けて公開してください。`
+        : "参考ページの本文を認識できませんでした。URLを確認するか、本文を直接「追加の概要・補足」欄に貼り付けてください。"
+    )
+  }
 
   const openai = getOpenAIClient()
   const response = await openai.chat.completions.create({
