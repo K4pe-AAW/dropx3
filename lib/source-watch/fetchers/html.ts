@@ -162,6 +162,29 @@ export type PageTextResult = {
 }
 
 /**
+ * 本文らしき領域のテキストを取得する。article/main等の意味づけがあればそこだけを使い、
+ * ECサイトのメガメニュー等のノイズを避ける(extractImageCandidatesFromHtmlと同じ考え方)。
+ * 領域が無い/短すぎる(=本文コンテナとして機能していない)場合はbody全体にフォールバックする
+ * (古い形式のページ向け)。
+ */
+function extractBodyText($: ReturnType<typeof cheerio.load>): string {
+  for (const sel of ["article", "main", ".entry-content", ".post-content", ".content"]) {
+    const text = $(sel).first().text().replace(/\s+/g, " ").trim()
+    if (text.length > 200) return text
+  }
+  return $("body").text().replace(/\s+/g, " ").trim()
+}
+
+/**
+ * 本文として渡すテキストの上限文字数。ナビゲーション/メガメニューが長いECサイト(例:
+ * ABC-MARTの商品ページで実測、価格等の情報が7,900文字目以降にしか出てこなかった)では
+ * 以前の上限(4000)だと本文の大半を切り捨てており、「価格や発売日はまだ発表されていません」と
+ * 書かれがちだった原因の一つと判明した(2026-08-22)。gpt-4o-miniの入力コストは軽微なため、
+ * 安全側に大きめの上限に引き上げる。
+ */
+const BODY_TEXT_LIMIT = 12000
+
+/**
  * 新着URLの本文テキストを取得する(タイトルしか分からないsitemap方式の補完、画像候補の収集にも使う)。
  * 楽天市場等、応答が遅いサイトが実際にあった(実測10秒超)ため、fetchHtmlListing(巡回の一覧取得、
  * SOURCE WATCHのcron時間予算が厳しい)より長めのタイムアウトを持たせている。
@@ -177,7 +200,7 @@ export async function fetchPageText(url: string): Promise<PageTextResult> {
     const title = $("title").first().text().trim() || $("h1").first().text().trim()
     const imageCandidates = extractImageCandidatesFromHtml($, url)
     $("script, style, nav, footer, header, noscript").remove()
-    const text = $("body").text().replace(/\s+/g, " ").trim().slice(0, 4000)
+    const text = extractBodyText($).slice(0, BODY_TEXT_LIMIT)
     return { title: title || undefined, text: text || undefined, imageCandidates }
   } catch (err) {
     const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
