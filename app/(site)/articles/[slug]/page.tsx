@@ -4,7 +4,6 @@ import type { Metadata } from "next"
 import { getArticleBySlug, getRelatedArticles } from "@/lib/storage"
 import { PurchaseLinks } from "@/components/PurchaseLinks"
 import { PurchaseChannelsSection } from "@/components/PurchaseChannelsSection"
-import { ColorwaySection } from "@/components/ColorwaySection"
 import { RelatedArticleLinks } from "@/components/RelatedArticleLinks"
 import { OfficialProductWidget } from "@/components/OfficialProductWidget"
 import { ArticleCard } from "@/components/ArticleCard"
@@ -182,10 +181,6 @@ export default async function ArticleDetailPage({
             </div>
           ))}
         </div>
-      )}
-
-      {article.colorways && article.colorways.length > 0 && (
-        <ColorwaySection colorways={article.colorways} productName={article.title} />
       )}
 
       {article.purchaseChannels && article.purchaseChannels.length > 0 && (
