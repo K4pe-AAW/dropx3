@@ -521,12 +521,25 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         <div className="space-y-3">
           {galleryImages.map((img, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
-              <input
-                className={`${inputClass} col-span-2`}
-                placeholder="画像URL（https://... または /images/...）"
-                value={img.url}
-                onChange={(e) => updateGalleryImage(i, { url: e.target.value })}
-              />
+              <div className="col-span-2 flex items-center gap-2">
+                {img.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- 貼り付けたURLの簡易プレビュー(外部ドメイン任意のため)
+                  <img
+                    key={img.url}
+                    src={img.url}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-md border border-border bg-muted object-cover"
+                  />
+                ) : (
+                  <div className="h-12 w-12 shrink-0 rounded-md border border-dashed border-border bg-muted" />
+                )}
+                <input
+                  className={`${inputClass} flex-1`}
+                  placeholder="画像URL（https://... または /images/...）"
+                  value={img.url}
+                  onChange={(e) => updateGalleryImage(i, { url: e.target.value })}
+                />
+              </div>
               <input
                 className={inputClass}
                 placeholder="代替テキスト"
