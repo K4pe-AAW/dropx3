@@ -208,13 +208,42 @@ export async function getFeaturedArticles(limit = 6): Promise<Article[]> {
   return (featured.length > 0 ? featured : all).slice(0, limit)
 }
 
+/**
+ * 関連記事の重み。ブランド一致は「同じ商品を探している人」に届くので最も強く、
+ * カテゴリ一致は「スニーカー」のように広いため最も弱い。
+ */
+const RELATED_WEIGHT = { brand: 3, tag: 2, category: 1 } as const
+
+/** 関連度のスコア。0なら関連記事として出さない */
+export function relatedScore(base: Article, candidate: Article): number {
+  if (candidate.id === base.id) return 0
+  const brands = new Set(base.brands.map((b) => b.toLowerCase()))
+  const tags = new Set(base.tags.map((t) => t.toLowerCase()))
+  let score = 0
+  for (const b of candidate.brands) if (brands.has(b.toLowerCase())) score += RELATED_WEIGHT.brand
+  for (const t of candidate.tags) if (tags.has(t.toLowerCase())) score += RELATED_WEIGHT.tag
+  if (candidate.category === base.category) score += RELATED_WEIGHT.category
+  return score
+}
+
+/**
+ * 関連記事を関連度順に返す。
+ *
+ * 以前は「同カテゴリ **または** 同ブランド」で絞ったあと、関連度を見ずに先頭4件
+ * （＝日付順）を取っていた。カテゴリは広いので、実際に出るのはほぼ
+ * 「同カテゴリの最新4件」で、**ブランドが一致する記事が埋もれていた**。
+ * 同じ商品を扱う記事同士が内部リンクで繋がらず、トピックの塊を作れていなかった。
+ * （2026-08-24: 検索で同一商品クエリが8本、順位10位前後に張り付いていたのを受けて修正）
+ */
 export async function getRelatedArticles(article: Article, limit = 4): Promise<Article[]> {
-  const brandSet = new Set(article.brands.map((b) => b.toLowerCase()))
   const all = await getAllArticles()
   return all
-    .filter((a) => a.id !== article.id)
-    .filter((a) => a.category === article.category || a.brands.some((b) => brandSet.has(b.toLowerCase())))
+    .map((a) => ({ a, score: relatedScore(article, a) }))
+    .filter((x) => x.score > 0)
+    // 同点は新しい記事を優先する（getAllArticlesが日付降順なので安定ソートで足りる）
+    .sort((x, y) => y.score - x.score)
     .slice(0, limit)
+    .map((x) => x.a)
 }
 
 export async function getAllBrands(): Promise<{ name: string; count: number }[]> {
