@@ -12,10 +12,10 @@ import {
   BrandCrawlSource,
 } from "./types"
 
-const ARTICLES_PATH = "data/articles.json"
-const DRAFTS_PATH = "data/drafts.json"
-const SCHEDULED_PATH = "data/scheduled.json"
-const CRAWL_SOURCES_PATH = "data/crawl-sources.json"
+export const ARTICLES_PATH = "data/articles.json"
+export const DRAFTS_PATH = "data/drafts.json"
+export const SCHEDULED_PATH = "data/scheduled.json"
+export const CRAWL_SOURCES_PATH = "data/crawl-sources.json"
 
 /** SOURCE WATCH等、他モジュールからも同じBlob read-modify-write規約を使うためexportする */
 export async function readJson<T>(pathname: string, fallback: T): Promise<T> {
