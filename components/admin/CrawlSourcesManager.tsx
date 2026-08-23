@@ -22,14 +22,21 @@ export function CrawlSourcesManager({
   )
 }
 
-export function YoutubeSection({ youtube }: { youtube: YoutubeCrawlSource[] }) {
+export function YoutubeSection({ youtube: initialYoutube }: { youtube: YoutubeCrawlSource[] }) {
   const router = useRouter()
+  const [youtube, setYoutube] = useState(initialYoutube)
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  /**
+   * 追加直後にrouter.refresh()だけに頼ると、Blobの書き込み伝播遅延で一覧に反映されず
+   * 「追加が機能していない」ように見えていた(2026-08-23に実データで確認)。レスポンスで
+   * 返るsourceをその場でローカル state に足すことで、読み直しを待たず即座に表示する。
+   * refresh()はサーバー側との最終的な整合を取るための補助として残す。
+   */
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
@@ -45,6 +52,8 @@ export function YoutubeSection({ youtube }: { youtube: YoutubeCrawlSource[] }) {
       setError(body.error ?? "追加に失敗しました")
       return
     }
+    const data = await res.json()
+    setYoutube((prev) => [...prev, data.source])
     setName("")
     setUrl("")
     router.refresh()
@@ -55,6 +64,7 @@ export function YoutubeSection({ youtube }: { youtube: YoutubeCrawlSource[] }) {
     setDeletingId(id)
     await fetch(`/api/admin/crawl-sources/youtube/${id}`, { method: "DELETE" })
     setDeletingId(null)
+    setYoutube((prev) => prev.filter((y) => y.id !== id))
     router.refresh()
   }
 
@@ -122,8 +132,9 @@ export function YoutubeSection({ youtube }: { youtube: YoutubeCrawlSource[] }) {
   )
 }
 
-function BrandSection({ brands }: { brands: BrandCrawlSource[] }) {
+function BrandSection({ brands: initialBrands }: { brands: BrandCrawlSource[] }) {
   const router = useRouter()
+  const [brands, setBrands] = useState(initialBrands)
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
   const [instagramUrl, setInstagramUrl] = useState("")
@@ -131,6 +142,8 @@ function BrandSection({ brands }: { brands: BrandCrawlSource[] }) {
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  /** YoutubeSectionと同じ理由(Blobの書き込み伝播遅延)でrouter.refresh()だけに頼らず、
+   *  レスポンスのsourceをローカルstateへ即時反映する */
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
@@ -146,6 +159,8 @@ function BrandSection({ brands }: { brands: BrandCrawlSource[] }) {
       setError(body.error ?? "追加に失敗しました")
       return
     }
+    const data = await res.json()
+    setBrands((prev) => [...prev, data.source])
     setName("")
     setUrl("")
     setInstagramUrl("")
@@ -157,6 +172,7 @@ function BrandSection({ brands }: { brands: BrandCrawlSource[] }) {
     setDeletingId(id)
     await fetch(`/api/admin/crawl-sources/brands/${id}`, { method: "DELETE" })
     setDeletingId(null)
+    setBrands((prev) => prev.filter((b) => b.id !== id))
     router.refresh()
   }
 

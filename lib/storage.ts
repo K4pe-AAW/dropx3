@@ -466,34 +466,51 @@ export async function mutateCrawlSources(
   return mutateJson<CrawlSourcesData>(CRAWL_SOURCES_PATH, { youtube: [], brands: [] }, mutate)
 }
 
+/**
+ * 既に同じchannelIdが登録済みの場合、書き込みはno-opにしつつ既存のレコードを返す。
+ * 以前は常に新規生成したsourceを返していたため、呼び出し元(API/管理画面)は実際には
+ * 保存されていない(=削除しようとしても存在しない)IDを「追加できた」ものとして扱ってしまう
+ * 不整合があった(2026-08-23、YouTube追加の伝播遅延バグ調査中に発覚)。
+ */
 export async function addYoutubeCrawlSource(input: {
   name: string
   channelId: string
   siteUrl: string
 }): Promise<YoutubeCrawlSource> {
   const source: YoutubeCrawlSource = { id: generateId(`youtube-${input.channelId}`), ...input, createdAt: new Date().toISOString() }
+  let result = source
   await mutateCrawlSources((data) => {
-    if (data.youtube.some((y) => y.channelId === source.channelId)) return data
+    const existing = data.youtube.find((y) => y.channelId === source.channelId)
+    if (existing) {
+      result = existing
+      return data
+    }
     return { ...data, youtube: [...data.youtube, source] }
   })
-  return source
+  return result
 }
 
 export async function removeYoutubeCrawlSource(id: string): Promise<void> {
   await mutateCrawlSources((data) => ({ ...data, youtube: data.youtube.filter((y) => y.id !== id) }))
 }
 
+/** addYoutubeCrawlSourceと同じ理由で、重複時は既存レコードを返す */
 export async function addBrandCrawlSource(input: {
   name: string
   url: string
   instagramUrl?: string
 }): Promise<BrandCrawlSource> {
   const source: BrandCrawlSource = { id: generateId(`brand-${input.url}`), ...input, createdAt: new Date().toISOString() }
+  let result = source
   await mutateCrawlSources((data) => {
-    if (data.brands.some((b) => b.url === source.url)) return data
+    const existing = data.brands.find((b) => b.url === source.url)
+    if (existing) {
+      result = existing
+      return data
+    }
     return { ...data, brands: [...data.brands, source] }
   })
-  return source
+  return result
 }
 
 export async function removeBrandCrawlSource(id: string): Promise<void> {
