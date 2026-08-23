@@ -460,13 +460,26 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
       </Field>
 
       <Field label="カバー画像URL（必須）">
-        <input
-          className={inputClass}
-          value={coverImage}
-          onChange={(e) => setCoverImage(e.target.value)}
-          placeholder="https://..."
-          required
-        />
+        <div className="flex items-center gap-2">
+          {coverImage ? (
+            // eslint-disable-next-line @next/next/no-img-element -- 貼り付けたURLの簡易プレビュー(外部ドメイン任意のため)
+            <img
+              key={coverImage}
+              src={coverImage}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-md border border-border bg-muted object-cover"
+            />
+          ) : (
+            <div className="h-12 w-12 shrink-0 rounded-md border border-dashed border-border bg-muted" />
+          )}
+          <input
+            className={`${inputClass} flex-1`}
+            value={coverImage}
+            onChange={(e) => setCoverImage(e.target.value)}
+            placeholder="https://..."
+            required
+          />
+        </div>
         {!coverImage && (
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {matchedBrandSources.map((s) => (
