@@ -62,11 +62,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ? { brands: body.brands.filter((b: unknown): b is string => typeof b === "string") }
         : {}),
       ...(Array.isArray(body.tags) ? { tags: body.tags.filter((t: unknown): t is string => typeof t === "string") } : {}),
-      ...(typeof body.coverImage === "string" && body.coverImage.trim()
-        ? { suggestedCoverImage: body.coverImage.trim() }
+      ...(typeof body.coverImage === "string"
+        ? { suggestedCoverImage: body.coverImage.trim() || undefined }
         : {}),
-      ...(typeof body.youtubeVideoId === "string" && body.youtubeVideoId.trim()
-        ? { suggestedYoutubeVideoId: body.youtubeVideoId.trim() }
+      ...(typeof body.youtubeVideoId === "string"
+        ? { suggestedYoutubeVideoId: body.youtubeVideoId.trim() || undefined }
         : {}),
       ...(Array.isArray(body.galleryImages) ? { suggestedGalleryImages: sanitizeGalleryImages(body.galleryImages) } : {}),
       ...(Array.isArray(body.officialLinks) ? { suggestedOfficialLinks: sanitizeOfficialLinks(body.officialLinks) } : {}),
