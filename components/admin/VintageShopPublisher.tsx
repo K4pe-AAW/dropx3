@@ -192,7 +192,10 @@ function PostEntryCard({
   const [tagsText, setTagsText] = useState("古着")
   const [coverImageAlt, setCoverImageAlt] = useState("")
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null)
+  const [coverImageUrl, setCoverImageUrl] = useState("")
   const [galleryFiles, setGalleryFiles] = useState<File[]>([])
+  const [galleryUrlInput, setGalleryUrlInput] = useState("")
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([])
 
   const [submitting, setSubmitting] = useState<"publish" | "draft" | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -294,14 +297,19 @@ function PostEntryCard({
       )
     )
     fd.set("coverImageAlt", coverImageAlt.trim())
-    fd.set("coverImage", coverImageFile as File)
+    if (coverImageFile) {
+      fd.set("coverImage", coverImageFile)
+    } else {
+      fd.set("coverImageUrl", coverImageUrl.trim())
+    }
     for (const f of galleryFiles) fd.append("galleryImages", f)
+    for (const u of galleryUrls) fd.append("galleryImageUrls", u)
     return fd
   }
 
   async function publish() {
-    if (!coverImageFile) {
-      setSubmitError("カバー画像を選択・貼り付けしてください")
+    if (!coverImageFile && !coverImageUrl.trim()) {
+      setSubmitError("カバー画像を選択・貼り付けまたはURLを入力してください")
       return
     }
     setSubmitting("publish")
@@ -320,8 +328,8 @@ function PostEntryCard({
   }
 
   async function saveDraft() {
-    if (!coverImageFile) {
-      setSubmitError("カバー画像を選択・貼り付けしてください")
+    if (!coverImageFile && !coverImageUrl.trim()) {
+      setSubmitError("カバー画像を選択・貼り付けまたはURLを入力してください")
       return
     }
     setSubmitting("draft")
@@ -344,12 +352,20 @@ function PostEntryCard({
     const f = files[0]
     if (!f) return
     setCoverImageFile(await compressImage(f))
+    setCoverImageUrl("")
   }
 
   async function handleGalleryFiles(files: File[]) {
     if (files.length === 0) return
     const compressed = await Promise.all(files.map(compressImage))
     setGalleryFiles((prev) => [...prev, ...compressed])
+  }
+
+  function addGalleryUrl() {
+    const url = galleryUrlInput.trim()
+    if (!url) return
+    setGalleryUrls((prev) => [...prev, url])
+    setGalleryUrlInput("")
   }
 
   const locked = !!outcome
@@ -515,11 +531,35 @@ function PostEntryCard({
             <PasteZone onPasteImages={handleCoverFiles} />
             <FilePickerButton text="📁 ファイルを選択" onFiles={handleCoverFiles} />
           </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground shrink-0">またはURLで指定</span>
+            <input
+              className={`${inputClass} flex-1`}
+              placeholder="https://..."
+              value={coverImageUrl}
+              onChange={(e) => {
+                setCoverImageUrl(e.target.value)
+                if (e.target.value.trim()) setCoverImageFile(null)
+              }}
+            />
+          </div>
           {coverPreviewUrl && (
             <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={coverPreviewUrl} alt="" className="h-14 w-14 rounded-md object-cover border border-border" />
               設定済み
+            </div>
+          )}
+          {!coverImageFile && coverImageUrl.trim() && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 貼り付けたURLの簡易プレビュー(外部ドメイン任意のため) */}
+              <img
+                key={coverImageUrl}
+                src={coverImageUrl}
+                alt=""
+                className="h-14 w-14 rounded-md object-cover border border-border bg-muted"
+              />
+              URL設定済み(公開時にサーバー側で取得・自己ホストします)
             </div>
           )}
         </FieldGroup>
@@ -529,10 +569,36 @@ function PostEntryCard({
             <PasteZone hint="1枚ずつ繰り返し貼り付け可" onPasteImages={handleGalleryFiles} />
             <FilePickerButton text="📁 ファイルを選択(複数可)" multiple onFiles={handleGalleryFiles} />
           </div>
-          {galleryFiles.length > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground shrink-0">またはURLで追加</span>
+            <input
+              className={`${inputClass} flex-1`}
+              placeholder="https://..."
+              value={galleryUrlInput}
+              onChange={(e) => setGalleryUrlInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  addGalleryUrl()
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={addGalleryUrl}
+              disabled={!galleryUrlInput.trim()}
+              className="shrink-0 h-9 rounded-full border border-border px-3 text-xs font-semibold hover:bg-secondary disabled:opacity-50"
+            >
+              追加
+            </button>
+          </div>
+          {(galleryFiles.length > 0 || galleryUrls.length > 0) && (
             <div className="mt-2 flex flex-wrap gap-2">
               {galleryFiles.map((f, i) => (
-                <GalleryThumb key={i} file={f} onRemove={() => setGalleryFiles((prev) => prev.filter((_, idx) => idx !== i))} />
+                <GalleryThumb key={`file-${i}`} file={f} onRemove={() => setGalleryFiles((prev) => prev.filter((_, idx) => idx !== i))} />
+              ))}
+              {galleryUrls.map((u, i) => (
+                <GalleryUrlThumb key={`url-${i}`} url={u} onRemove={() => setGalleryUrls((prev) => prev.filter((_, idx) => idx !== i))} />
               ))}
             </div>
           )}
@@ -566,7 +632,9 @@ function PostEntryCard({
           <button
             type="button"
             onClick={publish}
-            disabled={!!submitting || !title.trim() || !excerpt.trim() || !bodyText.trim() || !coverImageFile}
+            disabled={
+              !!submitting || !title.trim() || !excerpt.trim() || !bodyText.trim() || (!coverImageFile && !coverImageUrl.trim())
+            }
             className="h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
           >
             {submitting === "publish" ? "公開中..." : "公開する"}
@@ -574,7 +642,7 @@ function PostEntryCard({
           <button
             type="button"
             onClick={saveDraft}
-            disabled={!!submitting || !title.trim() || !coverImageFile}
+            disabled={!!submitting || !title.trim() || (!coverImageFile && !coverImageUrl.trim())}
             className="h-11 px-6 rounded-full border border-border text-sm font-semibold hover:bg-secondary disabled:opacity-50"
           >
             {submitting === "draft" ? "保存中..." : "下書き保存"}
@@ -853,6 +921,24 @@ function GalleryThumb({ file, onRemove }: { file: File; onRemove: () => void }) 
     <div className="relative">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt="" className="h-14 w-14 rounded-md object-cover border border-border" />}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground"
+        aria-label="削除"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
+/** URLで追加した画像のサムネイル。外部URLをそのまま<img>に渡すだけなので取得はCORS制約を受けない */
+function GalleryUrlThumb({ url, onRemove }: { url: string; onRemove: () => void }) {
+  return (
+    <div className="relative">
+      {/* eslint-disable-next-line @next/next/no-img-element -- 貼り付けたURLの簡易プレビュー(外部ドメイン任意のため) */}
+      <img src={url} alt="" className="h-14 w-14 rounded-md object-cover border border-border bg-muted" />
       <button
         type="button"
         onClick={onRemove}

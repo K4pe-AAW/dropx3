@@ -29,11 +29,35 @@ function extFromMime(type: string): string {
   return "jpg"
 }
 
-async function uploadVintageImage(file: File, shop: string, tag: string): Promise<{ url: string; alt: string }> {
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const pathname = `images/vintage-shop/${shop}-${Date.now()}-${tag}.${extFromMime(file.type)}`
-  const url = await putBlobFile(pathname, buffer, file.type || "image/jpeg")
+async function uploadVintageImageBuffer(
+  buffer: Buffer,
+  contentType: string,
+  shop: string,
+  tag: string
+): Promise<{ url: string; alt: string }> {
+  const pathname = `images/vintage-shop/${shop}-${Date.now()}-${tag}.${extFromMime(contentType)}`
+  const url = await putBlobFile(pathname, buffer, contentType || "image/jpeg")
   return { url, alt: "" }
+}
+
+async function uploadVintageImageFile(file: File, shop: string, tag: string): Promise<{ url: string; alt: string }> {
+  const buffer = Buffer.from(await file.arrayBuffer())
+  return uploadVintageImageBuffer(buffer, file.type, shop, tag)
+}
+
+/** URL入力(貼り付け画像が用意できない場合の代替経路)から画像を取得し、既存画像と同じくBlobへ自己ホストする */
+async function fetchVintageImageFromUrl(url: string): Promise<{ buffer: Buffer; contentType: string }> {
+  let res: Response
+  try {
+    res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; DropDropDropBot/1.0)" } })
+  } catch {
+    throw new Error(`画像URLの取得に失敗しました: ${url}`)
+  }
+  if (!res.ok) throw new Error(`画像URLの取得に失敗しました(${res.status}): ${url}`)
+  const contentType = res.headers.get("content-type") || ""
+  if (!contentType.startsWith("image/")) throw new Error(`URLの内容が画像ではありません: ${url}`)
+  const buffer = Buffer.from(await res.arrayBuffer())
+  return { buffer, contentType }
 }
 
 export async function parseVintageShopForm(form: FormData): Promise<ParseVintageFormResult> {
@@ -78,22 +102,45 @@ export async function parseVintageShopForm(form: FormData): Promise<ParseVintage
   }
 
   const coverImageFile = form.get("coverImage")
-  if (!(coverImageFile instanceof File) || coverImageFile.size === 0) {
-    return { ok: false, error: "カバー画像ファイルが必須です", status: 400 }
-  }
-  if (!coverImageFile.type.startsWith("image/")) {
-    return { ok: false, error: "カバー画像は画像ファイルである必要があります", status: 400 }
+  const coverImageUrlInput = String(form.get("coverImageUrl") ?? "").trim()
+
+  let cover: { url: string; alt: string }
+  if (coverImageFile instanceof File && coverImageFile.size > 0) {
+    if (!coverImageFile.type.startsWith("image/")) {
+      return { ok: false, error: "カバー画像は画像ファイルである必要があります", status: 400 }
+    }
+    cover = await uploadVintageImageFile(coverImageFile, shop, "cover")
+  } else if (coverImageUrlInput) {
+    try {
+      const { buffer, contentType } = await fetchVintageImageFromUrl(coverImageUrlInput)
+      cover = await uploadVintageImageBuffer(buffer, contentType, shop, "cover")
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "カバー画像URLの取得に失敗しました", status: 400 }
+    }
+  } else {
+    return { ok: false, error: "カバー画像ファイルまたはURLが必須です", status: 400 }
   }
 
   const galleryFiles = form.getAll("galleryImages").filter((f): f is File => f instanceof File && f.size > 0)
+  const galleryUrls = form
+    .getAll("galleryImageUrls")
+    .map((v) => String(v).trim())
+    .filter(Boolean)
 
-  const cover = await uploadVintageImage(coverImageFile, shop, "cover")
   const coverImageAlt = coverImageAltInput || title
   cover.alt = coverImageAlt
 
   const galleryImages: GalleryImage[] = []
   for (let i = 0; i < galleryFiles.length; i++) {
-    galleryImages.push(await uploadVintageImage(galleryFiles[i], shop, `g${i}`))
+    galleryImages.push(await uploadVintageImageFile(galleryFiles[i], shop, `g${i}`))
+  }
+  for (let i = 0; i < galleryUrls.length; i++) {
+    try {
+      const { buffer, contentType } = await fetchVintageImageFromUrl(galleryUrls[i])
+      galleryImages.push(await uploadVintageImageBuffer(buffer, contentType, shop, `gu${i}`))
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "追加画像URLの取得に失敗しました", status: 400 }
+    }
   }
 
   return {
