@@ -8,43 +8,9 @@ import type { Draft } from "@/lib/types"
 const inputClass =
   "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring bg-background"
 
-type GenerateTab = "url" | "text"
-
-export function UrlDraftForm() {
-  const [tab, setTab] = useState<GenerateTab>("url")
-
-  const tabs: { key: GenerateTab; label: string }[] = [
-    { key: "url", label: "URLから生成" },
-    { key: "text", label: "本文から生成" },
-  ]
-
-  return (
-    <section className="mb-12 rounded-xl border border-accent bg-accent/5 p-5">
-      <h2 className="text-lg font-black mb-3">記事を生成</h2>
-      <div className="flex gap-1 rounded-full bg-secondary p-1 w-fit mb-4">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`h-8 rounded-full px-4 text-xs font-semibold ${
-              tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "url" && <UrlBatchTab />}
-      {tab === "text" && <PasteTextTab />}
-    </section>
-  )
-}
-
 type UrlResult = { url: string; draftId?: string; title?: string; error?: string }
 
-function UrlBatchTab() {
+export function UrlDraftForm() {
   const router = useRouter()
   const [urlsText, setUrlsText] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -94,7 +60,8 @@ function UrlBatchTab() {
   }
 
   return (
-    <div>
+    <section className="rounded-xl border border-accent bg-accent/5 p-5">
+      <h2 className="text-lg font-black mb-1">URLから記事を生成</h2>
       <p className="text-xs text-muted-foreground mb-4">
         気になる記事のURLを貼るとその場でAIが下書きを生成し、編集画面が開きます。複数貼り付ければ(改行区切り、最大6件まで)まとめて生成できます。RSS収集(6時間おき)を待たずに新鮮なうちに記事化したいときに使ってください。
         自動公開はしないので、内容を確認してから公開ボタンを押してください。
@@ -140,7 +107,7 @@ function UrlBatchTab() {
           ))}
         </ul>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -149,7 +116,7 @@ function UrlBatchTab() {
  * 人間が自分のブラウザで見えているページの本文をコピーして貼り付ければ、取得だけを
  * 省いて同じAI下書き生成(draftFromRawItem)にかけられる。
  */
-function PasteTextTab() {
+export function PasteTextDraftForm() {
   const router = useRouter()
   const [url, setUrl] = useState("")
   const [title, setTitle] = useState("")
@@ -179,8 +146,9 @@ function PasteTextTab() {
   }
 
   return (
-    <div>
-      <p className="text-xs text-muted-foreground mb-3">
+    <section className="rounded-xl border border-accent bg-accent/5 p-5">
+      <h2 className="text-lg font-black mb-1">本文から記事を生成</h2>
+      <p className="text-xs text-muted-foreground mb-4">
         Bot対策等でこちらから自動取得できないサイト向け。ページを自分のブラウザで開き、タイトルと本文をコピーしてここに貼り付けてください。取得だけを省き、AIによる下書き生成は通常通り行われます。
       </p>
       <form onSubmit={handleSubmit} className="space-y-2">
@@ -215,6 +183,6 @@ function PasteTextTab() {
         </button>
       </form>
       {error && <p className="text-xs text-destructive mt-2">{error}</p>}
-    </div>
+    </section>
   )
 }

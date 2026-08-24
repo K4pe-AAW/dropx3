@@ -10,7 +10,7 @@ import { ArticlesList } from "@/components/admin/ArticlesList"
 import { DraftsList } from "@/components/admin/DraftsList"
 import { ScheduledList } from "@/components/admin/ScheduledList"
 import { Pagination } from "@/components/Pagination"
-import { UrlDraftForm } from "@/components/admin/UrlDraftForm"
+import { UrlDraftForm, PasteTextDraftForm } from "@/components/admin/UrlDraftForm"
 import { DRAFT_GROUPS, draftGroupOf, type DraftGroupKey } from "@/lib/admin-draft-groups"
 
 export const metadata: Metadata = { title: "管理画面" }
@@ -23,8 +23,9 @@ const PAGE_SIZE = 15
 type ViewKey = "drafts" | "published"
 type SortKey = "newest" | "oldest"
 
-/** 下書きの分類タブ(DraftGroupKey)とは別枠の、URL即時生成フォームを開くための擬似タブ */
+/** 下書きの分類タブ(DraftGroupKey)とは別枠の、即時生成フォームを開くための擬似タブ */
 const URL_GENERATE_TAB = "url-generate" as const
+const TEXT_GENERATE_TAB = "text-generate" as const
 
 /** 元ネタ(出典)の投稿日を並べ替えキーにする。無い古いデータはcreatedAt(収集日)で代替する */
 function sourceDateOf(d: { sourcePublishedAt?: string; createdAt: string }): string {
@@ -42,10 +43,18 @@ export default async function AdminPage({
   const activeView: ViewKey = view === "published" ? "published" : "drafts"
   const activeSort: SortKey = sort === "oldest" ? "oldest" : "newest"
 
-  const activeTab: DraftGroupKey | typeof URL_GENERATE_TAB =
-    tab === URL_GENERATE_TAB ? URL_GENERATE_TAB : DRAFT_GROUPS.some((g) => g.key === tab) ? (tab as DraftGroupKey) : DRAFT_GROUPS[0].key
+  const activeTab: DraftGroupKey | typeof URL_GENERATE_TAB | typeof TEXT_GENERATE_TAB =
+    tab === URL_GENERATE_TAB
+      ? URL_GENERATE_TAB
+      : tab === TEXT_GENERATE_TAB
+        ? TEXT_GENERATE_TAB
+        : DRAFT_GROUPS.some((g) => g.key === tab)
+          ? (tab as DraftGroupKey)
+          : DRAFT_GROUPS[0].key
   const isUrlGenerateTab = activeTab === URL_GENERATE_TAB
-  const tabDrafts = (isUrlGenerateTab ? [] : drafts.filter((d) => draftGroupOf(d.category) === activeTab)).sort((a, b) => {
+  const isTextGenerateTab = activeTab === TEXT_GENERATE_TAB
+  const isGenerateTab = isUrlGenerateTab || isTextGenerateTab
+  const tabDrafts = (isGenerateTab ? [] : drafts.filter((d) => draftGroupOf(d.category) === activeTab)).sort((a, b) => {
     const cmp = sourceDateOf(a).localeCompare(sourceDateOf(b))
     return activeSort === "newest" ? -cmp : cmp
   })
@@ -118,7 +127,7 @@ export default async function AdminPage({
             <DraftSearch drafts={drafts.map((d) => ({ id: d.id, title: d.title, brands: d.brands }))} />
           )}
 
-          {drafts.length === 0 && !isUrlGenerateTab ? (
+          {drafts.length === 0 && !isGenerateTab ? (
             <p className="text-sm text-muted-foreground leading-relaxed">
               下書きはありません。上の「収集を実行」を押すか、ターミナルで
               <code className="text-xs bg-secondary px-1.5 py-0.5 rounded mx-1">npm run collect</code>
@@ -154,9 +163,19 @@ export default async function AdminPage({
                 >
                   + URL生成
                 </Link>
+                <Link
+                  href={`/admin?view=drafts&tab=${TEXT_GENERATE_TAB}`}
+                  className={
+                    isTextGenerateTab
+                      ? "h-9 flex items-center rounded-full bg-accent px-4 text-xs font-bold text-accent-foreground"
+                      : "h-9 flex items-center rounded-full border border-dashed border-border px-4 text-xs font-semibold hover:bg-secondary"
+                  }
+                >
+                  + 本文から生成
+                </Link>
               </div>
 
-              {!isUrlGenerateTab && (
+              {!isGenerateTab && (
                 <div className="flex items-center gap-1.5 mb-4">
                   <span className="text-xs text-muted-foreground mr-1">元ネタ:</span>
                   <Link
@@ -184,6 +203,8 @@ export default async function AdminPage({
 
               {isUrlGenerateTab ? (
                 <UrlDraftForm />
+              ) : isTextGenerateTab ? (
+                <PasteTextDraftForm />
               ) : tabDrafts.length === 0 ? (
                 <p className="text-sm text-muted-foreground">このタブに下書きはありません。</p>
               ) : (
