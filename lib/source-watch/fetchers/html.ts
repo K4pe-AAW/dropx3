@@ -194,6 +194,15 @@ export async function fetchPageText(url: string): Promise<PageTextResult> {
     const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(12000) })
     if (!res.ok) return { imageCandidates: [], failureReason: `サイトがエラーを返しました(HTTP ${res.status})` }
     const buf = new Uint8Array(await res.arrayBuffer())
+    // AWS WAF Bot Control等のチャレンジ応答は2xx(ok)のまま本文0バイトで返ってくることがある
+    // (arknets.co.jpで実際に確認、x-amzn-waf-action: challenge)。res.okだけでは成功と誤認するため
+    // 空応答を明示的に区別し、「パースに失敗した」ではなく正しい理由をfailureReasonに残す。
+    if (buf.length === 0) {
+      return {
+        imageCandidates: [],
+        failureReason: "サイトから空の応答が返されました(Bot対策によるアクセス制限の可能性があります)",
+      }
+    }
     const charset = detectCharset(res.headers.get("content-type"), buf.slice(0, 2048))
     const html = new TextDecoder(charset ?? "utf-8").decode(buf)
     const $ = cheerio.load(html)
@@ -201,6 +210,12 @@ export async function fetchPageText(url: string): Promise<PageTextResult> {
     const imageCandidates = extractImageCandidatesFromHtml($, url)
     $("script, style, nav, footer, header, noscript").remove()
     const text = extractBodyText($).slice(0, BODY_TEXT_LIMIT)
+    if (!title && !text) {
+      return {
+        imageCandidates,
+        failureReason: "ページは取得できましたが本文を認識できませんでした(Bot対策の確認ページ等の可能性があります)",
+      }
+    }
     return { title: title || undefined, text: text || undefined, imageCandidates }
   } catch (err) {
     const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
