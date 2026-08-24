@@ -182,7 +182,7 @@ function extractBodyText($: ReturnType<typeof cheerio.load>): string {
  * 書かれがちだった原因の一つと判明した(2026-08-22)。gpt-4o-miniの入力コストは軽微なため、
  * 安全側に大きめの上限に引き上げる。
  */
-const BODY_TEXT_LIMIT = 12000
+export const BODY_TEXT_LIMIT = 12000
 
 /**
  * 新着URLの本文テキストを取得する(タイトルしか分からないsitemap方式の補完、画像候補の収集にも使う)。

@@ -2,7 +2,23 @@ import { RawItem, Draft } from "./types"
 import { generateId, readDrafts, getAllArticles, addDrafts } from "./storage"
 import { draftFromRawItem } from "./ai-draft"
 import { isSafeExternalUrl } from "./affiliate"
-import { fetchPageText } from "./source-watch/fetchers/html"
+import { fetchPageText, BODY_TEXT_LIMIT } from "./source-watch/fetchers/html"
+
+async function assertUrlNotAlreadyDrafted(url: string): Promise<void> {
+  const [existingDrafts, existingArticles] = await Promise.all([readDrafts(), getAllArticles()])
+  const alreadyExists = [
+    ...existingDrafts.drafts.flatMap((d) => d.sourceRefs),
+    ...existingArticles.flatMap((a) => a.sourceRefs),
+  ].some((ref) => ref.url === url)
+  if (alreadyExists) throw new Error("このURLからは既に下書きまたは記事が作成済みです")
+}
+
+async function generateAndSaveDraft(item: RawItem): Promise<Draft> {
+  const draft = await draftFromRawItem(item)
+  const { saved } = await addDrafts([draft])
+  if (saved === 0) throw new Error("似たタイトルの下書き・記事が既に存在するため保存をスキップしました")
+  return draft
+}
 
 /**
  * RSS収集を待たず、1本のURLを貼っただけでその場でAI下書きを生成する(SmartQueueと違い
@@ -11,24 +27,18 @@ import { fetchPageText } from "./source-watch/fetchers/html"
  */
 export async function draftFromUrl(url: string): Promise<Draft> {
   if (!isSafeExternalUrl(url)) throw new Error("URLの形式が正しくありません")
-
-  const [existingDrafts, existingArticles] = await Promise.all([readDrafts(), getAllArticles()])
-  const alreadyExists = [
-    ...existingDrafts.drafts.flatMap((d) => d.sourceRefs),
-    ...existingArticles.flatMap((a) => a.sourceRefs),
-  ].some((ref) => ref.url === url)
-  if (alreadyExists) throw new Error("このURLからは既に下書きまたは記事が作成済みです")
+  await assertUrlNotAlreadyDrafted(url)
 
   const page = await fetchPageText(url)
   if (!page.title) {
     throw new Error(
       page.failureReason
-        ? `記事の取得に失敗しました。${page.failureReason}。`
-        : "記事の取得に失敗しました(タイトルを読み取れませんでした)"
+        ? `記事の取得に失敗しました。${page.failureReason}。本文を直接貼り付けて生成することもできます。`
+        : "記事の取得に失敗しました(タイトルを読み取れませんでした)。本文を直接貼り付けて生成することもできます。"
     )
   }
 
-  const item: RawItem = {
+  return generateAndSaveDraft({
     id: generateId(url),
     sourceName: new URL(url).hostname,
     sourceUrl: url,
@@ -37,12 +47,29 @@ export async function draftFromUrl(url: string): Promise<Draft> {
     publishedAt: new Date().toISOString(),
     fetchedAt: new Date().toISOString(),
     imageCandidates: page.imageCandidates,
-  }
+  })
+}
 
-  const draft = await draftFromRawItem(item)
-  const { saved } = await addDrafts([draft])
-  if (saved === 0) throw new Error("似たタイトルの下書き・記事が既に存在するため保存をスキップしました")
-  return draft
+/**
+ * arknets.co.jp等、Bot対策(WAF Challengeなど)でサーバー側からの自動取得ができないサイト向けの
+ * 代替経路。人間が自分のブラウザで見えているページの本文をコピーして貼り付けることで、
+ * fetchPageTextを経由せずAI下書き生成(draftFromRawItem)だけを行う。
+ */
+export async function draftFromPastedText(url: string, title: string, pastedText: string): Promise<Draft> {
+  if (!isSafeExternalUrl(url)) throw new Error("URLの形式が正しくありません")
+  if (!title.trim()) throw new Error("タイトルを入力してください")
+  if (!pastedText.trim()) throw new Error("本文を貼り付けてください")
+  await assertUrlNotAlreadyDrafted(url)
+
+  return generateAndSaveDraft({
+    id: generateId(url),
+    sourceName: new URL(url).hostname,
+    sourceUrl: url,
+    title: title.trim(),
+    snippet: pastedText.trim().slice(0, BODY_TEXT_LIMIT),
+    publishedAt: new Date().toISOString(),
+    fetchedAt: new Date().toISOString(),
+  })
 }
 
 export type UrlDraftBatchResult = { url: string; draft?: Draft; error?: string }
