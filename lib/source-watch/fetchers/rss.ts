@@ -3,6 +3,7 @@ import * as cheerio from "cheerio"
 import type { Source } from "../types"
 import type { FetchResult } from "./types"
 import { extractImageCandidatesFromHtml } from "./html"
+import { FASHIONSNAP_INCLUDE_KEYWORDS, FASHIONSNAP_EXCLUDE_KEYWORDS } from "../../sources"
 
 const parser = new Parser({ timeout: 15000 })
 
@@ -20,13 +21,24 @@ export async function fetchRss(source: Source): Promise<FetchResult> {
   try {
     const feed = await parser.parseURL(feedUrl)
     const needsKeywordFilter = source.id === "press-prtimes"
+    const isFashionsnap = source.id === "domestic-fashionsnap"
 
     const items = feed.items
       .slice(0, needsKeywordFilter ? 60 : 20)
       .filter((entry) => {
-        if (!needsKeywordFilter) return true
-        const haystack = `${entry.title ?? ""} ${entry.contentSnippet ?? ""}`
-        return PR_TIMES_KEYWORDS.some((kw) => haystack.includes(kw))
+        if (needsKeywordFilter) {
+          const haystack = `${entry.title ?? ""} ${entry.contentSnippet ?? ""}`
+          return PR_TIMES_KEYWORDS.some((kw) => haystack.includes(kw))
+        }
+        // FASHIONSNAPはメンズのアパレル系記事・ファッションイベント記事以外(レディース単独/美容/
+        // 事件報道等)も無差別に配信しているため、lib/collector.ts(旧パイプライン)と同じ
+        // include/excludeキーワードで絞り込む(除外語が優先)。定義はlib/sources.tsに集約。
+        if (isFashionsnap) {
+          const haystack = `${entry.title ?? ""} ${entry.contentSnippet ?? ""}`
+          if (FASHIONSNAP_EXCLUDE_KEYWORDS.some((kw) => haystack.includes(kw))) return false
+          return FASHIONSNAP_INCLUDE_KEYWORDS.some((kw) => haystack.includes(kw))
+        }
+        return true
       })
       .filter((entry) => entry.title && entry.link)
       .map((entry) => {

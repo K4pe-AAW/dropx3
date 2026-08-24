@@ -1,5 +1,11 @@
 import Parser from "rss-parser"
-import { SOURCES, PR_TIMES_RSS_URL, PR_TIMES_KEYWORDS, FASHIONSNAP_EXCLUDE_KEYWORDS } from "./sources"
+import {
+  SOURCES,
+  PR_TIMES_RSS_URL,
+  PR_TIMES_KEYWORDS,
+  FASHIONSNAP_INCLUDE_KEYWORDS,
+  FASHIONSNAP_EXCLUDE_KEYWORDS,
+} from "./sources"
 import { RawItem } from "./types"
 import { generateId, getCrawlSources } from "./storage"
 import { youtubeChannelRssUrl } from "./source-watch/youtube"
@@ -33,11 +39,13 @@ function isYoutubeShorts(url: string): boolean {
   }
 }
 
-/** FASHIONSNAPはコスメ/美容・事件報道等ストリートウェアと無関係なジャンルも配信しているため弾く */
-function isFashionsnapExcluded(sourceName: string, item: FeedItem): boolean {
-  if (sourceName !== "FASHIONSNAP") return false
+/** FASHIONSNAPはメンズのアパレル系記事・ファッションイベント記事以外(レディース単独/美容/事件報道等)も
+ *  無差別に配信しているため、タイトル・要約に対象語を含むものだけを通す(除外語が優先) */
+function isFashionsnapAllowed(sourceName: string, item: FeedItem): boolean {
+  if (sourceName !== "FASHIONSNAP") return true
   const haystack = `${item.title ?? ""} ${item.contentSnippet ?? item.content ?? ""}`
-  return FASHIONSNAP_EXCLUDE_KEYWORDS.some((kw) => haystack.includes(kw))
+  if (FASHIONSNAP_EXCLUDE_KEYWORDS.some((kw) => haystack.includes(kw))) return false
+  return FASHIONSNAP_INCLUDE_KEYWORDS.some((kw) => haystack.includes(kw))
 }
 
 /** RSSのcontent(WordPress系フィードのcontent:encoded)はHTMLタグ入りのため、AIに渡す前にタグを除去する */
@@ -51,7 +59,7 @@ function stripHtml(html: string): string {
 function toRawItem(sourceName: string, item: FeedItem): RawItem | null {
   if (!item.title || !item.link) return null
   if (isYoutubeShorts(item.link)) return null
-  if (isFashionsnapExcluded(sourceName, item)) return null
+  if (!isFashionsnapAllowed(sourceName, item)) return null
   // content:encoded(本文全体)を優先する。WordPress系メディアの多くは記事末尾に「販売店舗・
   // オンラインリンク」のような取り扱い店舗一覧を含めており、contentSnippet(要約のみ)だと
   // ここが欠落してai-draft.tsが取り扱い店舗を拾えなくなるため

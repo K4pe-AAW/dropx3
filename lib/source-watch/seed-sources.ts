@@ -405,7 +405,10 @@ export const INITIAL_SOURCES: Source[] = [
     monitoringIntervalMinutes: 180,
     enabled: true,
     imagePolicy: "affiliate_assets",
-    notes: "既存lib/sources.tsから移行。画像に\"Image by: [ブランド名]\"表記を確認済み。",
+    notes:
+      "既存lib/sources.tsから移行。画像に\"Image by: [ブランド名]\"表記を確認済み。2026-08-24、無関係な記事が多いため" +
+      "lib/source-watch/fetchers/rss.tsでlib/sources.tsのFASHIONSNAP_INCLUDE/EXCLUDE_KEYWORDSによる絞り込みを追加" +
+      "(メンズのアパレル系記事・ファッションイベント記事以外は収集しない)。",
   }),
   src({
     id: "domestic-fashion-press",
