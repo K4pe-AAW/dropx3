@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation"
 import type { Article } from "@/lib/types"
 import { categoryLabel } from "@/lib/site-config"
 
-export function ArticlesList({ articles }: { articles: Article[] }) {
+export function ArticlesList({ articles: initialArticles }: { articles: Article[] }) {
   const router = useRouter()
+  const [articles, setArticles] = useState(initialArticles)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -21,6 +22,8 @@ export function ArticlesList({ articles }: { articles: Article[] }) {
     })
   }
 
+  /** router.refresh()だけに頼るとBlobの書き込み伝播遅延で削除後も一覧に残って見えるため、
+   *  成功したらローカルstateから即座に取り除く(件数表示やページングはrefresh()側で追って整合させる) */
   async function deleteSelected() {
     if (selected.size === 0) return
     if (!window.confirm(`チェックした${selected.size}件を非公開にします（下書きに"却下"として残ります）。よろしいですか？`)) return
@@ -35,6 +38,7 @@ export function ArticlesList({ articles }: { articles: Article[] }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "削除に失敗しました")
       setMessage(`${data.deleted}件を非公開にしました`)
+      setArticles((prev) => prev.filter((a) => !selected.has(a.id)))
       setSelected(new Set())
       router.refresh()
     } catch (err) {

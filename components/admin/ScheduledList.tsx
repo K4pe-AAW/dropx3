@@ -10,15 +10,19 @@ function formatScheduledAt(iso: string) {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
-export function ScheduledList({ scheduled }: { scheduled: ScheduledArticle[] }) {
+export function ScheduledList({ scheduled: initialScheduled }: { scheduled: ScheduledArticle[] }) {
   const router = useRouter()
+  const [scheduled, setScheduled] = useState(initialScheduled)
   const [cancelingId, setCancelingId] = useState<string | null>(null)
 
+  /** router.refresh()だけに頼るとBlobの書き込み伝播遅延でキャンセル後も一覧に残って見えるため、
+   *  成功したらローカルstateから即座に取り除く(CrawlSourcesManagerと同じ理由) */
   async function cancel(id: string, title: string) {
     if (!window.confirm(`「${title}」の予約公開をキャンセルしますか？(内容は破棄されます)`)) return
     setCancelingId(id)
     try {
       await fetch(`/api/admin/scheduled/${id}`, { method: "DELETE" })
+      setScheduled((prev) => prev.filter((a) => a.id !== id))
       router.refresh()
     } finally {
       setCancelingId(null)

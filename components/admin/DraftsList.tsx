@@ -12,8 +12,9 @@ function shortDate(iso: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-export function DraftsList({ drafts }: { drafts: Draft[] }) {
+export function DraftsList({ drafts: initialDrafts }: { drafts: Draft[] }) {
   const router = useRouter()
+  const [drafts, setDrafts] = useState(initialDrafts)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -30,6 +31,17 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
     })
   }
 
+  /**
+   * publish-selectedはカバー画像未設定の下書きをスキップする(サーバー側と同じ条件で
+   * クライアント側でも判定できるので、レスポンスのskippedTitles(タイトルの配列で名寄せが
+   * 曖昧)には頼らない)。公開/予約できたものだけをローカル一覧から取り除く。
+   */
+  function idsReadyToPublish(): string[] {
+    return Array.from(selected).filter((id) => drafts.find((d) => d.id === id)?.suggestedCoverImage)
+  }
+
+  /** router.refresh()だけに頼るとBlobの書き込み伝播遅延で削除/公開後も一覧に残って見えるため、
+   *  成功したらローカルstateから即座に取り除く */
   async function deleteSelected() {
     if (selected.size === 0) return
     if (!window.confirm(`チェックした${selected.size}件を削除します。よろしいですか？`)) return
@@ -44,6 +56,7 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "削除に失敗しました")
       setMessage(`${data.deleted}件削除しました`)
+      setDrafts((prev) => prev.filter((d) => !selected.has(d.id)))
       setSelected(new Set())
       router.refresh()
     } catch (err) {
@@ -76,6 +89,8 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
       const parts = [`${data.published}件を${data.scheduled ? "予約" : "公開"}しました`]
       if (data.skipped > 0) parts.push(`${data.skipped}件はカバー画像未設定のためスキップ`)
       setMessage(parts.join(" / "))
+      const readyIds = new Set(idsReadyToPublish())
+      setDrafts((prev) => prev.filter((d) => !readyIds.has(d.id)))
       setSelected(new Set())
       router.refresh()
     } catch (err) {
@@ -106,6 +121,8 @@ export function DraftsList({ drafts }: { drafts: Draft[] }) {
       const parts = [`${data.published}件を次の空き枠へ予約しました`]
       if (data.skipped > 0) parts.push(`${data.skipped}件はカバー画像未設定のためスキップ`)
       setMessage(parts.join(" / "))
+      const readyIds = new Set(idsReadyToPublish())
+      setDrafts((prev) => prev.filter((d) => !readyIds.has(d.id)))
       setSelected(new Set())
       router.refresh()
     } catch (err) {
