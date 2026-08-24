@@ -1,6 +1,6 @@
 import Link from "next/link"
 import type { Metadata } from "next"
-import { getPendingDrafts, getAllArticles, getScheduledArticles, getCrawlSources } from "@/lib/storage"
+import { getPendingDrafts, getAllArticles, getScheduledArticles } from "@/lib/storage"
 import { CollectButton } from "@/components/admin/CollectButton"
 import { DeleteAllDraftsButton } from "@/components/admin/DeleteAllDraftsButton"
 import { LogoutButton } from "@/components/admin/LogoutButton"
@@ -11,7 +11,6 @@ import { DraftsList } from "@/components/admin/DraftsList"
 import { ScheduledList } from "@/components/admin/ScheduledList"
 import { Pagination } from "@/components/Pagination"
 import { UrlDraftForm } from "@/components/admin/UrlDraftForm"
-import { YoutubeSection } from "@/components/admin/CrawlSourcesManager"
 import { DRAFT_GROUPS, draftGroupOf, type DraftGroupKey } from "@/lib/admin-draft-groups"
 
 export const metadata: Metadata = { title: "管理画面" }
@@ -38,12 +37,7 @@ export default async function AdminPage({
   searchParams: Promise<{ page?: string; tab?: string; view?: string; sort?: string }>
 }) {
   const { page, tab, view, sort } = await searchParams
-  const [drafts, articles, scheduled, crawlSources] = await Promise.all([
-    getPendingDrafts(),
-    getAllArticles(),
-    getScheduledArticles(),
-    getCrawlSources(),
-  ])
+  const [drafts, articles, scheduled] = await Promise.all([getPendingDrafts(), getAllArticles(), getScheduledArticles()])
 
   const activeView: ViewKey = view === "published" ? "published" : "drafts"
   const activeSort: SortKey = sort === "oldest" ? "oldest" : "newest"
@@ -158,7 +152,7 @@ export default async function AdminPage({
                       : "h-9 flex items-center rounded-full border border-dashed border-border px-4 text-xs font-semibold hover:bg-secondary"
                   }
                 >
-                  + URL生成 / Youtube追加
+                  + URL生成
                 </Link>
               </div>
 
@@ -189,10 +183,7 @@ export default async function AdminPage({
               )}
 
               {isUrlGenerateTab ? (
-                <div className="space-y-12">
-                  <UrlDraftForm />
-                  <YoutubeSection youtube={crawlSources.youtube} />
-                </div>
+                <UrlDraftForm />
               ) : tabDrafts.length === 0 ? (
                 <p className="text-sm text-muted-foreground">このタブに下書きはありません。</p>
               ) : (
