@@ -28,5 +28,6 @@ export function isWebSearchConfigured(): boolean {
 
 /** 常に空配列。呼び出し側は検索URLを提示する半自動フローへフォールバックする */
 export async function searchWeb(_query: string, _limit = 5): Promise<WebSearchResult[]> {
+  void _limit
   return []
 }
