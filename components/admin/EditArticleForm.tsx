@@ -636,6 +636,19 @@ export function EditArticleForm({ article }: { article: Article }) {
           {unpublishing ? "処理中..." : "非公開にする"}
         </button>
       </div>
+
+      <div className="pt-4 border-t border-border">
+        <button
+          type="button"
+          onClick={() => {
+            router.push("/admin")
+            router.refresh()
+          }}
+          className="w-full h-11 rounded-full border border-border text-sm font-semibold hover:bg-secondary"
+        >
+          管理画面に戻る
+        </button>
+      </div>
     </form>
   )
 }

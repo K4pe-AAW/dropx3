@@ -14,6 +14,10 @@ import { UrlDraftForm, PasteTextDraftForm } from "@/components/admin/UrlDraftFor
 import { DRAFT_GROUPS, draftGroupOf, type DraftGroupKey } from "@/lib/admin-draft-groups"
 
 export const metadata: Metadata = { title: "管理画面" }
+/** タブ切替(searchParamsのみ変化)がクライアント側にキャッシュされ、リンククリックでは
+ *  古い内容のまま(強制リロードでしか更新されない)不具合が報告されたため、/admin/crawl-sources
+ *  と同じくforce-dynamicで明示的にキャッシュを無効化する */
+export const dynamic = "force-dynamic"
 
 /** 運用ガイド(Artifact)。同じfile_pathで再公開すればURLは変わらない */
 const ADMIN_GUIDE_URL = "https://claude.ai/code/artifact/643aaaf7-ac93-4cc5-8924-29896976591c"
