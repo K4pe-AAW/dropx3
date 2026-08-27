@@ -6,13 +6,13 @@
 
 `../4over-fashion-news`（40代男性向けメディアの社内キュレーションツール）とは別プロジェクト。統合しない。
 
-## まず最初にやること
+## ローカル開発
 
-1. **ブランド名を決める** — [lib/site-config.ts](lib/site-config.ts) の `siteConfig.name` / `tagline` /
-   `operatorName` / `contactEmail` を編集する（"DROP DROP DROP" は仮名）。この1ファイルを直せばヘッダー・
-   フッター・メタタグ・法的ページ全部に反映される。
-2. `.env.example` を `.env.local` にコピーして値を埋める。
-3. `npm install && npm run dev` → http://localhost:3000
+ブランド名は **DROP DROP DROP** で確定済み。ブランド設定の正は
+[lib/site-config.ts](lib/site-config.ts) にあり、ヘッダー・フッター・メタタグ・法的ページへ反映される。
+
+1. `.env.example` を `.env.local` にコピーして値を埋める。
+2. `npm install && npm run dev` → http://localhost:3000
 
 ```bash
 cp .env.example .env.local
@@ -108,33 +108,14 @@ uptodate.tokyoはデザイン参考元だが、RSS配信とrobots.txtでのク�
 
 [vercel.json](vercel.json) に `GET /api/cron/collect` を1日1回(22:00 UTC = 7:00 JST)実行する
 Vercel Cronを設定済み。Vercel側で `CRON_SECRET` を設定していれば追加作業なしで動く
-(Mac側のスリープ状態に左右されない)。**HobbyプランはCron Jobsが1日1回までの制限**があるため
-毎時実行はできない。もっと頻度を上げたい場合はVercelをProプランにアップグレードするか、
-下記のローカルcronを併用する。
+(Mac側のスリープ状態に左右されない)。実行頻度を変える場合も、二重実行を避けるため
+クラウド側だけを変更する。
 
-### ローカル自動実行について（開発機のみ・任意）
+### ローカルcronは使用しない
 
-開発機のuser crontabに以下を登録すれば、ローカルでも1時間ごとに収集→AI下書き生成が走る
-（`npm run dev` を起動していなくても、`scripts/collect.ts` を直接叩く方式なので動く）。
-Vercel Cronは1日1回までなので、日中の更新頻度を上げたい場合はこちらを併用するとよい。
-
-```
-0 * * * * cd /Users/koh/Desktop/claude01/drop-drop-drop && /usr/local/bin/npx tsx scripts/collect.ts >> /Users/koh/Desktop/claude01/drop-drop-drop/log.txt 2>&1
-```
-
-- ログ: [log.txt](log.txt)（このファイル自体はgit管理しない想定。`.gitignore`に追記済み）
-- 停止・頻度変更: `crontab -e` で該当行を削除 or 書き換え（例: 30分毎なら `*/30 * * * *`、15分毎なら`*/15 * * * *`）
-- 前提: `.env.local` に有効な `OPENAI_API_KEY` と `BLOB_READ_WRITE_TOKEN` が入っていること。
-  後者が空だと収集自体がエラーで落ちる。前者が空だとRSS取得はできてもAI下書きが全件エラーになる
-  （下書き0件のまま）。いずれもエラーは出るが落ちない設計なので、キーを後から入れれば次回の
-  実行から自動で復旧する。
-- ノートPCの場合、その時刻にスリープしていれば実行機会自体がスキップされる(cron/launchd共通の
-  制約で、後から取り戻すような追いつき実行はしない)。四六時中確実に回したいなら上のVercel Cronに
-  任せるのが確実。
-- RSS取得先（HOUYHNHNM等）への配慮として、頻度を上げすぎないこと。
-- PR TIMESは`lib/sources.ts`の`PR_TIMES_KEYWORDS`でファッション文脈に絞り込み済み。ただし単発の
-  誤爆（無関係な業界の「コラボ」記事等）が下書きに紛れる可能性はゼロではないので、`/admin`での
-  却下は引き続き最後の砦として機能する。
+macOSのTCC保護により、cron / launchdから`~/Desktop`配下へ安定してアクセスできないことを
+実機で確認済み。定期収集は`vercel.json`のVercel Cronを唯一の実行元とし、ローカルcronを
+追加しない。
 
 ## 管理画面 (`/admin`) の認証について
 
@@ -171,9 +152,8 @@ A8.net等のASP審査でもこれらのページの実在が求められるこ�
 
 ## 既知の制約・今後の課題
 
-- **サーバーレス非対応**: `data/*.json` はファイルシステムに書き込むため、Vercel等のサーバーレス環境では
-  公開・下書き保存が永続化されない。VPSやDocker等、ファイルシステムが永続する環境での運用を前提にしている
-  （4over-fashion-newsと同じ制約）。将来的に規模が大きくなるならDB移行を検討。
+- **Blobの同時更新**: 記事・下書き・収集状態はVercel Blob上のJSONを単位として読み書きする。現在の
+  規模では運用できているが、同時編集やデータ量が増えた段階でDB移行を検討する。
 - **「人気の投稿」は実アクセス解析に基づいていない**: 現状は `featured` フラグの記事を代用表示している。
   本物のランキングにするにはGA4連携か簡易ビューカウンターの実装が必要。
 - **画像**: シード記事のカバー画像は `placehold.co` のプレースホルダー。実運用では提携ASP/ブランドが
