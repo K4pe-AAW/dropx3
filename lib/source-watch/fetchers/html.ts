@@ -7,6 +7,8 @@ const UA = "Mozilla/5.0 (compatible; DropwireSourceWatch/1.0; +https://dropx3.co
 
 /** アイコン/ロゴ/トラッキングピクセル等、商品画像ではないと機械的に判定できるものだけ緩く除外する */
 const NOISE_URL_PATTERN = /\b(icon|favicon|logo|sprite|pixel|tracking|avatar|spinner|loading)\b/i
+const COMMERCE_LINK_PATTERN =
+  /(抽選|応募|エントリー|購入|販売|予約|オンラインストア|公式(?:サイト|ストア)|商品ページ|取扱|取り扱い|shop|store|buy|purchase|raffle|lottery|entry|release)/i
 
 /**
  * Content-Typeヘッダー、無ければHTML先頭のmeta charsetから文字コードを検出し、TextDecoderが
@@ -109,6 +111,34 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
   return urls.slice(0, 8)
 }
 
+/** 販売先・抽選応募先として人間に提示する価値があるリンクだけを元HTMLからURL付きで拾う。 */
+export function extractCommerceLinkCandidatesFromHtml(
+  $: ReturnType<typeof cheerio.load>,
+  pageUrl: string
+): { label: string; url: string }[] {
+  const found: { label: string; url: string }[] = []
+  const seen = new Set<string>()
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href")?.trim()
+    const label = $(el).text().replace(/\s+/g, " ").trim()
+    const context = `${label} ${href ?? ""}`
+    if (!href || !COMMERCE_LINK_PATTERN.test(context)) return
+    let url: string
+    try {
+      const parsed = new URL(href, pageUrl)
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return
+      parsed.hash = ""
+      url = parsed.toString()
+    } catch {
+      return
+    }
+    if (seen.has(url)) return
+    seen.add(url)
+    found.push({ label: label.slice(0, 100) || new URL(url).hostname, url })
+  })
+  return found.slice(0, 30)
+}
+
 /**
  * 汎用HTML取得。サイトごとのセレクタ調整はせず、本文らしきリンクをベストエフォートで抽出する
  * (専用パーサーが無いソース向けのフォールバック。運用しながら精度を上げる想定)。
@@ -154,6 +184,7 @@ export type PageTextResult = {
   title?: string
   text?: string
   imageCandidates: string[]
+  commerceLinkCandidates?: { label: string; url: string }[]
   /**
    * 取得自体が失敗した理由(人間の編集者にそのまま見せられる短い日本語の説明)。BEAMS等、
    * ボット対策と見られる無応答(タイムアウト)でVercel本番からも到達不能なサイトが実際にあった
@@ -209,6 +240,7 @@ export async function fetchPageText(url: string): Promise<PageTextResult> {
     const $ = cheerio.load(html)
     const title = $("title").first().text().trim() || $("h1").first().text().trim()
     const imageCandidates = extractImageCandidatesFromHtml($, url)
+    const commerceLinkCandidates = extractCommerceLinkCandidatesFromHtml($, url)
     $("script, style, nav, footer, header, noscript").remove()
     // 価格・発売日が本文末尾にあるECページでも、上限切り捨て前に根拠行を先頭へ移して保持する。
     const text = prioritizeProductFacts(extractBodyText($), BODY_TEXT_LIMIT)
@@ -218,7 +250,7 @@ export async function fetchPageText(url: string): Promise<PageTextResult> {
         failureReason: "ページは取得できましたが本文を認識できませんでした(Bot対策の確認ページ等の可能性があります)",
       }
     }
-    return { title: title || undefined, text: text || undefined, imageCandidates }
+    return { title: title || undefined, text: text || undefined, imageCandidates, commerceLinkCandidates }
   } catch (err) {
     const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
     return {

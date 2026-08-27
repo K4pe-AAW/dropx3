@@ -52,6 +52,7 @@ type SuggestedPurchaseChannel = {
   channelType: "official" | "secondary"
   saleMethod: "regular" | "lottery" | "unknown"
   date?: string
+  url?: string
 }
 
 type SuggestedOfficialLink = { label: string; url: string }
@@ -81,16 +82,23 @@ const CHANNEL_TYPES = new Set(["official", "secondary"])
 const SALE_METHODS = new Set(["regular", "lottery", "unknown"])
 
 /** AIの出力を信用せず型を検証する(URLはAIには一切出力させていない——下でDROP DROP DROP自身の提携済みリンクのみ付与する) */
-function sanitizeSuggestedPurchaseChannels(input: unknown): PurchaseChannelInfo[] {
+export function sanitizeSuggestedPurchaseChannels(
+  input: unknown,
+  allowedUrls: ReadonlySet<string> = new Set()
+): PurchaseChannelInfo[] {
   if (!Array.isArray(input)) return []
   return input
     .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)
-    .map((c) => ({
-      retailerName: typeof c.retailerName === "string" ? c.retailerName.trim() : "",
-      channelType: CHANNEL_TYPES.has(c.channelType as string) ? (c.channelType as PurchaseChannelInfo["channelType"]) : "official",
-      saleMethod: SALE_METHODS.has(c.saleMethod as string) ? (c.saleMethod as PurchaseChannelInfo["saleMethod"]) : "unknown",
-      ...(typeof c.date === "string" && c.date.trim() ? { date: c.date.trim() } : {}),
-    }))
+    .map((c) => {
+      const url = typeof c.url === "string" ? c.url.trim() : ""
+      return {
+        retailerName: typeof c.retailerName === "string" ? c.retailerName.trim() : "",
+        channelType: CHANNEL_TYPES.has(c.channelType as string) ? (c.channelType as PurchaseChannelInfo["channelType"]) : "official",
+        saleMethod: SALE_METHODS.has(c.saleMethod as string) ? (c.saleMethod as PurchaseChannelInfo["saleMethod"]) : "unknown",
+        ...(typeof c.date === "string" && c.date.trim() ? { date: c.date.trim() } : {}),
+        ...(url && allowedUrls.has(url) ? { url } : {}),
+      }
+    })
     .filter((c) => c.retailerName)
 }
 
@@ -142,6 +150,8 @@ export function sanitizeSuggestedColorways(input: unknown): ColorwayInfo[] {
 function autoFillKnownChannelUrls(channels: PurchaseChannelInfo[], searchQuery: string | undefined): PurchaseChannelInfo[] {
   if (!searchQuery) return channels
   return channels.map((c) => {
+    // 元ページから抽出できた店舗固有URLを、汎用アフィリエイト検索URLで上書きしない。
+    if (c.url) return c
     const build = resolveKnownAffiliateBuilder(c.retailerName)
     if (!build) return c
     try {
@@ -154,12 +164,17 @@ function autoFillKnownChannelUrls(channels: PurchaseChannelInfo[], searchQuery: 
 
 function buildUserPrompt(item: RawItem): string {
   const today = new Date().toISOString().slice(0, 10)
+  const commerceLinks = item.commerceLinkCandidates?.length
+    ? item.commerceLinkCandidates.map((link) => `- ${link.label}: ${link.url}`).join("\n")
+    : "(候補なし)"
   return `以下のニュースの要点をもとに、${siteConfig.name}向けの記事下書きを作成してください。
 
 本日の日付: ${today}(西暦の年はこれを基準にすること。あなたの学習データにある年を使わない)
 タイトル: ${item.title}
 出典: ${item.sourceName}
 抜粋: ${item.snippet ?? "(本文抜粋なし。タイトルの情報のみで一般論として書いてください)"}
+元ページから機械抽出した販売・抽選リンク候補(URLはこの一覧からのみ使用可):
+${commerceLinks}
 
 抜粋先頭に「機械抽出した価格・発売日の根拠候補」がある場合、それは本文中で検出した候補です。
 候補行と本文を照合し、対象商品の情報だと確認できた価格・発売日は必ず[アイテム情報]と
@@ -217,7 +232,8 @@ suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと
       "retailerName": "抜粋に実際に名前が出てくる店舗名のみ(例: adidas公式オンライン、mita sneakers、メルカリ)",
       "channelType": "official(ブランド公式サイト/正規販売店) または secondary(セレクトショップ・フリマ・二次流通)",
       "saleMethod": "regular(通常販売) / lottery(抽選) / unknown(記載なし)",
-      "date": "その店舗固有の発売日・応募期間があれば(無ければこのキー自体を省略)。年は抜粋に実際に書かれている場合のみ含める、月日しか無ければ月日のみ書く"
+      "date": "その店舗固有の発売日・応募期間があれば(無ければこのキー自体を省略)。年は抜粋に実際に書かれている場合のみ含める、月日しか無ければ月日のみ書く",
+      "url": "上記の販売・抽選リンク候補に実在する、その店舗の購入・予約・抽選応募URL。該当候補が無ければキー自体を省略"
     }
   ],
   "suggestedOfficialLinks": [
@@ -236,7 +252,7 @@ suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと
 
 注意:
 - 実在しないアフィリエイトURLは絶対に生成しないこと(suggestedAffiliateSearchはあくまで検索キーワード)。
-- suggestedPurchaseChannelsにURLを含めないこと(項目自体が存在しない)。実際の販売リンクは公開前に人間が確認して付ける。店舗名の記載が抜粋に無ければ空配列のままにする。
+- suggestedPurchaseChannelsのurlは、上記の販売・抽選リンク候補に完全一致するURLだけを使うこと。店舗名やドメインから推測・創作しない。店舗名の記載が抜粋にもリンク候補にも無ければ空配列のままにする。
 - suggestedOfficialLinksのurlは、抜粋の本文中に実際に存在するURL文字列をそのまま転記する場合のみ使うこと。ブランド名や店舗名からURLを推測して作らない(例: 「ブランド名.com」のような形で創作しない)。抜粋にURL自体が書かれていなければ空配列のままにする。
 - 価格や発売日など、抜粋の中に実際に数字として書かれている情報は、見落とさず必ず使うこと(抜粋の後半や別の言い回し
   ——「税込」「◯◯円」「◯月◯日発売」等——で書かれている場合も含めてよく探すこと)。ぼかした表現で済ませてよいのは、
@@ -280,7 +296,10 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
   const youtubeVideoId = extractYoutubeVideoId(item.sourceUrl)
   const affiliateSearchKeyword = Array.isArray(result.suggestedAffiliateSearch) ? result.suggestedAffiliateSearch[0] : undefined
   const suggestedPurchaseChannels = autoFillKnownChannelUrls(
-    sanitizeSuggestedPurchaseChannels(result.suggestedPurchaseChannels),
+    sanitizeSuggestedPurchaseChannels(
+      result.suggestedPurchaseChannels,
+      new Set((item.commerceLinkCandidates ?? []).map((link) => link.url))
+    ),
     affiliateSearchKeyword
   )
   // 概要欄等に実際に書かれていたブランド/店舗URL(あれば)。YouTube記事は「チャンネルで見る」の

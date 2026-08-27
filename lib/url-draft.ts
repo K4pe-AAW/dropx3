@@ -49,6 +49,7 @@ export async function draftFromUrl(url: string): Promise<Draft> {
     publishedAt: new Date().toISOString(),
     fetchedAt: new Date().toISOString(),
     imageCandidates: page.imageCandidates,
+    commerceLinkCandidates: page.commerceLinkCandidates,
   })
 }
 
@@ -63,6 +64,16 @@ export async function draftFromPastedText(url: string, title: string, pastedText
   if (!pastedText.trim()) throw new Error("本文を貼り付けてください")
   await assertUrlNotAlreadyDrafted(url)
 
+  const commerceLinkCandidates = [...pastedText.matchAll(/https?:\/\/[^\s<>()\[\]"']+/g)]
+    .map((match) => match[0].replace(/[。、，,.!?！？]+$/, ""))
+    .filter((candidate, index, all) => all.indexOf(candidate) === index)
+    .slice(0, 30)
+    .map((candidate) => ({ label: new URL(candidate).hostname, url: candidate }))
+  const imageCandidates = commerceLinkCandidates
+    .map((candidate) => candidate.url)
+    .filter((candidate) => /\.(?:avif|gif|jpe?g|png|webp)(?:\?|$)/i.test(candidate))
+    .slice(0, 8)
+
   return generateAndSaveDraft({
     id: generateId(url),
     sourceName: new URL(url).hostname,
@@ -70,6 +81,8 @@ export async function draftFromPastedText(url: string, title: string, pastedText
     title: title.trim(),
     // URL取得と同じく、長い貼り付け本文の後半にある価格・発売日を先頭へ移してから上限を適用する。
     snippet: prioritizeProductFacts(pastedText.trim(), BODY_TEXT_LIMIT),
+    commerceLinkCandidates,
+    imageCandidates,
     publishedAt: new Date().toISOString(),
     fetchedAt: new Date().toISOString(),
   })

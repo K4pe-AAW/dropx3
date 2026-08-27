@@ -160,6 +160,8 @@ export type RawItem = {
   fetchedAt: string
   /** 取得済みページのog:image等から機械抽出した画像候補(あれば)。draftFromRawItemの初期カバー画像に使う */
   imageCandidates?: string[]
+  /** 元ページに実在する販売・抽選関連リンク。AIがURLを創作しないための許可リストとしても使う */
+  commerceLinkCandidates?: { label: string; url: string }[]
 }
 
 export type DraftStatus = "pending" | "approved" | "rejected"
