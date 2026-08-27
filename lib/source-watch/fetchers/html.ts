@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio"
 import type { Source } from "../types"
 import type { FetchResult } from "./types"
+import { prioritizeProductFacts } from "@/lib/product-fact-evidence"
 
 const UA = "Mozilla/5.0 (compatible; DropwireSourceWatch/1.0; +https://dropx3.com)"
 
@@ -209,7 +210,8 @@ export async function fetchPageText(url: string): Promise<PageTextResult> {
     const title = $("title").first().text().trim() || $("h1").first().text().trim()
     const imageCandidates = extractImageCandidatesFromHtml($, url)
     $("script, style, nav, footer, header, noscript").remove()
-    const text = extractBodyText($).slice(0, BODY_TEXT_LIMIT)
+    // 価格・発売日が本文末尾にあるECページでも、上限切り捨て前に根拠行を先頭へ移して保持する。
+    const text = prioritizeProductFacts(extractBodyText($), BODY_TEXT_LIMIT)
     if (!title && !text) {
       return {
         imageCandidates,

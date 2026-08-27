@@ -3,6 +3,7 @@ import { generateId, readDrafts, getAllArticles, addDrafts } from "./storage"
 import { draftFromRawItem } from "./ai-draft"
 import { isSafeExternalUrl } from "./affiliate"
 import { fetchPageText, BODY_TEXT_LIMIT } from "./source-watch/fetchers/html"
+import { prioritizeProductFacts } from "./product-fact-evidence"
 
 async function assertUrlNotAlreadyDrafted(url: string): Promise<void> {
   const [existingDrafts, existingArticles] = await Promise.all([readDrafts(), getAllArticles()])
@@ -67,7 +68,8 @@ export async function draftFromPastedText(url: string, title: string, pastedText
     sourceName: new URL(url).hostname,
     sourceUrl: url,
     title: title.trim(),
-    snippet: pastedText.trim().slice(0, BODY_TEXT_LIMIT),
+    // URL取得と同じく、長い貼り付け本文の後半にある価格・発売日を先頭へ移してから上限を適用する。
+    snippet: prioritizeProductFacts(pastedText.trim(), BODY_TEXT_LIMIT),
     publishedAt: new Date().toISOString(),
     fetchedAt: new Date().toISOString(),
   })
