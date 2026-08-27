@@ -201,6 +201,8 @@ export type Draft = {
 
 export type DraftsData = {
   drafts: Draft[]
+  /** 管理画面で削除済み。自動収集では再生成せず、URL直接入力時だけ解除する */
+  dismissedSourceUrls?: string[]
 }
 
 // --- クローリング対象(RSS収集パイプラインが巡回するYouTubeチャンネル・ブランド公式サイト) ---

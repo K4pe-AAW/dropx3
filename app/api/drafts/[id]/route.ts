@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDraftById, removeDraft, mutateDrafts } from "@/lib/storage"
+import { getDraftById, dismissDrafts, mutateDrafts } from "@/lib/storage"
 import {
   sanitizeColorways,
   sanitizeGalleryImages,
@@ -87,11 +87,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 /**
- * 却下も公開/予約と同じ理由(draft-publish.ts参照)で、直前にgetDraftByIdが見つけられなくても
- * ブロックしない。removeDraftはfilterするだけなので対象が既に存在しなくても安全(冪等)。
+ * 削除した下書きのURLは非表示のブロック履歴として保持し、収集時の既処理URLとして使う。
+ * 対象が既に存在しなくてもdismissDraftsは安全(冪等)。
  */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await removeDraft(id)
+  await dismissDrafts([id])
   return NextResponse.json({ ok: true })
 }

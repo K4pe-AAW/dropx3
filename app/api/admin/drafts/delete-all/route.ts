@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server"
-import { mutateDrafts } from "@/lib/storage"
+import { readDrafts, dismissDrafts } from "@/lib/storage"
 
 export async function POST() {
-  let deleted = 0
-  await mutateDrafts((data) => {
-    const before = data.drafts.length
-    data.drafts = data.drafts.filter((d) => d.status !== "pending")
-    deleted = before - data.drafts.length
-    return data
-  })
+  const { drafts } = await readDrafts()
+  const deleted = await dismissDrafts(drafts.filter((d) => d.status === "pending").map((d) => d.id))
   return NextResponse.json({ deleted })
 }

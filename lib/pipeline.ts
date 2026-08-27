@@ -30,6 +30,7 @@ export async function runCollectAndDraft(): Promise<CollectSummary> {
   const [existingDrafts, existingArticles] = await Promise.all([readDrafts(), getAllArticles()])
   const existingUrls = new Set([
     ...existingDrafts.drafts.flatMap((d) => d.sourceRefs.map((r) => r.url)),
+    ...(existingDrafts.dismissedSourceUrls ?? []),
     ...existingArticles.flatMap((a) => a.sourceRefs.map((r) => r.url)),
   ])
   const targets = items.filter((item) => !existingUrls.has(item.sourceUrl)).slice(0, MAX_DRAFTS_PER_RUN)

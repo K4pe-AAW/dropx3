@@ -7,6 +7,7 @@ import { fetchPageText, BODY_TEXT_LIMIT } from "./source-watch/fetchers/html"
 async function assertUrlNotAlreadyDrafted(url: string): Promise<void> {
   const [existingDrafts, existingArticles] = await Promise.all([readDrafts(), getAllArticles()])
   const alreadyExists = [
+    // dismissedSourceUrlsは意図的に含めない。人間がURLを直接入力した場合だけ再生成を許可する。
     ...existingDrafts.drafts.flatMap((d) => d.sourceRefs),
     ...existingArticles.flatMap((a) => a.sourceRefs),
   ].some((ref) => ref.url === url)
@@ -15,7 +16,7 @@ async function assertUrlNotAlreadyDrafted(url: string): Promise<void> {
 
 async function generateAndSaveDraft(item: RawItem): Promise<Draft> {
   const draft = await draftFromRawItem(item)
-  const { saved } = await addDrafts([draft])
+  const { saved } = await addDrafts([draft], { allowDismissedUrlRevival: true })
   if (saved === 0) throw new Error("似たタイトルの下書き・記事が既に存在するため保存をスキップしました")
   return draft
 }

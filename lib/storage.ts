@@ -11,6 +11,7 @@ import {
   YoutubeCrawlSource,
   BrandCrawlSource,
 } from "./types"
+import { clearDismissedUrls, dismissDraftsInData } from "./draft-dismissal"
 
 export const ARTICLES_PATH = "data/articles.json"
 export const DRAFTS_PATH = "data/drafts.json"
@@ -354,7 +355,7 @@ function styleCodesOf(draft: Draft): string[] {
  */
 export async function addDrafts(
   newDrafts: Draft[],
-  options?: { knownTitles?: Set<string> }
+  options?: { knownTitles?: Set<string>; allowDismissedUrlRevival?: boolean }
 ): Promise<{ saved: number; skipped: number }> {
   let saved = 0
   let skipped = 0
@@ -363,9 +364,14 @@ export async function addDrafts(
     saved = 0
     skipped = 0
     for (const draft of newDrafts) {
-      const isUrlDup = data.drafts.some((d) =>
-        d.sourceRefs.some((ref) => draft.sourceRefs.some((r) => r.url === ref.url))
-      )
+      // URL直接入力だけは、以前に人間が削除した同URLの下書きを明示的に復活できる。
+      // 新規下書きの保存に成功する瞬間まで削除URLを残し、生成失敗時に自動収集の
+      // ブロック履歴が消えないよう、ここで原子的に入れ替える。
+      const draftUrls = new Set(draft.sourceRefs.map((r) => r.url))
+      const isDismissed = (data.dismissedSourceUrls ?? []).some((url) => draftUrls.has(url))
+      const isUrlDup =
+        data.drafts.some((d) => d.sourceRefs.some((ref) => draftUrls.has(ref.url))) ||
+        (isDismissed && !options?.allowDismissedUrlRevival)
       const isTitleDup =
         data.drafts.some((d) => d.title === draft.title) || (options?.knownTitles?.has(draft.title) ?? false)
       if (isUrlDup || isTitleDup) {
@@ -388,6 +394,9 @@ export async function addDrafts(
         }
       }
 
+      if (isDismissed && options?.allowDismissedUrlRevival) {
+        clearDismissedUrls(data, draftUrls)
+      }
       data.drafts.unshift(draft)
       saved++
     }
@@ -406,6 +415,20 @@ export async function updateDraftStatus(id: string, status: Draft["status"]) {
     if (draft) draft.status = status
     return data
   })
+}
+
+/**
+ * 管理画面で削除した下書きのURLを軽量なブロックリストへ残す。
+ * 本文は削除して一覧から隠すが、自動収集では同URLを再生成しない。
+ */
+export async function dismissDrafts(ids: Iterable<string>): Promise<number> {
+  const idSet = new Set(ids)
+  let dismissed = 0
+  await mutateDrafts((data) => {
+    dismissed = dismissDraftsInData(data, idSet)
+    return data
+  })
+  return dismissed
 }
 
 export async function removeDraft(id: string) {
