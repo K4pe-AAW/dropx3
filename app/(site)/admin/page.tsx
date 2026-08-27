@@ -213,7 +213,11 @@ export default async function AdminPage({
                 <p className="text-sm text-muted-foreground">このタブに下書きはありません。</p>
               ) : (
                 <>
-                  <DraftsList drafts={pageDrafts} />
+                  {/* DraftsListは削除・公開直後の即時反映用にpropsをローカルstateへ保持する。
+                   * App Routerはクエリだけの遷移では同じClient Componentを再利用するため、keyが無いと
+                   * タブ/並び順/ページを変えても最初の一覧が残る。表示条件が変わる時だけ再マウントし、
+                   * 同じ画面内の削除・公開では既存の楽観的更新を維持する。 */}
+                  <DraftsList key={`${activeTab}:${activeSort}:${currentPage}`} drafts={pageDrafts} />
                   <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
