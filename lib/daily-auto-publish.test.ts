@@ -1,9 +1,18 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { ARTICLES_PER_AUTO_PUBLISH_RUN, buildRequiredAffiliateLinks, jstSlotKey } from "./daily-auto-publish"
+import {
+  ARTICLES_PER_AUTO_PUBLISH_RUN,
+  MAX_YOUTUBE_ARTICLES_PER_RUN,
+  buildRequiredAffiliateLinks,
+  jstSlotKey,
+} from "./daily-auto-publish"
 
 test("各時刻の公開目標は4記事", () => {
   assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 4)
+})
+
+test("各公開枠のYouTube記事は最大1件", () => {
+  assert.equal(MAX_YOUTUBE_ARTICLES_PER_RUN, 1)
 })
 
 test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する", () => {

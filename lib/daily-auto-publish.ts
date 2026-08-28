@@ -17,6 +17,7 @@ import type { AffiliateLink, Article, Draft, PurchaseChannelInfo } from "./types
 const STATE_PATH = "data/daily-auto-publish-state.json"
 export const AUTO_PUBLISH_HOURS_JST = [8, 12, 18, 20] as const
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 4
+export const MAX_YOUTUBE_ARTICLES_PER_RUN = 1
 
 type RunRecord = { startedAt: string; publishedArticleIds?: string[]; titles?: string[] }
 type AutoPublishState = { runs: Record<string, RunRecord> }
@@ -52,13 +53,16 @@ function shuffled<T>(items: T[]): T[] {
   return copy
 }
 
-function officialSourceUrl(draft: Draft): string | null {
+function referenceSourceUrl(draft: Draft): string | null {
   const url = draft.suggestedOfficialLinks?.find((link) => isSafeExternalUrl(link.url))?.url
   if (url) return url
   if (draft.suggestedYoutubeVideoId) {
     return draft.sourceRefs.find((ref) => /(?:youtube\.com|youtu\.be)/i.test(ref.url))?.url ?? null
   }
-  return null
+  // 通常記事は管理画面でカバー画像まで確認済みのものに限り、元記事を再確認用URLとして使う。
+  // 画像未確認のRSS下書きをそのまま自動公開する経路にはしない。
+  if (!draft.suggestedCoverImage) return null
+  return draft.sourceRefs.find((ref) => isSafeExternalUrl(ref.url))?.url ?? null
 }
 
 function hasPublishableTheme(draft: Draft): boolean {
@@ -79,7 +83,7 @@ async function reachable(url: string): Promise<boolean> {
   }
 }
 
-async function saveOfficialCoverImage(imageUrl: string, draft: Draft): Promise<string> {
+async function saveCoverImage(imageUrl: string, draft: Draft): Promise<string> {
   const res = await fetch(imageUrl, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; DropDropDropImageCollector/1.0; +https://dropx3.com)" },
     signal: AbortSignal.timeout(12000),
@@ -120,8 +124,8 @@ async function refreshedPurchaseChannels(
 
 async function prepareArticle(draft: Draft): Promise<Article> {
   if (!hasPublishableTheme(draft)) throw new Error("テーマに必要な本文が不足しています")
-  const sourceUrl = officialSourceUrl(draft)
-  if (!sourceUrl) throw new Error("公式リンクがありません")
+  const sourceUrl = referenceSourceUrl(draft)
+  if (!sourceUrl) throw new Error("確認済み画像または参照リンクがありません")
   const query = draft.suggestedAffiliateSearch[0]?.trim()
   if (!query) throw new Error("アフィリエイト検索語がありません")
   // 設定不足ならOpenAIや公式サイト取得を始める前に止め、無駄なAPI利用を避ける。
@@ -139,11 +143,11 @@ async function prepareArticle(draft: Draft): Promise<Article> {
   )
   const sourceCoverImage = draft.suggestedYoutubeVideoId
     ? `https://img.youtube.com/vi/${draft.suggestedYoutubeVideoId}/hqdefault.jpg`
-    : page.imageCandidates[0]
+    : draft.suggestedCoverImage
   if (!sourceCoverImage) throw new Error("公式ページから一致画像を取得できません")
   const coverImage = draft.suggestedYoutubeVideoId
     ? sourceCoverImage
-    : await saveOfficialCoverImage(sourceCoverImage, draft)
+    : await saveCoverImage(sourceCoverImage, draft)
 
   const purchaseChannels = await refreshedPurchaseChannels(
     draft.suggestedPurchaseChannels ?? [],
@@ -198,8 +202,17 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   const { drafts } = await readDrafts()
   const errors: string[] = []
   const publishedArticles: Article[] = []
-  for (const draft of shuffled(drafts)) {
+  // 通常記事を先に試し、YouTubeは各公開枠で最大1件に抑える。
+  // YouTubeはサムネイルと動画URLが常に揃うため、完全ランダムだと通常記事より成功しやすく、
+  // 公開面がYouTubeだけに偏ってしまう。
+  const candidates = [
+    ...shuffled(drafts.filter((draft) => !draft.suggestedYoutubeVideoId)),
+    ...shuffled(drafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId))),
+  ]
+  let youtubePublished = 0
+  for (const draft of candidates) {
     if (publishedArticles.length >= ARTICLES_PER_AUTO_PUBLISH_RUN) break
+    if (draft.suggestedYoutubeVideoId && youtubePublished >= MAX_YOUTUBE_ARTICLES_PER_RUN) continue
     try {
       const article = await prepareArticle(draft)
       await mutateArticles((data) => {
@@ -212,6 +225,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
         return data
       })
       publishedArticles.push(article)
+      if (draft.suggestedYoutubeVideoId) youtubePublished++
     } catch (err) {
       errors.push(`${draft.title}: ${err instanceof Error ? err.message : String(err)}`)
     }
