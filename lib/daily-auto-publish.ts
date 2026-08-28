@@ -16,8 +16,9 @@ import type { AffiliateLink, Article, Draft, PurchaseChannelInfo } from "./types
 
 const STATE_PATH = "data/daily-auto-publish-state.json"
 export const AUTO_PUBLISH_HOURS_JST = [8, 12, 18, 20] as const
+export const ARTICLES_PER_AUTO_PUBLISH_RUN = 4
 
-type RunRecord = { startedAt: string; publishedArticleId?: string; title?: string }
+type RunRecord = { startedAt: string; publishedArticleIds?: string[]; titles?: string[] }
 type AutoPublishState = { runs: Record<string, RunRecord> }
 
 export function jstSlotKey(now = new Date()): string | null {
@@ -178,12 +179,13 @@ async function prepareArticle(draft: Draft): Promise<Article> {
 
 export async function runDailyAutoPublish(now = new Date()): Promise<{
   published: boolean
+  publishedCount: number
   slot: string | null
-  title?: string
+  titles?: string[]
   skipped?: string[]
 }> {
   const slot = jstSlotKey(now)
-  if (!slot) return { published: false, slot: null, skipped: ["対象時刻ではありません"] }
+  if (!slot) return { published: false, publishedCount: 0, slot: null, skipped: ["対象時刻ではありません"] }
 
   let alreadyStarted = false
   await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
@@ -191,11 +193,13 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     else state.runs[slot] = { startedAt: now.toISOString() }
     return state
   })
-  if (alreadyStarted) return { published: false, slot, skipped: ["この時刻は処理済みです"] }
+  if (alreadyStarted) return { published: false, publishedCount: 0, slot, skipped: ["この時刻は処理済みです"] }
 
   const { drafts } = await readDrafts()
   const errors: string[] = []
+  const publishedArticles: Article[] = []
   for (const draft of shuffled(drafts)) {
+    if (publishedArticles.length >= ARTICLES_PER_AUTO_PUBLISH_RUN) break
     try {
       const article = await prepareArticle(draft)
       await mutateArticles((data) => {
@@ -207,14 +211,24 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
         data.drafts = data.drafts.filter((item) => item.id !== draft.id)
         return data
       })
-      await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
-        state.runs[slot] = { startedAt: state.runs[slot]?.startedAt ?? now.toISOString(), publishedArticleId: article.id, title: article.title }
-        return state
-      })
-      return { published: true, slot, title: article.title, skipped: errors }
+      publishedArticles.push(article)
     } catch (err) {
       errors.push(`${draft.title}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
-  return { published: false, slot, skipped: errors.length > 0 ? errors : ["下書きがありません"] }
+  await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
+    state.runs[slot] = {
+      startedAt: state.runs[slot]?.startedAt ?? now.toISOString(),
+      publishedArticleIds: publishedArticles.map((article) => article.id),
+      titles: publishedArticles.map((article) => article.title),
+    }
+    return state
+  })
+  return {
+    published: publishedArticles.length > 0,
+    publishedCount: publishedArticles.length,
+    slot,
+    titles: publishedArticles.map((article) => article.title),
+    skipped: errors.length > 0 ? errors : publishedArticles.length === 0 ? ["下書きがありません"] : [],
+  }
 }
