@@ -2,6 +2,7 @@ import * as cheerio from "cheerio"
 import type { Source } from "../types"
 import type { FetchResult } from "./types"
 import { prioritizeProductFacts } from "@/lib/product-fact-evidence"
+import { canonicalImageKey, deduplicateImageUrls } from "@/lib/image-candidates"
 
 const UA = "Mozilla/5.0 (compatible; DropwireSourceWatch/1.0; +https://dropx3.com)"
 
@@ -58,17 +59,38 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
 
   const add = (src: string | undefined) => {
     const resolved = resolveImageUrl(src, pageUrl)
-    if (!resolved || seen.has(resolved) || NOISE_URL_PATTERN.test(resolved)) return
-    seen.add(resolved)
+    if (!resolved || NOISE_URL_PATTERN.test(resolved)) return
+    const key = canonicalImageKey(resolved)
+    if (seen.has(key)) return
+    seen.add(key)
     urls.push(resolved)
   }
 
-  add($('meta[property="og:image"]').attr("content"))
-  add($('meta[name="twitter:image"]').attr("content"))
+  const addSrcset = (srcset: string | undefined) => {
+    if (!srcset) return
+    // srcsetは通常、小→大の順。最大候補を先に採用し、サムネイルだけを拾うのを避ける。
+    const candidates = srcset
+      .split(",")
+      .map((part) => part.trim().split(/\s+/)[0])
+      .filter(Boolean)
+    add(candidates.at(-1))
+  }
 
-  $("article img, main img, .entry-content img, .post-content img, .content img")
-    .slice(0, 10)
-    .each((_, el) => add($(el).attr("src") || $(el).attr("data-src")))
+  const addElement = (el: cheerio.Element) => {
+    const node = $(el)
+    const width = Number(node.attr("width") || 0)
+    const height = Number(node.attr("height") || 0)
+    if ((width > 0 && width <= 64) || (height > 0 && height <= 64)) return
+    addSrcset(node.attr("data-srcset") || node.attr("srcset"))
+    add(node.attr("data-original") || node.attr("data-lazy-src") || node.attr("data-src") || node.attr("src"))
+  }
+
+  $('meta[property="og:image"], meta[property="og:image:url"], meta[name="twitter:image"], meta[name="twitter:image:src"]')
+    .each((_, el) => add($(el).attr("content")))
+
+  $("article img, article source, main img, main source, .entry-content img, .entry-content source, .post-content img, .post-content source, .content img, .content source")
+    .slice(0, 30)
+    .each((_, el) => addElement(el))
 
   /**
    * 楽天市場の商品ページ等、<article>/<main>のような意味づけを持たない古い形式のページでは
@@ -92,9 +114,9 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
     const isSpecificEnough = primaryDir.split("/").filter(Boolean).length >= 3
     if (isSpecificEnough) {
       $("img")
-        .slice(0, 60)
+        .slice(0, 100)
         .each((_, el) => {
-          const src = $(el).attr("src") || $(el).attr("data-src")
+          const src = $(el).attr("data-original") || $(el).attr("data-lazy-src") || $(el).attr("data-src") || $(el).attr("src")
           const resolved = resolveImageUrl(src, pageUrl)
           if (!resolved) return
           let path: string
@@ -103,12 +125,12 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
           } catch {
             return
           }
-          if (path.startsWith(primaryDir)) add(src)
+          if (path.startsWith(primaryDir)) addElement(el)
         })
     }
   }
 
-  return urls.slice(0, 8)
+  return deduplicateImageUrls(urls, 12)
 }
 
 /** 販売先・抽選応募先として人間に提示する価値があるリンクだけを元HTMLからURL付きで拾う。 */

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import type { Draft, Category, BrandCrawlSource, ColorwayInfo } from "@/lib/types"
 import { siteConfig } from "@/lib/site-config"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
+import { canonicalImageKey } from "@/lib/image-candidates"
 
 type LinkDraft = { label: string; retailer: string; url: string; price: string }
 type GalleryImageDraft = { url: string; alt: string; credit: string }
@@ -353,12 +354,15 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
 
       const imageCandidates = Array.isArray(data.imageCandidates) ? (data.imageCandidates as string[]) : []
       if (imageCandidates.length > 0) {
-        const existingUrls = new Set([coverImage, ...galleryImages.map((g) => g.url)].filter(Boolean))
+        const existingUrls = new Set(
+          [coverImage, ...galleryImages.map((g) => g.url)].filter(Boolean).map(canonicalImageKey)
+        )
         let nextCoverImage = coverImage
         const newImages: GalleryImageDraft[] = []
         for (const u of imageCandidates) {
-          if (existingUrls.has(u)) continue
-          existingUrls.add(u)
+          const imageKey = canonicalImageKey(u)
+          if (existingUrls.has(imageKey)) continue
+          existingUrls.add(imageKey)
           if (!nextCoverImage) {
             nextCoverImage = u
             continue
