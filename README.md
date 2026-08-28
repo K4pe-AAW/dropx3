@@ -106,10 +106,21 @@ uptodate.tokyoはデザイン参考元だが、RSS配信とrobots.txtでのク�
 
 ### 本番の自動実行について
 
-[vercel.json](vercel.json) に `GET /api/cron/collect` を1日1回(22:00 UTC = 7:00 JST)実行する
+[vercel.json](vercel.json) に `GET /api/cron/collect` を6時間おきに実行する
 Vercel Cronを設定済み。Vercel側で `CRON_SECRET` を設定していれば追加作業なしで動く
 (Mac側のスリープ状態に左右されない)。実行頻度を変える場合も、二重実行を避けるため
 クラウド側だけを変更する。
+
+#### 下書きの日次自動整備・公開
+
+`/api/cron/daily-auto-publish`を毎日8:00 / 12:00 / 18:00 / 20:00（JST）に実行する。
+各回、公開条件を満たす下書きをランダムに1件選び、公式ページで価格・発売日・販売／抽選リンクを
+再確認し、公式画像をBlobへ自己ホストしたうえで即時公開する。同じ時刻の再実行は状態ファイルで防ぐ。
+公式リンク・一致画像・具体的な検索語のいずれかが無い記事は公開しない。
+
+アフィリエイト検索リンクは、楽天市場→メルカリ→ZOZOTOWN→SNKRDUNK→Amazon→Yahoo!ショッピングの
+順で6件すべてを付ける。AmazonとZOZOTOWNは、`.env.example`記載の専用IDが本番環境に設定されるまで
+自動公開を開始しない（他サイトのトラッキングIDを流用しない）。
 
 ### ローカルcronは使用しない
 

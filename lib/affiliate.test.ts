@@ -5,7 +5,45 @@ import {
   buildYahooShoppingSearchLink,
   buildSnkrdunkSearchLink,
   buildRakutenSearchLink,
+  buildAmazonSearchLink,
+  buildZozotownSearchLink,
+  QUICK_AFFILIATE_RETAILERS,
+  sortAffiliateLinks,
 } from "./affiliate"
+
+test("クイック追加の並び順は指定の6店舗", () => {
+  assert.deepEqual(QUICK_AFFILIATE_RETAILERS.map((item) => item.retailer), [
+    "楽天市場", "メルカリ", "ZOZOTOWN", "SNKRDUNK", "Amazon", "Yahoo!ショッピング",
+  ])
+})
+
+test("保存順が違う既存記事も指定の店舗順へ並べ替える", () => {
+  const links = ["Yahoo!ショッピング", "Amazon", "楽天市場"].map((retailer) => ({
+    retailer, label: retailer, url: "https://example.com",
+  }))
+  assert.deepEqual(sortAffiliateLinks(links).map((link) => link.retailer), ["楽天市場", "Amazon", "Yahoo!ショッピング"])
+})
+
+test("Amazon検索リンクに設定済みトラッキングIDを付与する", () => {
+  const previous = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG
+  process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG = "dropx3-test-22"
+  try {
+    assert.match(buildAmazonSearchLink("Nike Air Max 90").url, /[?&]tag=dropx3-test-22/)
+  } finally {
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG
+    else process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG = previous
+  }
+})
+
+test("ZOZOTOWN検索リンクは提携PID未設定なら生成しない", () => {
+  const previous = process.env.NEXT_PUBLIC_ZOZOTOWN_VALUECOMMERCE_PID
+  delete process.env.NEXT_PUBLIC_ZOZOTOWN_VALUECOMMERCE_PID
+  try {
+    assert.throws(() => buildZozotownSearchLink("Nike Air Max 90"), /not configured/)
+  } finally {
+    if (previous !== undefined) process.env.NEXT_PUBLIC_ZOZOTOWN_VALUECOMMERCE_PID = previous
+  }
+})
 
 test("buildMercariSearchLink: 具体的なキーワードから検索URLを組み立てる", () => {
   const link = buildMercariSearchLink("Nike Air Max 90 IM9616-001")

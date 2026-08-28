@@ -19,7 +19,21 @@ export function isSafeExternalUrl(url: string): boolean {
 }
 
 export function sanitizeAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
-  return links.filter((link) => isSafeExternalUrl(link.url))
+  return sortAffiliateLinks(links.filter((link) => isSafeExternalUrl(link.url)))
+}
+
+const AFFILIATE_RETAILER_ORDER = ["楽天市場", "メルカリ", "ZOZOTOWN", "SNKRDUNK", "Amazon", "Yahoo!ショッピング"]
+
+/** 保存済みの古い記事を含め、公開画面では常に指定順で表示する。未知の店舗は末尾で元の順序を保つ。 */
+export function sortAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
+  return links
+    .map((link, index) => ({ link, index }))
+    .sort((a, b) => {
+      const ai = AFFILIATE_RETAILER_ORDER.findIndex((name) => a.link.retailer.toLowerCase().includes(name.toLowerCase()))
+      const bi = AFFILIATE_RETAILER_ORDER.findIndex((name) => b.link.retailer.toLowerCase().includes(name.toLowerCase()))
+      return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi) || a.index - b.index
+    })
+    .map(({ link }) => link)
 }
 
 /** カテゴリ名だけの検索語("スニーカー"等)は商品との関連性が薄いため使用禁止にする */
@@ -103,6 +117,37 @@ export function buildRakutenSearchLink(query: string): AffiliateLink {
   }
 }
 
+/** Amazonアソシエイトの商品検索リンク。タグは公開URLに露出する識別子なのでNEXT_PUBLICで共有する。 */
+export function buildAmazonSearchLink(query: string): AffiliateLink {
+  const trimmed = query.trim()
+  if (!trimmed || BANNED_GENERIC_QUERIES.has(trimmed)) {
+    throw new Error(`buildAmazonSearchLink: query is missing or too generic: ${JSON.stringify(query)}`)
+  }
+  const tag = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG?.trim()
+  if (!tag) throw new Error("buildAmazonSearchLink: NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG is not configured")
+  const url = new URL("https://www.amazon.co.jp/s")
+  url.searchParams.set("k", trimmed)
+  url.searchParams.set("tag", tag)
+  return { label: "Amazonで探す", retailer: "Amazon", url: url.toString() }
+}
+
+/** ZOZOTOWNの商品検索リンク(ValueCommerce)。提携後に発行されたPIDだけを設定して使う。 */
+export function buildZozotownSearchLink(query: string): AffiliateLink {
+  const trimmed = query.trim()
+  if (!trimmed || BANNED_GENERIC_QUERIES.has(trimmed)) {
+    throw new Error(`buildZozotownSearchLink: query is missing or too generic: ${JSON.stringify(query)}`)
+  }
+  const pid = process.env.NEXT_PUBLIC_ZOZOTOWN_VALUECOMMERCE_PID?.trim()
+  if (!pid) throw new Error("buildZozotownSearchLink: NEXT_PUBLIC_ZOZOTOWN_VALUECOMMERCE_PID is not configured")
+  const sid = process.env.NEXT_PUBLIC_VALUECOMMERCE_SID?.trim() || "3778012"
+  const target = `https://zozo.jp/search/?p_keyv=${encodeURIComponent(trimmed)}`
+  return {
+    label: "ZOZOTOWNで探す",
+    retailer: "ZOZOTOWN",
+    url: `https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=${encodeURIComponent(sid)}&pid=${encodeURIComponent(pid)}&vc_url=${encodeURIComponent(target)}`,
+  }
+}
+
 /**
  * 記事編集画面(PublishForm/EditArticleForm)で共有するクイック追加店舗リスト。1箇所にまとめておき、
  * 自動化できる店舗が増えた際に両フォームを個別に直す必要が無いようにする。
@@ -111,14 +156,12 @@ export function buildRakutenSearchLink(query: string): AffiliateLink {
  * 発行して手動で貼ってもらう(実在しないトラッキングコードを捏造しないため)。
  */
 export const QUICK_AFFILIATE_RETAILERS: { label: string; retailer: string; build?: (query: string) => AffiliateLink }[] = [
-  { label: "メルカリで探す", retailer: "メルカリ", build: buildMercariSearchLink },
-  { label: "Yahoo!ショッピングで探す", retailer: "Yahoo!ショッピング", build: buildYahooShoppingSearchLink },
-  { label: "スニダンで探す", retailer: "SNKRDUNK", build: buildSnkrdunkSearchLink },
   { label: "楽天市場で探す", retailer: "楽天市場", build: buildRakutenSearchLink },
-  { label: "ZOZOTOWNで見る", retailer: "ZOZOTOWN" },
-  // Amazonアソシエイトのトラッキングタグが無いため、他店舗のようなURL自動生成はまだできない
-  // (2026-08-22時点)。タグを取得したらbuildAmazonSearchLinkを追加してbuildを持たせる。
-  { label: "Amazonで見る", retailer: "Amazon" },
+  { label: "メルカリで探す", retailer: "メルカリ", build: buildMercariSearchLink },
+  { label: "ZOZOTOWNで探す", retailer: "ZOZOTOWN", build: buildZozotownSearchLink },
+  { label: "スニダンで探す", retailer: "SNKRDUNK", build: buildSnkrdunkSearchLink },
+  { label: "Amazonで探す", retailer: "Amazon", build: buildAmazonSearchLink },
+  { label: "Yahoo!ショッピングで探す", retailer: "Yahoo!ショッピング", build: buildYahooShoppingSearchLink },
 ]
 
 /** 表記ゆれ(カタカナ/英字/「!」の有無等)を吸収するための店舗名エイリアス。上のQUICK_AFFILIATE_RETAILERSと
@@ -129,6 +172,8 @@ const RETAILER_URL_ALIASES: { aliases: string[]; build: (query: string) => Affil
   { aliases: ["yahoo", "ヤフーショッピング", "Yahoo!ショッピング"], build: buildYahooShoppingSearchLink },
   { aliases: ["スニダン", "snkrdunk"], build: buildSnkrdunkSearchLink },
   { aliases: ["楽天"], build: buildRakutenSearchLink },
+  { aliases: ["zozo", "zozotown"], build: buildZozotownSearchLink },
+  { aliases: ["amazon", "アマゾン"], build: buildAmazonSearchLink },
 ]
 
 /**

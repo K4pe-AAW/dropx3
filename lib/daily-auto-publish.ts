@@ -1,0 +1,220 @@
+import crypto from "node:crypto"
+import { QUICK_AFFILIATE_RETAILERS, isSafeExternalUrl } from "./affiliate"
+import { brushUpDraftWithUrl } from "./draft-brushup"
+import { fetchPageText } from "./source-watch/fetchers/html"
+import {
+  generateId,
+  generateSlug,
+  mutateArticles,
+  mutateDrafts,
+  mutateJson,
+  putBlobFile,
+  readDrafts,
+} from "./storage"
+import { canonicalBrandNames } from "./brands"
+import type { AffiliateLink, Article, Draft, PurchaseChannelInfo } from "./types"
+
+const STATE_PATH = "data/daily-auto-publish-state.json"
+export const AUTO_PUBLISH_HOURS_JST = [8, 12, 18, 20] as const
+
+type RunRecord = { startedAt: string; publishedArticleId?: string; title?: string }
+type AutoPublishState = { runs: Record<string, RunRecord> }
+
+export function jstSlotKey(now = new Date()): string | null {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now)
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
+  const hour = Number(get("hour"))
+  if (!AUTO_PUBLISH_HOURS_JST.includes(hour as (typeof AUTO_PUBLISH_HOURS_JST)[number])) return null
+  return `${get("year")}-${get("month")}-${get("day")}-${String(hour).padStart(2, "0")}`
+}
+
+export function buildRequiredAffiliateLinks(query: string): AffiliateLink[] {
+  return QUICK_AFFILIATE_RETAILERS.map((item) => {
+    if (!item.build) throw new Error(`${item.retailer}の自動リンク生成が未設定です`)
+    return item.build(query)
+  })
+}
+
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1)
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
+function officialSourceUrl(draft: Draft): string | null {
+  const url = draft.suggestedOfficialLinks?.find((link) => isSafeExternalUrl(link.url))?.url
+  if (url) return url
+  if (draft.suggestedYoutubeVideoId) {
+    return draft.sourceRefs.find((ref) => /(?:youtube\.com|youtu\.be)/i.test(ref.url))?.url ?? null
+  }
+  return null
+}
+
+function hasPublishableTheme(draft: Draft): boolean {
+  return Boolean(draft.title.trim() && draft.excerpt.trim() && draft.bodyParagraphs.some((p) => p.trim()))
+}
+
+async function reachable(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; DropDropDropLinkCheck/1.0; +https://dropx3.com)" },
+      signal: AbortSignal.timeout(6000),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+async function saveOfficialCoverImage(imageUrl: string, draft: Draft): Promise<string> {
+  const res = await fetch(imageUrl, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; DropDropDropImageCollector/1.0; +https://dropx3.com)" },
+    signal: AbortSignal.timeout(12000),
+  })
+  if (!res.ok) throw new Error(`公式画像を保存できませんでした(HTTP ${res.status})`)
+  const contentType = res.headers.get("content-type")?.split(";")[0]?.trim() ?? ""
+  if (!contentType.startsWith("image/")) throw new Error("公式画像の応答が画像ではありません")
+  const buffer = Buffer.from(await res.arrayBuffer())
+  if (buffer.length === 0 || buffer.length > 10 * 1024 * 1024) throw new Error("公式画像の容量が不正です")
+  const ext = ({
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/avif": "avif",
+    "image/gif": "gif",
+  } as Record<string, string>)[contentType] ?? "img"
+  return putBlobFile(`article-images/${draft.id}/cover.${ext}`, buffer, contentType)
+}
+
+async function refreshedPurchaseChannels(
+  current: PurchaseChannelInfo[],
+  candidates: { label: string; url: string }[]
+): Promise<PurchaseChannelInfo[]> {
+  const checked = await Promise.all(
+    candidates.slice(0, 8).map(async (candidate) => ({ candidate, ok: await reachable(candidate.url) }))
+  )
+  const fresh = checked
+    .filter((item) => item.ok)
+    .map(({ candidate }) => ({
+      retailerName: candidate.label || new URL(candidate.url).hostname,
+      channelType: "official" as const,
+      saleMethod: /抽選|応募|raffle|lottery|entry/i.test(candidate.label) ? ("lottery" as const) : ("regular" as const),
+      url: candidate.url,
+    }))
+  const merged = [...fresh, ...current]
+  return merged.filter((item, index) => item.url && merged.findIndex((other) => other.url === item.url) === index)
+}
+
+async function prepareArticle(draft: Draft): Promise<Article> {
+  if (!hasPublishableTheme(draft)) throw new Error("テーマに必要な本文が不足しています")
+  const sourceUrl = officialSourceUrl(draft)
+  if (!sourceUrl) throw new Error("公式リンクがありません")
+  const query = draft.suggestedAffiliateSearch[0]?.trim()
+  if (!query) throw new Error("アフィリエイト検索語がありません")
+  // 設定不足ならOpenAIや公式サイト取得を始める前に止め、無駄なAPI利用を避ける。
+  const affiliateLinks = buildRequiredAffiliateLinks(query)
+
+  const page = await fetchPageText(sourceUrl)
+  const brushed = await brushUpDraftWithUrl(
+    {
+      title: draft.title,
+      excerpt: draft.excerpt,
+      bodyParagraphs: draft.bodyParagraphs,
+      colorways: draft.suggestedColorways ?? [],
+    },
+    sourceUrl
+  )
+  const sourceCoverImage = draft.suggestedYoutubeVideoId
+    ? `https://img.youtube.com/vi/${draft.suggestedYoutubeVideoId}/hqdefault.jpg`
+    : page.imageCandidates[0]
+  if (!sourceCoverImage) throw new Error("公式ページから一致画像を取得できません")
+  const coverImage = draft.suggestedYoutubeVideoId
+    ? sourceCoverImage
+    : await saveOfficialCoverImage(sourceCoverImage, draft)
+
+  const purchaseChannels = await refreshedPurchaseChannels(
+    draft.suggestedPurchaseChannels ?? [],
+    page.commerceLinkCandidates ?? []
+  )
+  const id = generateId(`${draft.id}-${Date.now()}`)
+  const now = new Date().toISOString()
+  return {
+    id,
+    slug: generateSlug(brushed.title, id),
+    title: brushed.title,
+    excerpt: brushed.excerpt,
+    bodyParagraphs: brushed.bodyParagraphs,
+    coverImage,
+    coverImageAlt: brushed.title,
+    // 自動公開では、出典確認と自己ホストが済んだカバーだけを採用する。追加画像は人間編集時に追加可能。
+    galleryImages: [],
+    ...(draft.suggestedYoutubeVideoId ? { youtubeVideoId: draft.suggestedYoutubeVideoId } : {}),
+    category: draft.category,
+    brands: canonicalBrandNames(draft.brands),
+    tags: draft.tags,
+    publishedAt: now,
+    featured: false,
+    ...(brushed.colorways.length > 0 ? { colorways: brushed.colorways } : {}),
+    ...(purchaseChannels.length > 0 ? { purchaseChannels } : {}),
+    affiliateLinks,
+    officialLinks: draft.suggestedOfficialLinks ?? [],
+    sourceRefs: draft.sourceRefs.some((ref) => ref.url === sourceUrl)
+      ? draft.sourceRefs
+      : [...draft.sourceRefs, brushed.sourceRef],
+  }
+}
+
+export async function runDailyAutoPublish(now = new Date()): Promise<{
+  published: boolean
+  slot: string | null
+  title?: string
+  skipped?: string[]
+}> {
+  const slot = jstSlotKey(now)
+  if (!slot) return { published: false, slot: null, skipped: ["対象時刻ではありません"] }
+
+  let alreadyStarted = false
+  await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
+    if (state.runs[slot]) alreadyStarted = true
+    else state.runs[slot] = { startedAt: now.toISOString() }
+    return state
+  })
+  if (alreadyStarted) return { published: false, slot, skipped: ["この時刻は処理済みです"] }
+
+  const { drafts } = await readDrafts()
+  const errors: string[] = []
+  for (const draft of shuffled(drafts)) {
+    try {
+      const article = await prepareArticle(draft)
+      await mutateArticles((data) => {
+        if (!data.articles.some((existing) => existing.id === article.id)) data.articles.unshift(article)
+        data.lastUpdated = article.publishedAt
+        return data
+      })
+      await mutateDrafts((data) => {
+        data.drafts = data.drafts.filter((item) => item.id !== draft.id)
+        return data
+      })
+      await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
+        state.runs[slot] = { startedAt: state.runs[slot]?.startedAt ?? now.toISOString(), publishedArticleId: article.id, title: article.title }
+        return state
+      })
+      return { published: true, slot, title: article.title, skipped: errors }
+    } catch (err) {
+      errors.push(`${draft.title}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return { published: false, slot, skipped: errors.length > 0 ? errors : ["下書きがありません"] }
+}
