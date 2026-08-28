@@ -30,6 +30,7 @@ type SortKey = "newest" | "oldest"
 /** 下書きの分類タブ(DraftGroupKey)とは別枠の、即時生成フォームを開くための擬似タブ */
 const URL_GENERATE_TAB = "url-generate" as const
 const TEXT_GENERATE_TAB = "text-generate" as const
+const ALL_DRAFTS_TAB = "all" as const
 
 /** 元ネタ(出典)の投稿日を並べ替えキーにする。無い古いデータはcreatedAt(収集日)で代替する */
 function sourceDateOf(d: { sourcePublishedAt?: string; createdAt: string }): string {
@@ -47,18 +48,22 @@ export default async function AdminPage({
   const activeView: ViewKey = view === "published" ? "published" : "drafts"
   const activeSort: SortKey = sort === "oldest" ? "oldest" : "newest"
 
-  const activeTab: DraftGroupKey | typeof URL_GENERATE_TAB | typeof TEXT_GENERATE_TAB =
+  const activeTab: DraftGroupKey | typeof ALL_DRAFTS_TAB | typeof URL_GENERATE_TAB | typeof TEXT_GENERATE_TAB =
     tab === URL_GENERATE_TAB
       ? URL_GENERATE_TAB
       : tab === TEXT_GENERATE_TAB
         ? TEXT_GENERATE_TAB
+        : tab === ALL_DRAFTS_TAB || !tab
+          ? ALL_DRAFTS_TAB
         : DRAFT_GROUPS.some((g) => g.key === tab)
           ? (tab as DraftGroupKey)
-          : DRAFT_GROUPS[0].key
+          : ALL_DRAFTS_TAB
   const isUrlGenerateTab = activeTab === URL_GENERATE_TAB
   const isTextGenerateTab = activeTab === TEXT_GENERATE_TAB
   const isGenerateTab = isUrlGenerateTab || isTextGenerateTab
-  const tabDrafts = (isGenerateTab ? [] : drafts.filter((d) => draftGroupOf(d.category) === activeTab)).sort((a, b) => {
+  const tabDrafts = (
+    isGenerateTab ? [] : activeTab === ALL_DRAFTS_TAB ? drafts : drafts.filter((d) => draftGroupOf(d.category) === activeTab)
+  ).sort((a, b) => {
     const cmp = sourceDateOf(a).localeCompare(sourceDateOf(b))
     return activeSort === "newest" ? -cmp : cmp
   })
@@ -140,6 +145,16 @@ export default async function AdminPage({
           ) : (
             <>
               <div className="flex flex-wrap gap-2 mb-6">
+                <Link
+                  href={`/admin?view=drafts&tab=${ALL_DRAFTS_TAB}`}
+                  className={
+                    activeTab === ALL_DRAFTS_TAB
+                      ? "h-9 flex items-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground"
+                      : "h-9 flex items-center rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
+                  }
+                >
+                  下書き一覧 ({drafts.length})
+                </Link>
                 {DRAFT_GROUPS.map((g) => {
                   const count = drafts.filter((d) => draftGroupOf(d.category) === g.key).length
                   const active = g.key === activeTab
