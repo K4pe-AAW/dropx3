@@ -13,8 +13,8 @@ export type Category =
   | "youtube"
 
 export type AffiliateLink = {
-  label: string // 例: "ZOZOTOWNで見る"
-  retailer: string // 例: "ZOZOTOWN", "楽天市場", "A8.net"
+  label: string // 例: "楽天市場で探す"
+  retailer: string // 例: "楽天市場", "Amazon", "A8.net"
   url: string
   price?: string // 表示用の価格文字列。例: "¥16,500(税込)"
 }

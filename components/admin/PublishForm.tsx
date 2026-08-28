@@ -774,7 +774,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
             <div key={i} className="grid grid-cols-2 gap-2 border border-border rounded-lg p-3">
               <input
                 className={inputClass}
-                placeholder="ボタン文言（例: ZOZOTOWNで見る）"
+                placeholder="ボタン文言（例: 楽天市場で探す）"
                 value={link.label}
                 onChange={(e) => updateLink(i, { label: e.target.value })}
               />
