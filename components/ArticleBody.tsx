@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react"
 import { trackEvent } from "@/lib/analytics"
 
+export const ARTICLE_BODY_CLASS_NAME = "space-y-5 text-[15px] leading-[1.9] text-wrap-phrase"
+
 /**
  * 本文90%地点の段落(Math.floor((段落数-1)*0.9)番目)にIntersectionObserverのsentinelを
  * 直接張り、ビューポートに入った時点で読了とみなす。ページ全体の高さではなく本文段落数を
@@ -44,7 +46,7 @@ export function ArticleBody({
   }, [articleId, articleTitle, category, brand])
 
   return (
-    <div className="space-y-5 text-[15px] leading-[1.9]">
+    <div className={ARTICLE_BODY_CLASS_NAME}>
       {paragraphs.map((p, i) => (
         <p key={i} ref={i === sentinelIndex ? sentinelRef : undefined}>
           {p}
