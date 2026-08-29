@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { runBulkBrushup } from "@/scripts/brushup-all-drafts"
+import { ADMIN_COOKIE_NAME, verifyAdminToken } from "@/lib/admin-auth"
 
 export const maxDuration = 300
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "")
-  if (!process.env.CRON_SECRET || bearer !== process.env.CRON_SECRET) {
+  const cronAuthorized = Boolean(process.env.CRON_SECRET && bearer === process.env.CRON_SECRET)
+  const adminAuthorized = verifyAdminToken(req.cookies.get(ADMIN_COOKIE_NAME)?.value)
+  if (!cronAuthorized && !adminAuthorized) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
   try {
