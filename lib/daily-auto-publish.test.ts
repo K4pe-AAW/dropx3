@@ -5,6 +5,7 @@ import {
   MAX_YOUTUBE_ARTICLES_PER_RUN,
   buildRequiredAffiliateLinks,
   jstSlotKey,
+  uniqueGalleryCandidates,
 } from "./daily-auto-publish"
 
 test("各時刻の公開目標は4記事", () => {
@@ -38,4 +39,18 @@ test("JSTの8時・12時・18時・20時だけ公開枠になる", () => {
   assert.equal(jstSlotKey(new Date("2026-08-29T09:00:00Z")), "2026-08-29-18")
   assert.equal(jstSlotKey(new Date("2026-08-29T11:00:00Z")), "2026-08-29-20")
   assert.equal(jstSlotKey(new Date("2026-08-29T04:00:00Z")), null)
+})
+
+test("追加画像はカバーと同一のサイズ違いを除外し、候補がある分だけ採用する", () => {
+  assert.deepEqual(
+    uniqueGalleryCandidates("https://img.example.com/shoe-1200x800.jpg?w=1200", [
+      { url: "https://img.example.com/shoe-300x200.jpg?w=300", alt: "重複" },
+      { url: "https://img.example.com/side.jpg", alt: "側面" },
+      { url: "https://img.example.com/back.jpg", alt: "背面" },
+    ]),
+    [
+      { url: "https://img.example.com/side.jpg", alt: "側面" },
+      { url: "https://img.example.com/back.jpg", alt: "背面" },
+    ]
+  )
 })

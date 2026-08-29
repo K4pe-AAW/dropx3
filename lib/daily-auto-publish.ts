@@ -11,7 +11,8 @@ import {
   readDrafts,
 } from "./storage"
 import { canonicalBrandNames } from "./brands"
-import type { AffiliateLink, Article, Draft } from "./types"
+import { canonicalImageKey } from "./image-candidates"
+import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 
 const STATE_PATH = "data/daily-auto-publish-state.json"
 export const AUTO_PUBLISH_HOURS_JST = [8, 12, 18, 20] as const
@@ -68,7 +69,7 @@ function hasPublishableTheme(draft: Draft): boolean {
   return Boolean(draft.title.trim() && draft.excerpt.trim() && draft.bodyParagraphs.some((p) => p.trim()))
 }
 
-async function saveCoverImage(imageUrl: string, draft: Draft): Promise<string> {
+async function saveArticleImage(imageUrl: string, draft: Draft, name: string): Promise<string> {
   const res = await fetch(imageUrl, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; DropDropDropImageCollector/1.0; +https://dropx3.com)" },
     signal: AbortSignal.timeout(12000),
@@ -85,7 +86,41 @@ async function saveCoverImage(imageUrl: string, draft: Draft): Promise<string> {
     "image/avif": "avif",
     "image/gif": "gif",
   } as Record<string, string>)[contentType] ?? "img"
-  return putBlobFile(`article-images/${draft.id}/cover.${ext}`, buffer, contentType)
+  return putBlobFile(`article-images/${draft.id}/${name}.${ext}`, buffer, contentType)
+}
+
+export function uniqueGalleryCandidates(
+  coverImageUrl: string,
+  gallery: { url: string; alt: string; credit?: string }[],
+  limit = 8
+): { url: string; alt: string; credit?: string }[] {
+  const seen = new Set([canonicalImageKey(coverImageUrl)])
+  const result: { url: string; alt: string; credit?: string }[] = []
+  for (const image of gallery) {
+    const key = canonicalImageKey(image.url)
+    if (!image.url || seen.has(key)) continue
+    seen.add(key)
+    result.push(image)
+    if (result.length >= limit) break
+  }
+  return result
+}
+
+async function saveGalleryImages(draft: Draft, coverImageUrl: string): Promise<GalleryImage[]> {
+  const candidates = uniqueGalleryCandidates(coverImageUrl, draft.suggestedGalleryImages ?? [])
+  const saved: GalleryImage[] = []
+  for (const [index, image] of candidates.entries()) {
+    try {
+      saved.push({
+        url: await saveArticleImage(image.url, draft, `gallery-${index + 1}`),
+        alt: image.alt.trim() || draft.title,
+        ...(image.credit ? { credit: image.credit } : {}),
+      })
+    } catch {
+      // 追加画像は任意。取得不能・形式不正なら公開自体を止めず、その画像だけ採用しない。
+    }
+  }
+  return saved
 }
 
 async function prepareArticle(draft: Draft): Promise<Article> {
@@ -112,7 +147,8 @@ async function prepareArticle(draft: Draft): Promise<Article> {
   if (!sourceCoverImage) throw new Error("公式ページから一致画像を取得できません")
   const coverImage = draft.suggestedYoutubeVideoId
     ? sourceCoverImage
-    : await saveCoverImage(sourceCoverImage, draft)
+    : await saveArticleImage(sourceCoverImage, draft, "cover")
+  const galleryImages = draft.suggestedYoutubeVideoId ? [] : await saveGalleryImages(draft, sourceCoverImage)
 
   const id = generateId(`${draft.id}-${Date.now()}`)
   const now = new Date().toISOString()
@@ -124,8 +160,8 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     bodyParagraphs: brushed.bodyParagraphs,
     coverImage,
     coverImageAlt: brushed.title,
-    // 自動公開では、出典確認と自己ホストが済んだカバーだけを採用する。追加画像は人間編集時に追加可能。
-    galleryImages: [],
+    // カバーを必須・最優先にし、同一画像を除いた取得可能な追加画像だけを自己ホストして採用する。
+    galleryImages,
     ...(draft.suggestedYoutubeVideoId ? { youtubeVideoId: draft.suggestedYoutubeVideoId } : {}),
     category: draft.category,
     brands: canonicalBrandNames(draft.brands),
