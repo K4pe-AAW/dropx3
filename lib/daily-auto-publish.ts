@@ -1,7 +1,6 @@
 import crypto from "node:crypto"
 import { QUICK_AFFILIATE_RETAILERS, isSafeExternalUrl } from "./affiliate"
 import { brushUpDraftWithUrl } from "./draft-brushup"
-import { fetchPageText } from "./source-watch/fetchers/html"
 import {
   generateId,
   generateSlug,
@@ -12,7 +11,7 @@ import {
   readDrafts,
 } from "./storage"
 import { canonicalBrandNames } from "./brands"
-import type { AffiliateLink, Article, Draft, PurchaseChannelInfo } from "./types"
+import type { AffiliateLink, Article, Draft } from "./types"
 
 const STATE_PATH = "data/daily-auto-publish-state.json"
 export const AUTO_PUBLISH_HOURS_JST = [8, 12, 18, 20] as const
@@ -69,20 +68,6 @@ function hasPublishableTheme(draft: Draft): boolean {
   return Boolean(draft.title.trim() && draft.excerpt.trim() && draft.bodyParagraphs.some((p) => p.trim()))
 }
 
-async function reachable(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; DropDropDropLinkCheck/1.0; +https://dropx3.com)" },
-      signal: AbortSignal.timeout(6000),
-    })
-    return res.ok
-  } catch {
-    return false
-  }
-}
-
 async function saveCoverImage(imageUrl: string, draft: Draft): Promise<string> {
   const res = await fetch(imageUrl, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; DropDropDropImageCollector/1.0; +https://dropx3.com)" },
@@ -103,25 +88,6 @@ async function saveCoverImage(imageUrl: string, draft: Draft): Promise<string> {
   return putBlobFile(`article-images/${draft.id}/cover.${ext}`, buffer, contentType)
 }
 
-async function refreshedPurchaseChannels(
-  current: PurchaseChannelInfo[],
-  candidates: { label: string; url: string }[]
-): Promise<PurchaseChannelInfo[]> {
-  const checked = await Promise.all(
-    candidates.slice(0, 8).map(async (candidate) => ({ candidate, ok: await reachable(candidate.url) }))
-  )
-  const fresh = checked
-    .filter((item) => item.ok)
-    .map(({ candidate }) => ({
-      retailerName: candidate.label || new URL(candidate.url).hostname,
-      channelType: "official" as const,
-      saleMethod: /抽選|応募|raffle|lottery|entry/i.test(candidate.label) ? ("lottery" as const) : ("regular" as const),
-      url: candidate.url,
-    }))
-  const merged = [...fresh, ...current]
-  return merged.filter((item, index) => item.url && merged.findIndex((other) => other.url === item.url) === index)
-}
-
 async function prepareArticle(draft: Draft): Promise<Article> {
   if (!hasPublishableTheme(draft)) throw new Error("テーマに必要な本文が不足しています")
   const sourceUrl = referenceSourceUrl(draft)
@@ -131,7 +97,6 @@ async function prepareArticle(draft: Draft): Promise<Article> {
   // 設定不足ならOpenAIや公式サイト取得を始める前に止め、無駄なAPI利用を避ける。
   const affiliateLinks = buildRequiredAffiliateLinks(query)
 
-  const page = await fetchPageText(sourceUrl)
   const brushed = await brushUpDraftWithUrl(
     {
       title: draft.title,
@@ -149,10 +114,6 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     ? sourceCoverImage
     : await saveCoverImage(sourceCoverImage, draft)
 
-  const purchaseChannels = await refreshedPurchaseChannels(
-    draft.suggestedPurchaseChannels ?? [],
-    page.commerceLinkCandidates ?? []
-  )
   const id = generateId(`${draft.id}-${Date.now()}`)
   const now = new Date().toISOString()
   return {
@@ -172,7 +133,6 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     publishedAt: now,
     featured: false,
     ...(brushed.colorways.length > 0 ? { colorways: brushed.colorways } : {}),
-    ...(purchaseChannels.length > 0 ? { purchaseChannels } : {}),
     affiliateLinks,
     officialLinks: draft.suggestedOfficialLinks ?? [],
     sourceRefs: draft.sourceRefs.some((ref) => ref.url === sourceUrl)
