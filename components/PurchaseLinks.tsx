@@ -28,12 +28,14 @@ export function PurchaseLinks({
   articleId,
   articleTitle,
   brand,
+  contentType,
 }: {
   officialLinks: OfficialLink[]
   affiliateLinks: AffiliateLink[]
   articleId: string
   articleTitle: string
   brand?: string
+  contentType?: string
 }) {
   const safeOfficial = officialLinks.filter((l) => isSafeExternalUrl(l.url))
   const safeAffiliate = sanitizeAffiliateLinks(affiliateLinks)
@@ -60,6 +62,7 @@ export function PurchaseLinks({
         placement: "article_body",
         article_id: articleId,
         article_title: articleTitle,
+        content_type: contentType,
         link_url: row.url,
       })
     } else {

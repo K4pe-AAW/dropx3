@@ -12,6 +12,9 @@ export type Category =
   | "brand"
   | "youtube"
 
+/** 記事の事業上の役割。カテゴリーとは別に、送客率・収益を比較する集計軸。 */
+export type ContentType = "NEWS" | "BUY" | "GUIDE" | "VIDEO"
+
 export type AffiliateLink = {
   label: string // 例: "楽天市場で探す"
   retailer: string // 例: "楽天市場", "Amazon", "A8.net"
@@ -109,6 +112,7 @@ export type Article = {
    */
   quote?: { text: string; sourceLabel: string }
   category: Category
+  contentType?: ContentType
   brands: string[]
   tags: string[]
   publishedAt: string // ISO 8601

@@ -13,6 +13,7 @@ import {
 import { canonicalBrandNames } from "./brands"
 import { canonicalImageKey } from "./image-candidates"
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
+import { inferContentType } from "./content-type"
 
 const STATE_PATH = "data/daily-auto-publish-state.json"
 export const AUTO_PUBLISH_HOURS_JST = [8, 12, 18, 20] as const
@@ -164,6 +165,7 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     galleryImages,
     ...(draft.suggestedYoutubeVideoId ? { youtubeVideoId: draft.suggestedYoutubeVideoId } : {}),
     category: draft.category,
+    contentType: inferContentType(draft.category, affiliateLinks.length > 0),
     brands: canonicalBrandNames(draft.brands),
     tags: draft.tags,
     publishedAt: now,

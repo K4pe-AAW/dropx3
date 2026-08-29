@@ -1,6 +1,7 @@
 import { readArticles, writeArticles, generateId, generateSlug } from "@/lib/storage"
 import { isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
 import type { AffiliateLink, Article, GalleryImage } from "@/lib/types"
+import { inferContentType } from "@/lib/content-type"
 
 /**
  * 画像使用許諾済みの古着屋(tonari/ROOM)の投稿を1記事として公開する共有ロジック。
@@ -125,6 +126,7 @@ export async function publishShopUpdate(input: ShopUpdateInput): Promise<ShopUpd
     coverImageAlt: input.coverImageAlt,
     galleryImages: input.galleryImages,
     category: "vintage",
+    contentType: inferContentType("vintage", affiliateLinks.length > 0),
     brands: [input.shop, ...input.extraBrands],
     tags: input.tags,
     publishedAt: new Date().toISOString(),

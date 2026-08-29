@@ -20,6 +20,7 @@ export type AnalyticsEvent =
         placement: "article_body"
         article_id: string
         article_title: string
+        content_type?: string
         link_url: string
       }
     }
@@ -39,6 +40,7 @@ export type AnalyticsEvent =
         article_title: string
         category: string
         brand?: string
+        content_type?: string
       }
     }
   | {

@@ -4,6 +4,7 @@ import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 import { canonicalBrandNames } from "@/lib/brands"
 import { computeNextSlot } from "@/lib/publish-schedule"
 import type { Article, AffiliateLink, Draft, ScheduledArticle } from "@/lib/types"
+import { inferContentType } from "@/lib/content-type"
 
 /** AIが提案した検索キーワードから、自動生成できる店舗の実リンクをまとめて組み立てる(PublishFormの「自動でリンクを追加」と同じロジック) */
 function buildAutoAffiliateLinks(queries: string[]): AffiliateLink[] {
@@ -23,6 +24,7 @@ function buildAutoAffiliateLinks(queries: string[]): AffiliateLink[] {
 
 function draftToArticleShape(draft: Draft): Omit<Article, "publishedAt"> {
   const newId = generateId(`${draft.id}-${Date.now()}`)
+  const affiliateLinks = buildAutoAffiliateLinks(draft.suggestedAffiliateSearch)
   return {
     id: newId,
     slug: generateSlug(draft.title, newId),
@@ -33,6 +35,7 @@ function draftToArticleShape(draft: Draft): Omit<Article, "publishedAt"> {
     coverImageAlt: draft.title,
     galleryImages: draft.suggestedGalleryImages ?? [],
     category: draft.category,
+    contentType: inferContentType(draft.category, affiliateLinks.length > 0),
     brands: canonicalBrandNames(draft.brands),
     tags: draft.tags,
     featured: false,
@@ -41,7 +44,7 @@ function draftToArticleShape(draft: Draft): Omit<Article, "publishedAt"> {
     ...(draft.suggestedPurchaseChannels && draft.suggestedPurchaseChannels.length > 0
       ? { purchaseChannels: draft.suggestedPurchaseChannels }
       : {}),
-    affiliateLinks: buildAutoAffiliateLinks(draft.suggestedAffiliateSearch),
+    affiliateLinks,
     officialLinks: draft.suggestedOfficialLinks ?? [],
     sourceRefs: draft.sourceRefs,
   }

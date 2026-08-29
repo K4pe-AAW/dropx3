@@ -165,6 +165,7 @@ export default async function ArticleDetailPage({
         articleTitle={article.title}
         category={article.category}
         brand={article.brands[0]}
+        contentType={article.contentType}
       />
 
       {article.quote && <QuoteBlock text={article.quote.text} sourceLabel={article.quote.sourceLabel} />}
@@ -201,6 +202,7 @@ export default async function ArticleDetailPage({
         articleId={article.id}
         articleTitle={article.title}
         brand={article.brands[0]}
+        contentType={article.contentType}
       />
 
       {article.sourceRefs.length > 0 && (

@@ -17,12 +17,14 @@ export function ArticleBody({
   articleTitle,
   category,
   brand,
+  contentType,
 }: {
   paragraphs: string[]
   articleId: string
   articleTitle: string
   category: string
   brand?: string
+  contentType?: string
 }) {
   const sentinelRef = useRef<HTMLParagraphElement>(null)
   const sentinelIndex = Math.max(0, Math.floor((paragraphs.length - 1) * 0.9))
@@ -36,14 +38,14 @@ export function ArticleBody({
       (entries) => {
         if (fired || !entries.some((entry) => entry.isIntersecting)) return
         fired = true
-        trackEvent("article_read_complete", { article_id: articleId, article_title: articleTitle, category, brand })
+        trackEvent("article_read_complete", { article_id: articleId, article_title: articleTitle, category, brand, content_type: contentType })
         observer.disconnect()
       },
       { threshold: 0 }
     )
     observer.observe(el)
     return () => observer.disconnect()
-  }, [articleId, articleTitle, category, brand])
+  }, [articleId, articleTitle, category, brand, contentType])
 
   return (
     <div className={ARTICLE_BODY_CLASS_NAME}>

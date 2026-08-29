@@ -2,7 +2,8 @@
 
 import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import type { Draft, Category, BrandCrawlSource, ColorwayInfo } from "@/lib/types"
+import type { Draft, Category, BrandCrawlSource, ColorwayInfo, ContentType } from "@/lib/types"
+import { CONTENT_TYPES, inferContentType } from "@/lib/content-type"
 import { siteConfig } from "@/lib/site-config"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
 import { canonicalImageKey } from "@/lib/image-candidates"
@@ -28,6 +29,9 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   const [excerpt, setExcerpt] = useState(draft.excerpt)
   const [bodyText, setBodyText] = useState(draft.bodyParagraphs.join("\n\n"))
   const [category, setCategory] = useState<Category>(draft.category)
+  const [contentType, setContentType] = useState<ContentType>(
+    inferContentType(draft.category, draft.suggestedAffiliateSearch.length > 0)
+  )
   const [brandsText, setBrandsText] = useState(draft.brands.join(", "))
   const [tagsText, setTagsText] = useState(draft.tags.join(", "))
   const [coverImage, setCoverImage] = useState(draft.suggestedCoverImage ?? "")
@@ -174,6 +178,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         ...additionalSummary.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
       ],
       category,
+      contentType,
       brands: brandsText.split(",").map((b) => b.trim()).filter(Boolean),
       tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
       coverImage,
@@ -445,6 +450,11 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
                 {c.label}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field label="記事タイプ（成果分析用）">
+          <select className={inputClass} value={contentType} onChange={(e) => setContentType(e.target.value as ContentType)}>
+            {CONTENT_TYPES.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
         </Field>
         <Field label="おすすめ記事">

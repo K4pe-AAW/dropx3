@@ -15,6 +15,7 @@ import type {
   RelatedArticleLink,
   SourceRef,
 } from "@/lib/types"
+import { inferContentType, isContentType } from "@/lib/content-type"
 
 function isAllowedImageUrl(url: string): boolean {
   if (url.startsWith("/") && !url.startsWith("//")) return true
@@ -153,6 +154,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const category: Category = siteConfig.categories.some((c) => c.slug === body.category)
     ? (body.category as Category)
     : existing.category
+  const contentType = isContentType(body.contentType)
+    ? body.contentType
+    : (existing.contentType ?? inferContentType(category, existing.affiliateLinks.length > 0))
   const brands: string[] = canonicalBrandNames(
     Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string") : existing.brands
   )
@@ -196,6 +200,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     excerpt,
     bodyParagraphs,
     category,
+    contentType,
     brands,
     tags,
     coverImage,

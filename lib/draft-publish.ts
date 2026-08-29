@@ -13,6 +13,7 @@ import type {
   PurchaseChannelInfo,
   SourceRef,
 } from "@/lib/types"
+import { inferContentType, isContentType } from "@/lib/content-type"
 
 /** ローカルパス(/images/xxx.jpg)か、http(s)の絶対URLのみ許可する（//host/pathのprotocol-relativeは除外） */
 function isAllowedImageUrl(url: string): boolean {
@@ -134,6 +135,9 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
   const affiliateLinks: AffiliateLink[] = sanitizeAffiliateLinks(
     Array.isArray(body.affiliateLinks) ? (body.affiliateLinks as AffiliateLink[]) : []
   )
+  const contentType = isContentType(body.contentType)
+    ? body.contentType
+    : inferContentType(category, affiliateLinks.length > 0)
   const youtubeVideoIdInput: string = typeof body.youtubeVideoId === "string" ? body.youtubeVideoId.trim() : ""
   const youtubeVideoId = /^[A-Za-z0-9_-]{6,20}$/.test(youtubeVideoIdInput) ? youtubeVideoIdInput : undefined
   const galleryImages: GalleryImage[] = sanitizeGalleryImages(body.galleryImages)
@@ -169,6 +173,7 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
     ...(coverImageCredit ? { coverImageCredit } : {}),
     galleryImages,
     category,
+    contentType,
     brands,
     tags,
     featured: Boolean(body.featured),
