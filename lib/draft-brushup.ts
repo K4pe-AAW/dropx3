@@ -49,6 +49,7 @@ export type BrushUpResult = {
   colorways: ColorwayInfo[]
   sourceRef: SourceRef
   imageCandidates: string[]
+  commerceLinkCandidates: { label: string; url: string }[]
 }
 
 function buildUserPrompt(current: BrushUpCurrentDraft, sourceUrl: string, sourceText: string): string {
@@ -139,5 +140,6 @@ export async function brushUpDraftWithUrl(current: BrushUpCurrentDraft, sourceUr
     colorways: colorways.length > 0 ? colorways : [],
     sourceRef: { name: hostname, url: sourceUrl },
     imageCandidates: page.imageCandidates,
+    commerceLinkCandidates: page.commerceLinkCandidates ?? [],
   }
 }
