@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
     const offset = Number.isFinite(body.offset) ? Math.max(0, Math.floor(body.offset)) : 0
-    const limit = Number.isFinite(body.limit) ? Math.min(10, Math.max(1, Math.floor(body.limit))) : 5
+    const limit = Number.isFinite(body.limit) ? Math.min(25, Math.max(1, Math.floor(body.limit))) : 5
     const result = await runBulkBrushup({ offset, limit, backup: body.backup !== false })
     return NextResponse.json({ ok: true, ...result })
   } catch (error) {
