@@ -181,7 +181,7 @@ async function prepareArticle(draft: Draft): Promise<Article> {
   }
 }
 
-export async function runDailyAutoPublish(now = new Date()): Promise<{
+export async function runDailyAutoPublish(now = new Date(), targetCount = ARTICLES_PER_AUTO_PUBLISH_RUN): Promise<{
   published: boolean
   publishedCount: number
   slot: string | null
@@ -211,7 +211,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   ]
   let youtubePublished = 0
   for (const draft of candidates) {
-    if (publishedArticles.length >= ARTICLES_PER_AUTO_PUBLISH_RUN) break
+    if (publishedArticles.length >= targetCount) break
     if (draft.suggestedYoutubeVideoId && youtubePublished >= MAX_YOUTUBE_ARTICLES_PER_RUN) continue
     try {
       const article = await prepareArticle(draft)
