@@ -99,12 +99,49 @@ export function uniqueGalleryCandidates(
   const result: { url: string; alt: string; credit?: string }[] = []
   for (const image of gallery) {
     const key = canonicalImageKey(image.url)
-    if (!image.url || seen.has(key)) continue
+    if (!image.url || seen.has(key) || !isSameProductAssetFamily(coverImageUrl, image.url)) continue
     seen.add(key)
     result.push(image)
     if (result.length >= limit) break
   }
   return result
+}
+
+const GENERIC_ASSET_TOKENS = new Set([
+  "image", "img", "photo", "picture", "product", "detail", "main", "large", "small", "thumb", "thumbnail",
+  "front", "back", "side", "pc", "sp", "desktop", "mobile",
+])
+
+function assetTokens(url: URL): Set<string> {
+  const filename = decodeURIComponent(url.pathname.split("/").pop() ?? "")
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/-\d{2,5}x\d{2,5}$/i, "")
+    .toLowerCase()
+  return new Set(
+    filename
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length >= 4 && !/^\d+$/.test(token) && !GENERIC_ASSET_TOKENS.has(token))
+  )
+}
+
+/**
+ * 関連記事や別商品の画像を混ぜないため、同じ配信元・同じディレクトリに加え、
+ * ファイル名に同じ商品識別子がある場合だけ追加画像として認める。
+ * 判断材料が無い generic な連番画像は、枚数より精度を優先して採用しない。
+ */
+export function isSameProductAssetFamily(coverRaw: string, candidateRaw: string): boolean {
+  try {
+    const cover = new URL(coverRaw)
+    const candidate = new URL(candidateRaw)
+    if (cover.origin !== candidate.origin) return false
+    const coverDirectory = cover.pathname.slice(0, cover.pathname.lastIndexOf("/") + 1)
+    const candidateDirectory = candidate.pathname.slice(0, candidate.pathname.lastIndexOf("/") + 1)
+    if (coverDirectory !== candidateDirectory) return false
+    const coverTokens = assetTokens(cover)
+    return [...assetTokens(candidate)].some((token) => coverTokens.has(token))
+  } catch {
+    return false
+  }
 }
 
 async function saveGalleryImages(draft: Draft, coverImageUrl: string): Promise<GalleryImage[]> {

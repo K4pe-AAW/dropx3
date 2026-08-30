@@ -5,6 +5,7 @@ import {
   MAX_YOUTUBE_ARTICLES_PER_RUN,
   buildRequiredAffiliateLinks,
   jstSlotKey,
+  isSameProductAssetFamily,
   uniqueGalleryCandidates,
 } from "./daily-auto-publish"
 
@@ -43,14 +44,30 @@ test("JSTの8時・12時・18時・20時だけ公開枠になる", () => {
 
 test("追加画像はカバーと同一のサイズ違いを除外し、候補がある分だけ採用する", () => {
   assert.deepEqual(
-    uniqueGalleryCandidates("https://img.example.com/shoe-1200x800.jpg?w=1200", [
-      { url: "https://img.example.com/shoe-300x200.jpg?w=300", alt: "重複" },
-      { url: "https://img.example.com/side.jpg", alt: "側面" },
-      { url: "https://img.example.com/back.jpg", alt: "背面" },
+    uniqueGalleryCandidates("https://img.example.com/products/airmax90-front-1200x800.jpg?w=1200", [
+      { url: "https://img.example.com/products/airmax90-front-300x200.jpg?w=300", alt: "重複" },
+      { url: "https://img.example.com/products/airmax90-side.jpg", alt: "側面" },
+      { url: "https://img.example.com/products/unrelated-side.jpg", alt: "別商品" },
     ]),
     [
-      { url: "https://img.example.com/side.jpg", alt: "側面" },
-      { url: "https://img.example.com/back.jpg", alt: "背面" },
+      { url: "https://img.example.com/products/airmax90-side.jpg", alt: "側面" },
     ]
+  )
+})
+
+test("同じページ由来でも商品識別子が一致しない画像は追加しない", () => {
+  assert.equal(
+    isSameProductAssetFamily(
+      "https://example.com/uploads/2026/08/ennoy-tokyo-black-main.jpg",
+      "https://example.com/uploads/2026/08/new-era-cap-main.jpg"
+    ),
+    false
+  )
+  assert.equal(
+    isSameProductAssetFamily(
+      "https://example.com/uploads/2026/08/ennoy-tokyo-black-main.jpg",
+      "https://example.com/uploads/2026/08/ennoy-tokyo-black-side.jpg"
+    ),
+    true
   )
 })
