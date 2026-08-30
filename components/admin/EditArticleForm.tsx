@@ -3,7 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import type {
-  Article, ContentType,
+  Article, ContentType, InformationStatus,
   Category,
   AffiliateLink,
   GalleryImage,
@@ -29,6 +29,7 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [contentType, setContentType] = useState<ContentType>(
     article.contentType ?? inferContentType(article.category, article.affiliateLinks.length > 0)
   )
+  const [informationStatus, setInformationStatus] = useState<InformationStatus>(article.informationStatus ?? "report")
   const [brandsText, setBrandsText] = useState(article.brands.join(", "))
   const [tagsText, setTagsText] = useState(article.tags.join(", "))
   const [coverImage, setCoverImage] = useState(article.coverImage)
@@ -148,6 +149,7 @@ export function EditArticleForm({ article }: { article: Article }) {
           .filter(Boolean),
         category,
         contentType,
+        informationStatus,
         brands: brandsText.split(",").map((b) => b.trim()).filter(Boolean),
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
         coverImage,
@@ -228,6 +230,14 @@ export function EditArticleForm({ article }: { article: Article }) {
         <Field label="記事タイプ（成果分析用）">
           <select className={inputClass} value={contentType} onChange={(e) => setContentType(e.target.value as ContentType)}>
             {CONTENT_TYPES.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </Field>
+        <Field label="情報の確度">
+          <select className={inputClass} value={informationStatus} onChange={(e) => setInformationStatus(e.target.value as InformationStatus)}>
+            <option value="official">OFFICIAL（公式発表）</option>
+            <option value="report">REPORT（報道）</option>
+            <option value="rumor">RUMOR（噂・未確認）</option>
+            <option value="leak">LEAK（リーク・未確認）</option>
           </select>
         </Field>
         <Field label="おすすめ記事">

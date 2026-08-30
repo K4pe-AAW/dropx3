@@ -139,6 +139,7 @@ async function prepareArticle(draft: Draft): Promise<Article> {
       excerpt: draft.excerpt,
       bodyParagraphs: draft.bodyParagraphs,
       colorways: draft.suggestedColorways ?? [],
+      informationStatus: draft.informationStatus,
     },
     sourceUrl
   )
@@ -166,6 +167,7 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     ...(draft.suggestedYoutubeVideoId ? { youtubeVideoId: draft.suggestedYoutubeVideoId } : {}),
     category: draft.category,
     contentType: inferContentType(draft.category, affiliateLinks.length > 0),
+    ...(draft.informationStatus ? { informationStatus: draft.informationStatus } : {}),
     brands: canonicalBrandNames(draft.brands),
     tags: draft.tags,
     publishedAt: now,

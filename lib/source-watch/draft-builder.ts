@@ -2,6 +2,7 @@ import { addDrafts, generateId } from "@/lib/storage"
 import { getOpenAIClient } from "@/lib/openai-client"
 import { siteConfig } from "@/lib/site-config"
 import type { Category, Draft } from "@/lib/types"
+import { ensureUnconfirmedTitle } from "@/lib/information-status"
 import { isImageAutoUsable } from "./image-rights"
 import { listImageAssets, listSourceItems, listSourceLinks, updateProduct } from "./storage"
 import type { Product, SourceItem, SourceLink } from "./types"
@@ -67,6 +68,9 @@ const SYSTEM_PROMPT = `あなたはストリートファッション/スニー�
   価格などその他の続報待ちの情報は「${PENDING}」という言葉を使って正直に書くこと。曖昧にぼかしたり、
   それらしい数値で埋めたりしないこと。
 - 海外の発売日と国内の発売日は別物として扱い、海外発売日だけを国内発売日であるかのように書かないこと。
+- 確度がRUMORの場合はタイトルと本文で噂・未確認情報だと明示し、断定表現を避けること。
+  本文末尾は「今後のブランド公式発表と情報解禁を待ちたい」趣旨で締めること。
+- 実体験のない使用感・着用感や、AIが創作した編集者の感情は書かないこと。
 
 文体は既存の記事と同じく、事実の羅列ではなく編集者の温度感がにじむ文章にすること。`
 
@@ -83,6 +87,7 @@ function buildUserPrompt(product: Product, items: SourceItem[]): string {
 商品名: ${product.productName ?? "?"}
 型番: ${product.styleCode ?? "?"}
 国内発売確認: ${product.domesticConfirmed ? "確認済み" : "未確認"}
+情報の確度: ${product.tier}
 カラー展開:
 ${colorwaysText || "  (情報なし)"}
 
@@ -124,22 +129,12 @@ async function writeDraftBody(product: Product, items: SourceItem[]): Promise<{ 
   }
 }
 
-export class NotConfirmedError extends Error {
-  constructor() {
-    super("REPORTED/RUMORの商品は記事候補化できません(CONFIRMEDのみ)")
-    this.name = "NotConfirmedError"
-  }
-}
-
 /**
- * CONFIRMED商品からDraftを生成する。「記事候補を見る」ボタンから呼ばれる唯一の入口。
- * REPORTED/RUMORはここで例外を投げて拒否する(UI側でボタン自体を出さない設計だが、
- * API側でも二重に防御する)。生成されたDraftは既存のDraft審査フロー(/admin/drafts/[id])に
- * そのまま乗るため、画像・リンク・カラー展開は全て人間が公開前に確認・修正できる。
+ * SOURCE WATCHの商品からDraftを生成する。確度はDraftへ引き継ぎ、RUMORは公開面で
+ * 未確認ラベルと注意文を必ず表示する。画像権利・情報元・誤断定などの確実NG条件は
+ * readinessと公開処理側の検証で引き続き止める。
  */
 export async function buildDraftFromProduct(product: Product): Promise<Draft> {
-  if (product.tier !== "CONFIRMED") throw new NotConfirmedError()
-
   const [allItems, sourceLinks, imageAssets] = await Promise.all([
     listSourceItems(),
     listSourceLinks(product.sourceLinkIds),
@@ -148,6 +143,7 @@ export async function buildDraftFromProduct(product: Product): Promise<Draft> {
   const items = allItems.filter((i) => product.sourceItemIds.includes(i.id))
 
   const written = await writeDraftBody(product, items)
+  const informationStatus = product.tier === "CONFIRMED" ? "official" : product.tier === "REPORTED" ? "report" : "rumor"
   const usableImages = imageAssets.filter((a) => isImageAutoUsable(a))
 
   const suggestedGalleryImages = usableImages.map((a) => ({ url: a.url, alt: product.productName ?? written.title }))
@@ -172,10 +168,11 @@ export async function buildDraftFromProduct(product: Product): Promise<Draft> {
   const draft: Draft = {
     id: generateId(`sw-draft-${product.id}-${Date.now()}`),
     status: "pending",
-    title: written.title,
+    title: ensureUnconfirmedTitle(written.title, informationStatus),
     excerpt: written.excerpt || (product.domesticConfirmed ? "国内発売情報も確認済み。" : `国内発売は${UNCONFIRMED}。続報に注目。`),
     bodyParagraphs: written.bodyParagraphs,
     category: mapCategory(product.category),
+    informationStatus,
     brands: product.brand ? [product.brand] : [],
     tags: [],
     suggestedAffiliateSearch: [product.brand, product.productName, product.styleCode].filter((v): v is string => Boolean(v)),

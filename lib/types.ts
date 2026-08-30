@@ -113,6 +113,8 @@ export type Article = {
   quote?: { text: string; sourceLabel: string }
   category: Category
   contentType?: ContentType
+  /** 情報の確度。未設定の既存記事は通常記事として扱う（後方互換）。 */
+  informationStatus?: InformationStatus
   brands: string[]
   tags: string[]
   publishedAt: string // ISO 8601
@@ -170,6 +172,8 @@ export type RawItem = {
 
 export type DraftStatus = "pending" | "approved" | "rejected"
 
+export type InformationStatus = "official" | "report" | "rumor" | "leak"
+
 export type Draft = {
   id: string
   status: DraftStatus
@@ -177,6 +181,7 @@ export type Draft = {
   excerpt: string
   bodyParagraphs: string[]
   category: Category
+  informationStatus?: InformationStatus
   brands: string[]
   tags: string[]
   /**

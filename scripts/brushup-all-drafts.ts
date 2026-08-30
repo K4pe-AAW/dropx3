@@ -78,6 +78,7 @@ export async function runBulkBrushup(options: { offset?: number; limit?: number;
           excerpt: draft.excerpt,
           bodyParagraphs: draft.bodyParagraphs,
           colorways: draft.suggestedColorways ?? [],
+          informationStatus: draft.informationStatus,
         },
         sourceUrl
       )

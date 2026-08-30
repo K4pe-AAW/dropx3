@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { brushUpDraftWithUrl, type BrushUpCurrentDraft } from "@/lib/draft-brushup"
+import { isInformationStatus } from "@/lib/information-status"
 
 /** ページ取得+AI生成を待つため、Vercelの短いデフォルト実行時間上限を明示的に伸ばす(from-url/route.tsと同じ理由) */
 export const maxDuration = 60
@@ -16,6 +17,7 @@ export async function POST(req: Request) {
       title: typeof title === "string" ? title : "",
       excerpt: typeof excerpt === "string" ? excerpt : "",
       bodyParagraphs: Array.isArray(bodyParagraphs) ? bodyParagraphs.filter((p) => typeof p === "string") : [],
+      ...(isInformationStatus(body.informationStatus) ? { informationStatus: body.informationStatus } : {}),
       colorways: Array.isArray(colorways)
         ? colorways
             .filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null)

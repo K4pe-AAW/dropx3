@@ -92,7 +92,8 @@ const POINTS = {
 /**
  * 100点満点の完成度スコア。CONFIRMED/REPORTED/RUMORという「情報源の信頼度」とは別軸の
  * 「記事化に必要な材料が揃っているか」を表す。ブロック条件が1つでも該当すれば、
- * 点数に関係なくreadinessはHOLD固定になる(ユーザー指定ルール)。
+ * 画像権利・情報元・誤断定などの確実NG条件は点数に関係なくHOLDになる。
+ * RUMOR自体は公開禁止にせず、公開時に未確認ラベルと注意文を必須にする。
  */
 export function computeReadiness(input: ReadinessInput): ReadinessResult {
   const breakdown: Record<string, number> = {
@@ -109,7 +110,6 @@ export function computeReadiness(input: ReadinessInput): ReadinessResult {
   const score = Object.values(breakdown).reduce((a, b) => a + b, 0)
 
   const blockReasons: string[] = []
-  if (input.tier === "RUMOR") blockReasons.push("RUMOR: 原則公開しない")
   if (input.hasUnresolvedImageRights) blockReasons.push("画像Rights不明")
   if (input.sourceLinkCount === 0) blockReasons.push("情報元なし")
   if (!input.hasProductName) blockReasons.push("商品名なし")

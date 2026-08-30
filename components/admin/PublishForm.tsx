@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import type { Draft, Category, BrandCrawlSource, ColorwayInfo, ContentType } from "@/lib/types"
+import type { Draft, Category, BrandCrawlSource, ColorwayInfo, ContentType, InformationStatus } from "@/lib/types"
 import { CONTENT_TYPES, inferContentType } from "@/lib/content-type"
 import { siteConfig } from "@/lib/site-config"
 import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
@@ -32,6 +32,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
   const [contentType, setContentType] = useState<ContentType>(
     inferContentType(draft.category, draft.suggestedAffiliateSearch.length > 0)
   )
+  const [informationStatus, setInformationStatus] = useState<InformationStatus>(draft.informationStatus ?? "report")
   const [brandsText, setBrandsText] = useState(draft.brands.join(", "))
   const [tagsText, setTagsText] = useState(draft.tags.join(", "))
   const [coverImage, setCoverImage] = useState(draft.suggestedCoverImage ?? "")
@@ -179,6 +180,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
       ],
       category,
       contentType,
+      informationStatus,
       brands: brandsText.split(",").map((b) => b.trim()).filter(Boolean),
       tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
       coverImage,
@@ -313,6 +315,7 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
           excerpt,
           bodyParagraphs: bodyText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
           colorways,
+          informationStatus,
         }),
       })
       const data = await res.json()
@@ -455,6 +458,14 @@ export function PublishForm({ draft, brandSources }: { draft: Draft; brandSource
         <Field label="記事タイプ（成果分析用）">
           <select className={inputClass} value={contentType} onChange={(e) => setContentType(e.target.value as ContentType)}>
             {CONTENT_TYPES.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </Field>
+        <Field label="情報の確度">
+          <select className={inputClass} value={informationStatus} onChange={(e) => setInformationStatus(e.target.value as InformationStatus)}>
+            <option value="official">OFFICIAL（公式発表）</option>
+            <option value="report">REPORT（報道）</option>
+            <option value="rumor">RUMOR（噂・未確認）</option>
+            <option value="leak">LEAK（リーク・未確認）</option>
           </select>
         </Field>
         <Field label="おすすめ記事">

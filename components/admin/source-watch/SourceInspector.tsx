@@ -452,7 +452,7 @@ export function SourceInspector({
       <div className="border-t border-border bg-card p-4">
         {actionError && <p className="mb-2 text-[11px] text-destructive">{actionError}</p>}
         <div className="flex flex-wrap gap-2">
-          {product.tier === "CONFIRMED" && (
+          {product.sourceLinkIds.length > 0 && (
             <button
               onClick={handleDraft}
               disabled={actionBusy}

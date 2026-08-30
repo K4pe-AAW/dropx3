@@ -16,6 +16,7 @@ import type {
   SourceRef,
 } from "@/lib/types"
 import { inferContentType, isContentType } from "@/lib/content-type"
+import { isInformationStatus } from "@/lib/information-status"
 
 function isAllowedImageUrl(url: string): boolean {
   if (url.startsWith("/") && !url.startsWith("//")) return true
@@ -157,6 +158,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const contentType = isContentType(body.contentType)
     ? body.contentType
     : (existing.contentType ?? inferContentType(category, existing.affiliateLinks.length > 0))
+  const informationStatus = isInformationStatus(body.informationStatus)
+    ? body.informationStatus
+    : existing.informationStatus
   const brands: string[] = canonicalBrandNames(
     Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string") : existing.brands
   )
@@ -201,6 +205,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     bodyParagraphs,
     category,
     contentType,
+    informationStatus,
     brands,
     tags,
     coverImage,
@@ -239,6 +244,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     excerpt: removed.excerpt,
     bodyParagraphs: removed.bodyParagraphs,
     category: removed.category,
+    informationStatus: removed.informationStatus,
     brands: removed.brands,
     tags: removed.tags,
     suggestedAffiliateSearch: [],

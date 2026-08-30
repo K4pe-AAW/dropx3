@@ -115,11 +115,11 @@ test("computeReadiness: 80点以上でREADY、60〜79でREVIEW、59以下でHOLD
   assert.equal(hold.readiness, "HOLD")
 })
 
-test("computeReadiness: RUMORは点数に関係なく自動公開禁止(HOLD固定)", () => {
+test("computeReadiness: RUMORでも確実NG条件が無ければ材料の完成度で判定する", () => {
   const result = computeReadiness({ ...fullMarksInput, tier: "RUMOR" })
-  assert.equal(result.score, 100) // 点数自体は満点のまま(完成度は高いが情報源の信頼度が理由でHOLD)
-  assert.equal(result.readiness, "HOLD")
-  assert.ok(result.blockReasons.includes("RUMOR: 原則公開しない"))
+  assert.equal(result.score, 100)
+  assert.equal(result.readiness, "READY")
+  assert.equal(result.blockReasons.length, 0)
 })
 
 test("computeReadiness: 画像Rights不明は点数に関係なく自動公開禁止", () => {

@@ -56,8 +56,7 @@ export function SummaryBar({
         ))}
       </div>
       <p className="text-[11px] text-muted-foreground mb-5">
-        「記事化できる」= 公式・国内正規販売店で確認済み(確度CONFIRMED)。右のREADY/REVIEW/HOLDは記事の材料(画像・購入リンク等)がどれだけ揃っているかの目安で、
-        HOLDでも「記事化できる」に入っていれば下書きは作れます。
+        CONFIRMED/REPORTED/RUMORは情報の確度です。RUMORも記事候補にできますが、公開面では未確認ラベルと注意文を表示します。READY/REVIEW/HOLDは画像・購入リンク等の材料と確実NG条件の判定です。
       </p>
     </div>
   )

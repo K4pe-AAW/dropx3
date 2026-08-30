@@ -3,7 +3,7 @@ import { siteConfig } from "./site-config"
 import { fetchPageText } from "./source-watch/fetchers/html"
 import { isSafeExternalUrl } from "./affiliate"
 import { sanitizeSuggestedColorways } from "./ai-draft"
-import type { ColorwayInfo, SourceRef } from "./types"
+import type { ColorwayInfo, SourceRef, InformationStatus } from "./types"
 
 /**
  * 下書きレビュー画面での「URLでブラッシュアップ」用。第三者メディアの記事をもとに書かれた下書きを、
@@ -40,6 +40,7 @@ export type BrushUpCurrentDraft = {
   excerpt: string
   bodyParagraphs: string[]
   colorways: { colorName: string; styleCode?: string; price?: string; size?: string; releaseDate?: string }[]
+  informationStatus?: InformationStatus
 }
 
 export type BrushUpResult = {
@@ -62,6 +63,7 @@ function buildUserPrompt(current: BrushUpCurrentDraft, sourceUrl: string, source
 本文:
 ${current.bodyParagraphs.join("\n\n")}
 カラー展開(構造化データ): ${JSON.stringify(current.colorways)}
+情報の確度: ${current.informationStatus ?? "report"}
 
 【参考ページ】
 URL: ${sourceUrl}
@@ -89,7 +91,10 @@ URL: ${sourceUrl}
 - suggestedColorwaysは、参考ページに記載のあるカラー展開で置き換えること。下書きに無かった色や、
   型番・価格・発売日等が下書きより詳しく分かる場合はそちらを優先する。参考ページにカラー展開の記載が
   無ければ、下書きのcolorwaysをそのまま返してよい。
-- 参考ページの文章をそのまま転記せず、必ず${siteConfig.name}としての独自の表現に書き直すこと。`
+- 参考ページの文章をそのまま転記せず、必ず${siteConfig.name}としての独自の表現に書き直すこと。
+- 情報の確度がrumor/leakの場合は、タイトルと本文から未確認情報だと一目で分かる状態を必ず維持し、
+  本文末尾はブランドの正式発表・情報解禁を待つ趣旨で締めること。
+- 実体験のない使用感・着用感や、AIが創作した編集者の感情は書かないこと。`
 }
 
 export async function brushUpDraftWithUrl(current: BrushUpCurrentDraft, sourceUrl: string): Promise<BrushUpResult> {

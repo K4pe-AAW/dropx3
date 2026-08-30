@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Article } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { PlayIcon } from "@/components/icons"
+import { INFORMATION_STATUS_LABELS, isUnconfirmedStatus } from "@/lib/information-status"
 
 function isNew(publishedAt: string) {
   const hours = (Date.now() - new Date(publishedAt).getTime()) / 36e5
@@ -44,6 +45,11 @@ export function ArticleCard({ article, priority = false }: { article: Article; p
           {article.brands[0] && <Badge variant="default">{article.brands[0]}</Badge>}
         </div>
         <div className="absolute top-1.5 right-1.5 flex gap-1.5 sm:top-2 sm:right-2">
+          {isUnconfirmedStatus(article.informationStatus) && (
+            <Badge variant="accent" className="bg-amber-500 text-black px-1.5 py-0 text-[9px] sm:px-2 sm:py-0.5 sm:text-[11px]">
+              {INFORMATION_STATUS_LABELS[article.informationStatus].split(" /")[0]}
+            </Badge>
+          )}
           {isNew(article.publishedAt) && (
             <Badge variant="accent" className="px-1.5 py-0 text-[9px] sm:px-2 sm:py-0.5 sm:text-[11px]">
               NEW

@@ -14,6 +14,7 @@ import { TrackedLink } from "@/components/TrackedLink"
 import { Badge } from "@/components/ui/badge"
 import { categoryLabel, siteConfig } from "@/lib/site-config"
 import { linkDomain } from "@/lib/analytics"
+import { INFORMATION_STATUS_LABELS, isUnconfirmedStatus, unconfirmedNotice } from "@/lib/information-status"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -143,6 +144,13 @@ export default async function ArticleDetailPage({
         <p className="text-xs text-muted-foreground/70 mb-6">本ページはプロモーションが含まれています</p>
       )}
 
+      {isUnconfirmedStatus(article.informationStatus) && (
+        <aside className="mb-6 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
+          <p className="mb-1 text-xs font-black tracking-wide">{INFORMATION_STATUS_LABELS[article.informationStatus]}</p>
+          <p className="text-sm leading-relaxed">{unconfirmedNotice(article.informationStatus)}</p>
+        </aside>
+      )}
+
       {article.youtubeVideoId ? (
         <div className="mb-8">
           <YouTubeEmbed videoId={article.youtubeVideoId} title={article.title} />
@@ -167,6 +175,12 @@ export default async function ArticleDetailPage({
         brand={article.brands[0]}
         contentType={article.contentType}
       />
+
+      {isUnconfirmedStatus(article.informationStatus) && (
+        <p className="mt-8 rounded-xl bg-secondary p-4 text-sm leading-relaxed">
+          {unconfirmedNotice(article.informationStatus)}
+        </p>
+      )}
 
       {article.quote && <QuoteBlock text={article.quote.text} sourceLabel={article.quote.sourceLabel} />}
 

@@ -1,8 +1,9 @@
-import { RawItem, Draft, Category, OfficialLink, PurchaseChannelInfo, ColorwayInfo } from "./types"
+import { RawItem, Draft, Category, OfficialLink, PurchaseChannelInfo, ColorwayInfo, InformationStatus } from "./types"
 import { generateId } from "./storage"
 import { siteConfig } from "./site-config"
 import { getOpenAIClient } from "./openai-client"
 import { resolveKnownAffiliateBuilder, isSafeExternalUrl } from "./affiliate"
+import { detectUnconfirmedStatus, ensureUnconfirmedTitle } from "./information-status"
 
 const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
 const DEFAULT_CATEGORY: Category = "sneaker"
@@ -31,6 +32,11 @@ export function extractYoutubeVideoId(url: string): string | undefined {
 const SYSTEM_PROMPT = `あなたはストリートファッション/スニーカーニュースメディア「${siteConfig.name}」の編集者です。
 渡される情報(タイトル・抜粋・出典)は他メディアの記事です。丸写しはせず、事実関係だけを踏まえて
 ${siteConfig.name}独自の文章としてゼロから書き直してください。出典の文章表現をそのまま流用してはいけません。
+
+情報の確度をofficial/report/rumor/leakの4段階で必ず分類してください。公式発表でない噂・リークを
+確定情報のように断定してはいけません。rumor/leakではタイトルにも「噂」「リーク」「〜か」のいずれかを
+入れ、本文末尾はブランドの正式発表・情報解禁を待つ趣旨で締めてください。AIが実際には体験していない
+「履いてみた」「使ってみた」等の体験談や、根拠のない編集者の感情を創作してはいけません。
 
 【重要】情報源が海外メディア・英語(または他の外国語)であっても、title/excerpt/bodyParagraphsは
 必ず完全に日本語で書くこと。商品名・モデル名・カラー名等の固有名詞(例: "Air Max"、"Black/Tough Red")
@@ -70,6 +76,7 @@ type DraftResult = {
   excerpt: string
   bodyParagraphs: string[]
   category: Category
+  informationStatus?: InformationStatus
   brands: string[]
   tags: string[]
   suggestedAffiliateSearch: string[]
@@ -224,6 +231,7 @@ suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと
   "excerpt": "検索結果・SNSシェア時に表示される説明文(100〜160文字。記事一覧カードには表示されないため短く削る必要はない。何が起きたか+読みたくなる一言を含め、具体的な商品名・ブランド名を入れる)",
   "bodyParagraphs": ["段落1", "段落2", "段落3", "段落4", "段落5", "(該当すれば)[アイテム情報]", "(該当すれば)商品名：〇〇", "..."],
   "category": "商品として最も近いものを ${CATEGORY_SLUGS.join(" / ")} から1つ選ぶ（tops=トップス, pants=パンツ, jacket=ジャケット/コート/アウター, boots=ブーツ/革靴, sneaker=スニーカー, accessory=バッグ/アクセサリー/バッグ以外の小物, figure=フィギュア/コレクタブル, vintage=古着/ヴィンテージ品, youtube=YouTube動画の紹介記事。新品ならジャンル別のカテゴリを優先し、古着・中古品として紹介する記事のみvintage、動画コンテンツの紹介記事のみyoutubeを選ぶ。どれにも当てはまらなければ最も近いものを選ぶ）",
+  "informationStatus": "official（ブランド・販売店の公式発表） / report（媒体による確認済み報道） / rumor（根拠はあるが未確認の噂） / leak（画像・型番・資料等が先行流出した未確認情報）のいずれか",
   "brands": ["関連ブランド名"],
   "tags": ["タグ1", "タグ2"],
   "suggestedAffiliateSearch": ["A8.net/バリューコマースで検索する際の商品名キーワード"],
@@ -264,6 +272,8 @@ suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと
 - 発売日の「年」は特に注意すること。抜粋に月日しか書かれていない発売日に、あなたの判断で年を付け足すのは絶対禁止(過去の学習データにある年をそのまま使ってしまう典型的な誤りのため)。年が必要な文脈でも抜粋に年の記載が無ければ、年を省いた表現に留める。
 - GORE-TEX・Vibram・Cordura等の具体的な素材/技術名も年と同じく特に注意すること。商品ジャンル(スニーカー・ブーツ・アウトドアウェア等)や商品名の響き(例:「ゴアドーム」)から「採用していそう」「使われている可能性がある」と推測で書き添えるのは絶対禁止。抜粋にその商品自身の仕様として明記されていない限り、素材・機能への言及自体を避け、一般的なデザイン・着こなし・背景の話に留めること。
 - 出典記事の文章をそのまま使わず、必ず独自の表現で書き直すこと。
+- rumor/leakは確定値として断定せず、タイトルと本文で未確認だと一目で分かるようにすること。本文末尾は「正式な情報解禁を待ちたい」趣旨で締めること。
+- 実体験のない使用感・着用感・耐久性や、AIが創作した編集者の感情は書かないこと。デザイン上の見どころや確認済み事実として表現すること。
 - excerptは3文構成にすること: 1文目「何が起きたか」、2文目「型番・価格・発売時期等の具体情報
   (抜粋にあるものだけ)」、3文目「読みたくなる一言」。3文とも書いた上で合計が120文字に届かなければ、
   2文目か3文目をさらに具体的に書き足して120〜160文字まで伸ばすこと。1〜2文・100文字未満で
@@ -311,7 +321,13 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
   const suggestedColorways = sanitizeSuggestedColorways(result.suggestedColorways)
   // YouTube動画は公式CDNのサムネイルを優先するため、それ以外の場合のみページから拾った画像候補を使う
   const pageImages = !youtubeVideoId ? (item.imageCandidates ?? []) : []
-  const draftTitle = result.title || item.title
+  const sourceDetectedStatus = detectUnconfirmedStatus(`${item.title}\n${item.snippet ?? ""}`)
+  const informationStatus: InformationStatus = sourceDetectedStatus ?? (
+    ["official", "report", "rumor", "leak"].includes(result.informationStatus ?? "")
+      ? result.informationStatus!
+      : "report"
+  )
+  const draftTitle = ensureUnconfirmedTitle(result.title || item.title, informationStatus)
 
   return {
     id: generateId(`${item.sourceUrl}-draft`),
@@ -328,6 +344,7 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
       : CATEGORY_SLUGS.includes(result.category) && result.category !== "youtube"
         ? result.category
         : DEFAULT_CATEGORY,
+    informationStatus,
     brands: Array.isArray(result.brands) ? result.brands : [],
     tags: Array.isArray(result.tags) ? result.tags : [],
     suggestedAffiliateSearch: Array.isArray(result.suggestedAffiliateSearch)
