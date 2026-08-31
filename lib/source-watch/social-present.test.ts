@@ -81,11 +81,11 @@ test("sortSocialCardsByPriority: 締切がある方が無い方より先", () =>
 })
 
 test("computeSocialSummary: 抽選件数・締切件数を正しく数える", () => {
-  const now = new Date()
-  const dueTodayIso = new Date(now.getTime() + 60 * 60 * 1000).toISOString() // 1時間後
+  const now = new Date("2026-08-31T03:00:00.000Z")
+  const dueTodayIso = new Date("2026-08-31T04:00:00.000Z").toISOString() // 同日内の1時間後
   const lottery = toProductCard(makeProduct({ id: "lottery", social: emptySocial({ saleMethod: "web_lottery", entryDeadlineAt: dueTodayIso }) }), [], [])
   const release = toProductCard(makeProduct({ id: "release", social: emptySocial({ postTypes: ["release"] }) }), [], [])
-  const summary = computeSocialSummary([lottery, release])
+  const summary = computeSocialSummary([lottery, release], now)
   assert.equal(summary.total, 2)
   assert.equal(summary.raffle, 1)
   assert.equal(summary.dueToday, 1)

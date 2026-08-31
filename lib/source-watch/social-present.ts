@@ -44,9 +44,8 @@ export type SocialSummaryStats = {
   event: number
 }
 
-export function computeSocialSummary(cards: ProductCard[]): SocialSummaryStats {
+export function computeSocialSummary(cards: ProductCard[], now = new Date()): SocialSummaryStats {
   const social = socialCardsOf(cards)
-  const now = new Date()
   const stats: SocialSummaryStats = { total: social.length, newToday: 0, raffle: 0, dueToday: 0, dueThisWeek: 0, release: 0, restock: 0, event: 0 }
 
   for (const c of social) {

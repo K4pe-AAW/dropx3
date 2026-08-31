@@ -1,6 +1,7 @@
 import { collectFromRss } from "./collector"
 import { draftFromRawItems } from "./ai-draft"
 import { addDrafts, readDrafts, getAllArticles } from "./storage"
+import { fetchPageText } from "./source-watch/fetchers/html"
 
 export type CollectSummary = {
   fetched: number
@@ -16,6 +17,29 @@ export type CollectSummary = {
  * sourceUrl単位なので取りこぼさない)に自然に持ち越す。
  */
 const MAX_DRAFTS_PER_RUN = 20
+
+async function hydratePageAssets(items: Awaited<ReturnType<typeof collectFromRss>>["items"]): Promise<typeof items> {
+  const hydrated: typeof items = []
+  const concurrency = 4
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency)
+    hydrated.push(
+      ...(await Promise.all(
+        batch.map(async (item) => {
+          if (/(?:youtube\.com|youtu\.be)/i.test(item.sourceUrl)) return item
+          const page = await fetchPageText(item.sourceUrl)
+          return {
+            ...item,
+            ...(page.imageCandidates.length > 0 ? { imageCandidates: page.imageCandidates } : {}),
+            ...(page.commerceLinkCandidates?.length ? { commerceLinkCandidates: page.commerceLinkCandidates } : {}),
+            ...(page.text && !item.snippet ? { snippet: page.text.slice(0, 3000) } : {}),
+          }
+        })
+      ))
+    )
+  }
+  return hydrated
+}
 
 /**
  * RSS収集 -> 既存下書き・公開済み記事との重複除外 -> AIによる下書き生成 -> 保存、まで一括で行う。
@@ -33,13 +57,16 @@ export async function runCollectAndDraft(): Promise<CollectSummary> {
     ...(existingDrafts.dismissedSourceUrls ?? []),
     ...existingArticles.flatMap((a) => a.sourceRefs.map((r) => r.url)),
   ])
-  const targets = items.filter((item) => !existingUrls.has(item.sourceUrl)).slice(0, MAX_DRAFTS_PER_RUN)
+  const targets = await hydratePageAssets(
+    items.filter((item) => !existingUrls.has(item.sourceUrl)).slice(0, MAX_DRAFTS_PER_RUN)
+  )
 
   const { drafts, errors: draftErrors } = await draftFromRawItems(targets)
   // URLが別々でもAIが独立生成したタイトルが偶然一致するケース(同じニュースを複数媒体が
   // 別々に配信した場合等)があるため、公開済み記事のタイトルとも突き合わせて弾く
   const knownTitles = new Set(existingArticles.map((a) => a.title))
-  const { saved, skipped } = await addDrafts(drafts, { knownTitles })
+  const knownImageKeys = new Set(existingArticles.map((a) => a.coverImage))
+  const { saved, skipped } = await addDrafts(drafts, { knownTitles, knownImageUrls: knownImageKeys })
 
   return {
     fetched: items.length,

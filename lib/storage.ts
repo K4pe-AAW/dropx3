@@ -12,6 +12,7 @@ import {
   BrandCrawlSource,
 } from "./types"
 import { clearDismissedUrls, dismissDraftsInData } from "./draft-dismissal"
+import { canonicalImageKey, isImageNoiseUrl } from "./image-candidates"
 
 export const ARTICLES_PATH = "data/articles.json"
 export const DRAFTS_PATH = "data/drafts.json"
@@ -338,8 +339,20 @@ export async function getDraftById(id: string): Promise<Draft | undefined> {
 const SOURCE_PRIORITY: Record<string, number> = { UPTODATE: 0, FULLRESS: 1 }
 
 function sourcePriorityOf(draft: Draft): number {
-  const name = draft.sourceRefs[0]?.name
-  return name && name in SOURCE_PRIORITY ? SOURCE_PRIORITY[name] : Number.MAX_SAFE_INTEGER
+  const priorities = draft.sourceRefs.map((ref) => {
+    const normalized = ref.name.replace(/[^a-z0-9]/gi, "").toUpperCase()
+    return SOURCE_PRIORITY[normalized] ?? Number.MAX_SAFE_INTEGER
+  })
+  return priorities.length > 0 ? Math.min(...priorities) : Number.MAX_SAFE_INTEGER
+}
+
+function draftImageKeys(draft: Draft): Set<string> {
+  const urls = [draft.suggestedCoverImage, ...(draft.suggestedGalleryImages ?? []).map((image) => image.url)]
+  return new Set(
+    urls
+      .filter((url): url is string => typeof url === "string" && url.length > 0 && !isImageNoiseUrl(url))
+      .map(canonicalImageKey)
+  )
 }
 
 function styleCodesOf(draft: Draft): string[] {
@@ -355,7 +368,7 @@ function styleCodesOf(draft: Draft): string[] {
  */
 export async function addDrafts(
   newDrafts: Draft[],
-  options?: { knownTitles?: Set<string>; allowDismissedUrlRevival?: boolean }
+  options?: { knownTitles?: Set<string>; knownImageUrls?: Set<string>; allowDismissedUrlRevival?: boolean }
 ): Promise<{ saved: number; skipped: number }> {
   let saved = 0
   let skipped = 0
@@ -377,6 +390,30 @@ export async function addDrafts(
       if (isUrlDup || isTitleDup) {
         skipped++
         continue
+      }
+
+      const newImageKeys = draftImageKeys(draft)
+      const duplicatesPublishedImage = [...(options?.knownImageUrls ?? [])]
+        .map(canonicalImageKey)
+        .some((key) => newImageKeys.has(key))
+      if (duplicatesPublishedImage) {
+        skipped++
+        continue
+      }
+
+      if (newImageKeys.size > 0) {
+        const imageConflict = data.drafts.find((existing) =>
+          [...draftImageKeys(existing)].some((key) => newImageKeys.has(key))
+        )
+        if (imageConflict) {
+          if (sourcePriorityOf(draft) < sourcePriorityOf(imageConflict)) {
+            // 同じ画像を使う同一ニュースはUP TO DATE由来を優先し、下位ソース版を置き換える。
+            data.drafts = data.drafts.filter((existing) => existing.id !== imageConflict.id)
+          } else {
+            skipped++
+            continue
+          }
+        }
       }
 
       const newStyleCodes = styleCodesOf(draft)

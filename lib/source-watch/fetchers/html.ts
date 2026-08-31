@@ -2,12 +2,19 @@ import * as cheerio from "cheerio"
 import type { Source } from "../types"
 import type { FetchResult } from "./types"
 import { prioritizeProductFacts } from "@/lib/product-fact-evidence"
-import { canonicalImageKey, deduplicateImageUrls } from "@/lib/image-candidates"
+import {
+  canonicalImageKey,
+  deduplicateImageUrls,
+  isImageNoiseUrl,
+  isSameProductAssetFamily,
+} from "@/lib/image-candidates"
 
 const UA = "Mozilla/5.0 (compatible; DropwireSourceWatch/1.0; +https://dropx3.com)"
 
-/** アイコン/ロゴ/トラッキングピクセル等、商品画像ではないと機械的に判定できるものだけ緩く除外する */
-const NOISE_URL_PATTERN = /\b(icon|favicon|logo|sprite|pixel|tracking|avatar|spinner|loading)\b/i
+const NOISE_CONTEXT_PATTERN =
+  /\b(icon|favicon|logo|brandmark|sprite|pixel|tracking|avatar|profile|author|share|social|sns|follow|recommend|related|ranking|sidebar|advert|banner)\b/i
+const NOISE_ANCESTOR_SELECTOR =
+  ".share, .sharing, .social, .sns, .follow, .author, .profile, .avatar, .related, .recommend, .recommended, .ranking, .sidebar, aside, nav, footer, header, [class*='share'], [class*='social'], [class*='sns'], [class*='related'], [class*='recommend'], [class*='ranking'], [class*='sidebar']"
 const COMMERCE_LINK_PATTERN =
   /(抽選|応募|エントリー|購入|販売|予約|オンラインストア|公式(?:サイト|ストア)|商品ページ|取扱|取り扱い|shop|store|buy|purchase|raffle|lottery|entry|release)/i
 
@@ -54,39 +61,69 @@ function resolveImageUrl(src: string | undefined, pageUrl: string): string | nul
  * 不具合の根本原因)。og:image/twitter:imageメタタグと、本文らしき領域の<img>から直接拾う方式に変更。
  */
 export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load>, pageUrl: string): string[] {
-  const urls: string[] = []
+  const metaUrls: string[] = []
+  const productSchemaUrls: string[] = []
+  const contentUrls: string[] = []
   const seen = new Set<string>()
 
-  const add = (src: string | undefined) => {
+  const add = (bucket: string[], src: string | undefined) => {
     const resolved = resolveImageUrl(src, pageUrl)
-    if (!resolved || NOISE_URL_PATTERN.test(resolved)) return
+    if (!resolved || isImageNoiseUrl(resolved)) return
     const key = canonicalImageKey(resolved)
     if (seen.has(key)) return
     seen.add(key)
-    urls.push(resolved)
+    bucket.push(resolved)
   }
 
-  const addSrcset = (srcset: string | undefined) => {
+  const addSrcset = (bucket: string[], srcset: string | undefined) => {
     if (!srcset) return
-    // srcsetは通常、小→大の順。最大候補を先に採用し、サムネイルだけを拾うのを避ける。
+    // 並び順に依存せず、w/x descriptorが最大の候補を採用する。
     const candidates = srcset
       .split(",")
-      .map((part) => part.trim().split(/\s+/)[0])
-      .filter(Boolean)
-    add(candidates.at(-1))
+      .map((part) => {
+        const [url, descriptor = "1"] = part.trim().split(/\s+/)
+        return { url, size: Number.parseFloat(descriptor) || 1 }
+      })
+      .filter((item) => item.url)
+      .sort((a, b) => b.size - a.size)
+    add(bucket, candidates[0]?.url)
   }
 
   const addElement = (el: cheerio.Element) => {
     const node = $(el)
+    if (node.closest(NOISE_ANCESTOR_SELECTOR).length > 0) return
+    const context = [node.attr("class"), node.attr("id"), node.attr("alt"), node.attr("title"), node.attr("aria-label")]
+      .filter(Boolean)
+      .join(" ")
+    if (NOISE_CONTEXT_PATTERN.test(context)) return
     const width = Number(node.attr("width") || 0)
     const height = Number(node.attr("height") || 0)
-    if ((width > 0 && width <= 64) || (height > 0 && height <= 64)) return
-    addSrcset(node.attr("data-srcset") || node.attr("srcset"))
-    add(node.attr("data-original") || node.attr("data-lazy-src") || node.attr("data-src") || node.attr("src"))
+    if ((width > 0 && width < 240) || (height > 0 && height < 240)) return
+    addSrcset(contentUrls, node.attr("data-srcset") || node.attr("srcset"))
+    add(contentUrls, node.attr("data-original") || node.attr("data-lazy-src") || node.attr("data-src") || node.attr("src"))
   }
 
   $('meta[property="og:image"], meta[property="og:image:url"], meta[name="twitter:image"], meta[name="twitter:image:src"]')
-    .each((_, el) => add($(el).attr("content")))
+    .each((_, el) => add(metaUrls, $(el).attr("content")))
+  $('link[rel="image_src"], link[rel="preload"][as="image"]').each((_, el) => add(metaUrls, $(el).attr("href")))
+
+  // Product構造化データのimageはページ運営者が当該商品として明示した画像なので、複数枚でも信頼する。
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const value = JSON.parse($(el).text())
+      const nodes: unknown[] = Array.isArray(value) ? value : [value, ...(Array.isArray(value?.["@graph"]) ? value["@graph"] : [])]
+      for (const node of nodes) {
+        if (!node || typeof node !== "object" || (node as Record<string, unknown>)["@type"] !== "Product") continue
+        const images = (node as Record<string, unknown>).image
+        for (const image of Array.isArray(images) ? images : [images]) {
+          if (typeof image === "string") add(productSchemaUrls, image)
+          else if (image && typeof image === "object") add(productSchemaUrls, String((image as Record<string, unknown>).url ?? ""))
+        }
+      }
+    } catch {
+      // 壊れたJSON-LDは無視し、OGP/本文画像へフォールバックする。
+    }
+  })
 
   $("article img, article source, main img, main source, .entry-content img, .entry-content source, .post-content img, .post-content source, .content img, .content source")
     .slice(0, 30)
@@ -102,10 +139,12 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
    * フォルダの階層が浅い(例: "/images/")場合は無関係画像まで拾ってしまうため対象外とする。
    * og:image自体が見つからないページでは実行しない。
    */
-  if (urls.length > 0) {
+  const trusted = deduplicateImageUrls([...metaUrls, ...productSchemaUrls], 12)
+  const preliminary = trusted.length > 0 ? trusted : deduplicateImageUrls(contentUrls, 30)
+  if (preliminary.length > 0) {
     const primaryPath = (() => {
       try {
-        return new URL(urls[0]).pathname
+        return new URL(preliminary[0]).pathname
       } catch {
         return ""
       }
@@ -130,7 +169,15 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
     }
   }
 
-  return deduplicateImageUrls(urls, 12)
+  const all = deduplicateImageUrls([...trusted, ...contentUrls], 30)
+  const cover = all[0]
+  if (!cover) return []
+  // Product JSON-LDの画像群だけは同一商品であることが明示されている。それ以外は厳格な同一群判定を通す。
+  const trustedKeys = new Set(productSchemaUrls.map(canonicalImageKey))
+  return [
+    cover,
+    ...all.slice(1).filter((url) => trustedKeys.has(canonicalImageKey(url)) || isSameProductAssetFamily(cover, url)),
+  ].slice(0, 8)
 }
 
 /** 販売先・抽選応募先として人間に提示する価値があるリンクだけを元HTMLからURL付きで拾う。 */
