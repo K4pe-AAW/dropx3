@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 300
 
 // 通常枠や過去の一時公開と衝突しない固定スロット。
-const ONE_OFF_SLOT_DATE = new Date("2099-01-04T23:00:00.000Z")
+const ONE_OFF_SLOT_DATE = new Date("2099-01-05T23:00:00.000Z")
 
 export async function GET(req: NextRequest) {
   const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? req.headers.get("x-cron-secret")
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   }
   try {
     const collected = await runCollectAndDraft()
-    const published = await runDailyAutoPublish(ONE_OFF_SLOT_DATE, 2)
+    const published = await runDailyAutoPublish(ONE_OFF_SLOT_DATE, 1)
     return NextResponse.json({ ok: true, collected, ...published })
   } catch (error) {
     return NextResponse.json(

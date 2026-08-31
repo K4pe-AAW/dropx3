@@ -9,14 +9,16 @@ export async function GET() {
   const state = await readJson<State>("data/daily-auto-publish-state.json", { runs: {} })
   const firstRun = state.runs?.["2099-01-04-08"]
   const secondRun = state.runs?.["2099-01-05-08"]
-  if (!secondRun?.publishedArticleIds) {
+  const thirdRun = state.runs?.["2099-01-06-08"]
+  if (!thirdRun?.publishedArticleIds) {
+    const titles = [...(firstRun?.titles ?? []), ...(secondRun?.titles ?? [])]
     return NextResponse.json({
       completed: false,
-      publishedCount: firstRun?.publishedArticleIds?.length ?? 0,
-      titles: firstRun?.titles ?? [],
+      publishedCount: titles.length,
+      titles,
     })
   }
-  const titles = [...(firstRun?.titles ?? []), ...(secondRun.titles ?? [])]
+  const titles = [...(firstRun?.titles ?? []), ...(secondRun?.titles ?? []), ...(thirdRun.titles ?? [])]
   return NextResponse.json({
     completed: true,
     publishedCount: titles.length,
