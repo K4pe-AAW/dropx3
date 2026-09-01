@@ -236,7 +236,7 @@ export function EditArticleForm({ article }: { article: Article }) {
           <select className={inputClass} value={informationStatus} onChange={(e) => setInformationStatus(e.target.value as InformationStatus)}>
             <option value="official">OFFICIAL（公式発表）</option>
             <option value="report">REPORT（報道）</option>
-            <option value="rumor">RUMOR（噂・未確認）</option>
+            <option value="rumor">Gossp!（未確認）</option>
             <option value="leak">LEAK（リーク・未確認）</option>
           </select>
         </Field>

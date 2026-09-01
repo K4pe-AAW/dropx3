@@ -1,3 +1,5 @@
+export {}
+
 const endpoint = "https://dropx3.com/api/cron/refresh-draft-images"
 const secret = process.env.CRON_SECRET
 
