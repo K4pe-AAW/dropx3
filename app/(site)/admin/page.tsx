@@ -11,6 +11,7 @@ import { DraftsList } from "@/components/admin/DraftsList"
 import { ScheduledList } from "@/components/admin/ScheduledList"
 import { Pagination } from "@/components/Pagination"
 import { UrlDraftForm, PasteTextDraftForm } from "@/components/admin/UrlDraftForm"
+import { VintageShopPublisher } from "@/components/admin/VintageShopPublisher"
 import { DRAFT_GROUPS, draftGroupOf, type DraftGroupKey } from "@/lib/admin-draft-groups"
 
 export const metadata: Metadata = { title: "管理画面" }
@@ -115,9 +116,6 @@ export default async function AdminPage({
         >
           公開済み ({articles.length})
         </Link>
-        <Link href="/admin/vintage-shop" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
-          古着屋投稿
-        </Link>
         <Link href="/admin/crawl-sources" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
           収集元の管理
         </Link>
@@ -136,7 +134,57 @@ export default async function AdminPage({
             <DraftSearch drafts={drafts.map((d) => ({ id: d.id, title: d.title, brands: d.brands }))} />
           )}
 
-          {drafts.length === 0 && !isGenerateTab ? (
+          <div className="flex flex-wrap gap-2 mb-6">
+            <Link
+              href={`/admin?view=drafts&tab=${ALL_DRAFTS_TAB}`}
+              className={
+                activeTab === ALL_DRAFTS_TAB
+                  ? "h-9 flex items-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground"
+                  : "h-9 flex items-center rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
+              }
+            >
+              下書き一覧 ({drafts.length})
+            </Link>
+            {DRAFT_GROUPS.map((g) => {
+              const count = drafts.filter((d) => draftGroupOf(d.category) === g.key).length
+              const active = g.key === activeTab
+              return (
+                <Link
+                  key={g.key}
+                  href={`/admin?view=drafts&tab=${g.key}`}
+                  className={
+                    active
+                      ? "h-9 flex items-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground"
+                      : "h-9 flex items-center rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
+                  }
+                >
+                  {g.label} ({count})
+                </Link>
+              )
+            })}
+            <Link
+              href={`/admin?view=drafts&tab=${URL_GENERATE_TAB}`}
+              className={
+                isUrlGenerateTab
+                  ? "h-9 flex items-center rounded-full bg-accent px-4 text-xs font-bold text-accent-foreground"
+                  : "h-9 flex items-center rounded-full border border-dashed border-border px-4 text-xs font-semibold hover:bg-secondary"
+              }
+            >
+              + URL生成
+            </Link>
+            <Link
+              href={`/admin?view=drafts&tab=${TEXT_GENERATE_TAB}`}
+              className={
+                isTextGenerateTab
+                  ? "h-9 flex items-center rounded-full bg-accent px-4 text-xs font-bold text-accent-foreground"
+                  : "h-9 flex items-center rounded-full border border-dashed border-border px-4 text-xs font-semibold hover:bg-secondary"
+              }
+            >
+              + 本文から生成
+            </Link>
+          </div>
+
+          {drafts.length === 0 && !isGenerateTab && activeTab !== "vintage" ? (
             <p className="text-sm text-muted-foreground leading-relaxed">
               下書きはありません。上の「収集を実行」を押すか、ターミナルで
               <code className="text-xs bg-secondary px-1.5 py-0.5 rounded mx-1">npm run collect</code>
@@ -144,56 +192,6 @@ export default async function AdminPage({
             </p>
           ) : (
             <>
-              <div className="flex flex-wrap gap-2 mb-6">
-                <Link
-                  href={`/admin?view=drafts&tab=${ALL_DRAFTS_TAB}`}
-                  className={
-                    activeTab === ALL_DRAFTS_TAB
-                      ? "h-9 flex items-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground"
-                      : "h-9 flex items-center rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
-                  }
-                >
-                  下書き一覧 ({drafts.length})
-                </Link>
-                {DRAFT_GROUPS.map((g) => {
-                  const count = drafts.filter((d) => draftGroupOf(d.category) === g.key).length
-                  const active = g.key === activeTab
-                  return (
-                    <Link
-                      key={g.key}
-                      href={`/admin?view=drafts&tab=${g.key}`}
-                      className={
-                        active
-                          ? "h-9 flex items-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground"
-                          : "h-9 flex items-center rounded-full border border-border px-4 text-xs font-semibold hover:bg-secondary"
-                      }
-                    >
-                      {g.label} ({count})
-                    </Link>
-                  )
-                })}
-                <Link
-                  href={`/admin?view=drafts&tab=${URL_GENERATE_TAB}`}
-                  className={
-                    isUrlGenerateTab
-                      ? "h-9 flex items-center rounded-full bg-accent px-4 text-xs font-bold text-accent-foreground"
-                      : "h-9 flex items-center rounded-full border border-dashed border-border px-4 text-xs font-semibold hover:bg-secondary"
-                  }
-                >
-                  + URL生成
-                </Link>
-                <Link
-                  href={`/admin?view=drafts&tab=${TEXT_GENERATE_TAB}`}
-                  className={
-                    isTextGenerateTab
-                      ? "h-9 flex items-center rounded-full bg-accent px-4 text-xs font-bold text-accent-foreground"
-                      : "h-9 flex items-center rounded-full border border-dashed border-border px-4 text-xs font-semibold hover:bg-secondary"
-                  }
-                >
-                  + 本文から生成
-                </Link>
-              </div>
-
               {!isGenerateTab && (
                 <div className="flex items-center gap-1.5 mb-4">
                   <span className="text-xs text-muted-foreground mr-1">元ネタ:</span>
@@ -220,12 +218,23 @@ export default async function AdminPage({
                 </div>
               )}
 
+              {activeTab === "vintage" && (
+                <section className="mb-10 max-w-2xl rounded-2xl border border-border bg-secondary/20 p-4 sm:p-6">
+                  <p className="text-[10px] font-black tracking-[0.2em] text-accent">VINTAGE SHOP</p>
+                  <h2 className="mt-1 text-lg font-black">古着屋投稿</h2>
+                  <p className="mb-6 mt-2 text-xs leading-relaxed text-muted-foreground">
+                    tonari／ROOMの投稿URL・本文・写真を入力し、AI下書きを確認してから公開します。
+                  </p>
+                  <VintageShopPublisher />
+                </section>
+              )}
+
               {isUrlGenerateTab ? (
                 <UrlDraftForm />
               ) : isTextGenerateTab ? (
                 <PasteTextDraftForm />
               ) : tabDrafts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">このタブに下書きはありません。</p>
+                <p className="text-sm text-muted-foreground">{activeTab === "vintage" ? "収集された古着記事の下書きはありません。" : "このタブに下書きはありません。"}</p>
               ) : (
                 <>
                   {/* DraftsListは削除・公開直後の即時反映用にpropsをローカルstateへ保持する。
