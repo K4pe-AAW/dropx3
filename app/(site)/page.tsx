@@ -3,6 +3,7 @@ import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
 import { siteConfig } from "@/lib/site-config"
+import Link from "next/link"
 
 const PAGE_SIZE = 12
 
@@ -24,6 +25,8 @@ export default async function HomePage({
   const brands = await getAllBrands()
   const archive = await getArchiveMonths()
   const popular = await getFeaturedArticles(6)
+  const columns = all.filter((article) => article.contentType === "COLUMN").slice(0, 3)
+  const picks = all.filter((article) => article.contentType === "PICKS").slice(0, 3)
 
   // トップが何のサイトかを機械に伝える。記事ページ側と違い、ここには
   // 個別のArticleが無いのでサイト自体を主語にする。
@@ -72,6 +75,18 @@ export default async function HomePage({
       </h1>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10">
         <div>
+          {currentPage === 1 && columns.length > 0 && (
+            <EditorialSection title="編集部コラム" eyebrow="COLUMN" href="/column" articles={columns} />
+          )}
+          {currentPage === 1 && picks.length > 0 && (
+            <EditorialSection title="編集部おすすめ品" eyebrow="EDITOR’S PICKS" href="/picks" articles={picks} />
+          )}
+          <div className="mb-5 flex items-end justify-between">
+            <div>
+              <p className="text-[10px] font-black tracking-[0.22em] text-accent">LATEST</p>
+              <h2 className="text-xl font-black">最新記事</h2>
+            </div>
+          </div>
           {list.length === 0 ? (
             <EmptyState />
           ) : (
@@ -88,6 +103,37 @@ export default async function HomePage({
         <Sidebar popular={popular} brands={brands} archive={archive} />
       </div>
     </div>
+  )
+}
+
+function EditorialSection({
+  title,
+  eyebrow,
+  href,
+  articles,
+}: {
+  title: string
+  eyebrow: string
+  href: string
+  articles: Awaited<ReturnType<typeof getAllArticles>>
+}) {
+  return (
+    <section className="mb-12 rounded-2xl border border-border bg-secondary/30 p-5 sm:p-6">
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-black tracking-[0.22em] text-accent">{eyebrow}</p>
+          <h2 className="text-xl font-black">{title}</h2>
+        </div>
+        <Link href={href} className="text-xs font-bold underline decoration-2 underline-offset-4">
+          すべて見る
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-3">
+        {articles.map((article) => (
+          <ArticleCard key={article.id} article={article} />
+        ))}
+      </div>
+    </section>
   )
 }
 

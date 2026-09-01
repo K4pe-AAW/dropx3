@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { categoryLabel, siteConfig } from "@/lib/site-config"
 import { linkDomain } from "@/lib/analytics"
 import { INFORMATION_STATUS_LABELS, isUnconfirmedStatus, unconfirmedNotice } from "@/lib/information-status"
+import { CONTENT_TYPE_LABELS, isEditorialContentType } from "@/lib/content-type"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -73,7 +74,9 @@ export default async function ArticleDetailPage({
         image: [coverImageUrl],
         datePublished: article.publishedAt,
         dateModified: article.updatedAt || article.publishedAt,
-        author: { "@type": "Organization", name: siteConfig.name },
+        author: article.editorialAuthor
+          ? { "@type": "Person", name: article.editorialAuthor }
+          : { "@type": "Organization", name: siteConfig.name },
         publisher: { "@type": "Organization", name: siteConfig.name },
         mainEntityOfPage: articleUrl,
       },
@@ -136,11 +139,19 @@ export default async function ArticleDetailPage({
         </div>
       )}
 
+      {isEditorialContentType(article.contentType) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Badge variant="accent">{CONTENT_TYPE_LABELS[article.contentType]}</Badge>
+          {article.seriesName && <span className="text-xs font-bold text-muted-foreground">{article.seriesName}</span>}
+        </div>
+      )}
+
       <h1 className="text-2xl sm:text-3xl font-black leading-tight mb-3 text-balance text-wrap-phrase">{article.title}</h1>
-      <p className={`text-sm text-muted-foreground ${article.affiliateLinks.length > 0 ? "mb-1" : "mb-6"}`}>
+      <p className={`text-sm text-muted-foreground ${article.affiliateLinks.length > 0 || article.isSponsored ? "mb-1" : "mb-6"}`}>
         {formatDate(article.publishedAt)}
+        {article.editorialAuthor && <span> ・ By {article.editorialAuthor}</span>}
       </p>
-      {article.affiliateLinks.length > 0 && (
+      {(article.affiliateLinks.length > 0 || article.isSponsored) && (
         <p className="text-xs text-muted-foreground/70 mb-6">本ページはプロモーションが含まれています</p>
       )}
 

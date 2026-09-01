@@ -138,10 +138,17 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
   )
   const contentType = isContentType(body.contentType)
     ? body.contentType
-    : inferContentType(category, affiliateLinks.length > 0)
+    : (draft?.contentType ?? inferContentType(category, affiliateLinks.length > 0))
   const informationStatus = isInformationStatus(body.informationStatus)
     ? body.informationStatus
     : draft?.informationStatus
+  const editorialAuthor =
+    typeof body.editorialAuthor === "string" && body.editorialAuthor.trim()
+      ? body.editorialAuthor.trim()
+      : draft?.editorialAuthor
+  const seriesName =
+    typeof body.seriesName === "string" && body.seriesName.trim() ? body.seriesName.trim() : draft?.seriesName
+  const isSponsored = typeof body.isSponsored === "boolean" ? body.isSponsored : Boolean(draft?.isSponsored)
   const youtubeVideoIdInput: string = typeof body.youtubeVideoId === "string" ? body.youtubeVideoId.trim() : ""
   const youtubeVideoId = /^[A-Za-z0-9_-]{6,20}$/.test(youtubeVideoIdInput) ? youtubeVideoIdInput : undefined
   const galleryImages: GalleryImage[] = sanitizeGalleryImages(body.galleryImages)
@@ -178,6 +185,9 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
     galleryImages,
     category,
     contentType,
+    ...(editorialAuthor ? { editorialAuthor } : {}),
+    ...(seriesName ? { seriesName } : {}),
+    ...(isSponsored ? { isSponsored: true } : {}),
     ...(informationStatus ? { informationStatus } : {}),
     brands,
     tags,

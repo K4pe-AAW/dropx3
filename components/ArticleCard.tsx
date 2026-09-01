@@ -3,6 +3,7 @@ import { Article } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { PlayIcon } from "@/components/icons"
 import { INFORMATION_STATUS_LABELS, isUnconfirmedStatus } from "@/lib/information-status"
+import { CONTENT_TYPE_LABELS, isEditorialContentType } from "@/lib/content-type"
 
 function isNew(publishedAt: string) {
   const hours = (Date.now() - new Date(publishedAt).getTime()) / 36e5
@@ -42,6 +43,9 @@ export function ArticleCard({ article, priority = false }: { article: Article; p
           </div>
         )}
         <div className="absolute top-1.5 left-1.5 hidden gap-1.5 sm:flex">
+          {isEditorialContentType(article.contentType) && (
+            <Badge variant="accent">{CONTENT_TYPE_LABELS[article.contentType]}</Badge>
+          )}
           {article.brands[0] && <Badge variant="default">{article.brands[0]}</Badge>}
         </div>
         <div className="absolute top-1.5 right-1.5 flex gap-1.5 sm:top-2 sm:right-2">

@@ -161,6 +161,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const informationStatus = isInformationStatus(body.informationStatus)
     ? body.informationStatus
     : existing.informationStatus
+  const editorialAuthor =
+    typeof body.editorialAuthor === "string" ? body.editorialAuthor.trim() || undefined : existing.editorialAuthor
+  const seriesName = typeof body.seriesName === "string" ? body.seriesName.trim() || undefined : existing.seriesName
+  const isSponsored = typeof body.isSponsored === "boolean" ? body.isSponsored : Boolean(existing.isSponsored)
   const brands: string[] = canonicalBrandNames(
     Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string") : existing.brands
   )
@@ -205,6 +209,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     bodyParagraphs,
     category,
     contentType,
+    editorialAuthor,
+    seriesName,
+    isSponsored,
     informationStatus,
     brands,
     tags,
@@ -244,7 +251,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     excerpt: removed.excerpt,
     bodyParagraphs: removed.bodyParagraphs,
     category: removed.category,
+    contentType: removed.contentType,
     informationStatus: removed.informationStatus,
+    editorialAuthor: removed.editorialAuthor,
+    seriesName: removed.seriesName,
+    isSponsored: removed.isSponsored,
     brands: removed.brands,
     tags: removed.tags,
     suggestedAffiliateSearch: [],

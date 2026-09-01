@@ -9,6 +9,8 @@ import {
 } from "@/lib/draft-publish"
 import { siteConfig } from "@/lib/site-config"
 import type { Draft } from "@/lib/types"
+import { isContentType } from "@/lib/content-type"
+import { isInformationStatus } from "@/lib/information-status"
 
 /** DraftReviewPendingのポーリング用。生成直後の伝播遅延で見つからない下書きを見つかるまで軽く問い合わせる */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -58,6 +60,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(typeof body.category === "string" && siteConfig.categories.some((c) => c.slug === body.category)
         ? { category: body.category }
         : {}),
+      ...(isContentType(body.contentType) ? { contentType: body.contentType } : {}),
+      ...(isInformationStatus(body.informationStatus) ? { informationStatus: body.informationStatus } : {}),
+      ...(typeof body.editorialAuthor === "string" ? { editorialAuthor: body.editorialAuthor.trim() || undefined } : {}),
+      ...(typeof body.seriesName === "string" ? { seriesName: body.seriesName.trim() || undefined } : {}),
+      ...(typeof body.isSponsored === "boolean" ? { isSponsored: body.isSponsored } : {}),
       ...(Array.isArray(body.brands)
         ? { brands: body.brands.filter((b: unknown): b is string => typeof b === "string") }
         : {}),

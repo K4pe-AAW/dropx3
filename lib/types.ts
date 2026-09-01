@@ -13,7 +13,7 @@ export type Category =
   | "youtube"
 
 /** 記事の事業上の役割。カテゴリーとは別に、送客率・収益を比較する集計軸。 */
-export type ContentType = "NEWS" | "BUY" | "GUIDE" | "VIDEO"
+export type ContentType = "NEWS" | "BUY" | "GUIDE" | "VIDEO" | "COLUMN" | "PICKS"
 
 export type AffiliateLink = {
   label: string // 例: "楽天市場で探す"
@@ -113,6 +113,12 @@ export type Article = {
   quote?: { text: string; sourceLabel: string }
   category: Category
   contentType?: ContentType
+  /** 編集記事の執筆者名。未設定時はサイト編集部名を表示する。 */
+  editorialAuthor?: string
+  /** 継続企画・連載の表示名。 */
+  seriesName?: string
+  /** アフィリエイトリンクが無いタイアップ記事でもPR表記を出すための明示フラグ。 */
+  isSponsored?: boolean
   /** 情報の確度。未設定の既存記事は通常記事として扱う（後方互換）。 */
   informationStatus?: InformationStatus
   brands: string[]
@@ -181,7 +187,11 @@ export type Draft = {
   excerpt: string
   bodyParagraphs: string[]
   category: Category
+  contentType?: ContentType
   informationStatus?: InformationStatus
+  editorialAuthor?: string
+  seriesName?: string
+  isSponsored?: boolean
   brands: string[]
   tags: string[]
   /**

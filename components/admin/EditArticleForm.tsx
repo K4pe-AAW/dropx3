@@ -29,6 +29,9 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [contentType, setContentType] = useState<ContentType>(
     article.contentType ?? inferContentType(article.category, article.affiliateLinks.length > 0)
   )
+  const [editorialAuthor, setEditorialAuthor] = useState(article.editorialAuthor ?? "DROP DROP DROP編集部")
+  const [seriesName, setSeriesName] = useState(article.seriesName ?? "")
+  const [isSponsored, setIsSponsored] = useState(Boolean(article.isSponsored))
   const [informationStatus, setInformationStatus] = useState<InformationStatus>(article.informationStatus ?? "report")
   const [brandsText, setBrandsText] = useState(article.brands.join(", "))
   const [tagsText, setTagsText] = useState(article.tags.join(", "))
@@ -149,6 +152,9 @@ export function EditArticleForm({ article }: { article: Article }) {
           .filter(Boolean),
         category,
         contentType,
+        ...(contentType === "COLUMN" || contentType === "PICKS"
+          ? { editorialAuthor, seriesName, isSponsored }
+          : { editorialAuthor: "", seriesName: "", isSponsored: false }),
         informationStatus,
         brands: brandsText.split(",").map((b) => b.trim()).filter(Boolean),
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
@@ -247,6 +253,31 @@ export function EditArticleForm({ article }: { article: Article }) {
           </label>
         </Field>
       </div>
+
+      {(contentType === "COLUMN" || contentType === "PICKS") && (
+        <div className="grid grid-cols-1 gap-4 rounded-xl border border-accent/40 bg-accent/5 p-4 sm:grid-cols-2">
+          <Field label="執筆者名">
+            <input
+              className={inputClass}
+              value={editorialAuthor}
+              onChange={(e) => setEditorialAuthor(e.target.value)}
+              placeholder="DROP DROP DROP編集部"
+            />
+          </Field>
+          <Field label="連載名（任意）">
+            <input
+              className={inputClass}
+              value={seriesName}
+              onChange={(e) => setSeriesName(e.target.value)}
+              placeholder="今週気になった5足"
+            />
+          </Field>
+          <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-2">
+            <input type="checkbox" checked={isSponsored} onChange={(e) => setIsSponsored(e.target.checked)} />
+            タイアップ・提供記事としてPR表記する
+          </label>
+        </div>
+      )}
 
       <Field label="ブランド（カンマ区切り）">
         <input className={inputClass} value={brandsText} onChange={(e) => setBrandsText(e.target.value)} />

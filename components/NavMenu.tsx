@@ -54,6 +54,20 @@ export function NavMenu() {
             >
               新着記事
             </Link>
+            <Link
+              href="/column"
+              onClick={() => setOpen(false)}
+              className="rounded-full border border-accent px-2.5 py-2 text-center text-xs text-primary-foreground/85 transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              コラム
+            </Link>
+            <Link
+              href="/picks"
+              onClick={() => setOpen(false)}
+              className="rounded-full border border-accent px-2.5 py-2 text-center text-xs text-primary-foreground/85 transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              PICKS
+            </Link>
             {siteConfig.categories.map((c) => (
               <Link
                 key={c.slug}

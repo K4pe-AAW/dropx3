@@ -198,6 +198,11 @@ export async function getArticlesByCategory(category: string): Promise<Article[]
   return all.filter((a) => a.category === category)
 }
 
+export async function getArticlesByContentType(contentType: Article["contentType"]): Promise<Article[]> {
+  const all = await getAllArticles()
+  return all.filter((a) => a.contentType === contentType)
+}
+
 export async function getArticlesByBrand(brand: string): Promise<Article[]> {
   const target = decodeURIComponent(brand).toLowerCase()
   const all = await getAllArticles()
