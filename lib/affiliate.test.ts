@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import {
+  affiliateSearchQuery,
   buildMercariSearchLink,
   buildYahooShoppingSearchLink,
   buildSnkrdunkSearchLink,
@@ -9,6 +10,22 @@ import {
   QUICK_AFFILIATE_RETAILERS,
   sortAffiliateLinks,
 } from "./affiliate"
+
+test("affiliateSearchQuery: マーケットプレイスの直接検索URLから商品名を抽出する", () => {
+  assert.equal(affiliateSearchQuery("https://jp.mercari.com/search?keyword=PUMA%20T7%20TRACK%20JACKET"), "PUMA T7 TRACK JACKET")
+  assert.equal(affiliateSearchQuery("https://shopping.yahoo.co.jp/search?p=REGAL%20Loafer%20GORE-TEX"), "REGAL Loafer GORE-TEX")
+})
+
+test("affiliateSearchQuery: エンコードされた提携リダイレクトを辿る", () => {
+  assert.equal(affiliateSearchQuery(buildMercariSearchLink("eYe JUNYA WATANABE MAN 2026AW").url), "eYe JUNYA WATANABE MAN 2026AW")
+  assert.equal(affiliateSearchQuery(buildYahooShoppingSearchLink("PUMA T7 TRACK JACKET").url), "PUMA T7 TRACK JACKET")
+  assert.equal(affiliateSearchQuery(buildRakutenSearchLink("REGAL Loafer GORE-TEX").url), "REGAL Loafer GORE-TEX")
+})
+
+test("affiliateSearchQuery: 具体的な検索語がないリンクはundefined", () => {
+  assert.equal(affiliateSearchQuery("https://example.com/products/123"), undefined)
+  assert.equal(affiliateSearchQuery("not-a-url"), undefined)
+})
 
 test("クイック追加の並び順は指定の5店舗", () => {
   assert.deepEqual(QUICK_AFFILIATE_RETAILERS.map((item) => item.retailer), [

@@ -22,6 +22,55 @@ export function sanitizeAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] 
   return sortAffiliateLinks(links.filter((link) => isSafeExternalUrl(link.url)))
 }
 
+const SEARCH_PARAM_KEYS = ["keyword", "keywords", "p", "k"] as const
+
+/**
+ * 提携リンクの遷移先に埋め込まれた商品検索語を取り出す。
+ * A8.net / ValueCommerce は検索URLをredirectパラメータへ入れるため、URL全体と
+ * クエリ値を最大4段まで辿る。取得できなければ表示側は記事タイトルへ戻す。
+ */
+export function affiliateSearchQuery(url: string): string | undefined {
+  let candidates = [url]
+  const visited = new Set<string>()
+
+  for (let depth = 0; depth < 4; depth++) {
+    const next: string[] = []
+    for (const candidate of candidates) {
+      if (visited.has(candidate)) continue
+      visited.add(candidate)
+
+      let parsed: URL
+      try {
+        parsed = new URL(candidate)
+      } catch {
+        continue
+      }
+
+      for (const key of SEARCH_PARAM_KEYS) {
+        const value = parsed.searchParams.get(key)?.trim()
+        if (value) return value
+      }
+
+      const rakutenMatch = parsed.pathname.match(/\/search\/mall\/([^/]+)/)
+      if (rakutenMatch?.[1]) {
+        try {
+          const value = decodeURIComponent(rakutenMatch[1]).trim()
+          if (value) return value
+        } catch {
+          // 不正なpercent-encodingなら他の候補を続けて調べる
+        }
+      }
+
+      for (const value of parsed.searchParams.values()) {
+        if (/^https?:\/\//i.test(value)) next.push(value)
+      }
+    }
+    candidates = next
+  }
+
+  return undefined
+}
+
 const AFFILIATE_RETAILER_ORDER = ["楽天市場", "メルカリ", "SNKRDUNK", "Amazon", "Yahoo!ショッピング"]
 
 /** 保存済みの古い記事を含め、公開画面では常に指定順で表示する。未知の店舗は末尾で元の順序を保つ。 */

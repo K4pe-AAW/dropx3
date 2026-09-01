@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { AffiliateLink, OfficialLink } from "@/lib/types"
-import { AFFILIATE_REL, isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
+import { AFFILIATE_REL, affiliateSearchQuery, isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
 import { ExternalLinkIcon } from "@/components/icons"
 import { siteConfig } from "@/lib/site-config"
 import { trackEvent, classifyAffiliateNetwork, linkDomain } from "@/lib/analytics"
@@ -13,6 +13,7 @@ type Row = {
   description?: string
   isAd: boolean
   retailer: string
+  itemName?: string
 }
 
 /**
@@ -39,14 +40,21 @@ export function PurchaseLinks({
 }) {
   const safeOfficial = officialLinks.filter((l) => isSafeExternalUrl(l.url))
   const safeAffiliate = sanitizeAffiliateLinks(affiliateLinks)
+  const primaryItemName = safeAffiliate.map((link) => affiliateSearchQuery(link.url)).find(Boolean)
 
-  const affiliateRows: Row[] = safeAffiliate.map((l) => ({
-    label: l.retailer || l.label,
-    url: l.url,
-    description: [l.label !== l.retailer ? l.label : null, l.price].filter(Boolean).join(" ・ ") || undefined,
-    isAd: true,
-    retailer: l.retailer,
-  }))
+  const affiliateRows: Row[] = safeAffiliate.map((l) => {
+    const itemName = affiliateSearchQuery(l.url)
+    return {
+      label: l.retailer || l.label,
+      url: l.url,
+      description: [itemName ? `「${itemName}」で検索` : l.label !== l.retailer ? l.label : null, l.price]
+        .filter(Boolean)
+        .join(" ・ ") || undefined,
+      isAd: true,
+      retailer: l.retailer,
+      itemName,
+    }
+  })
   const officialRows: Row[] = safeOfficial.map((l) => ({ label: l.label, url: l.url, isAd: false, retailer: "" }))
 
   if (affiliateRows.length === 0 && officialRows.length === 0) return null
@@ -57,7 +65,7 @@ export function PurchaseLinks({
     if (row.isAd) {
       trackEvent("affiliate_click", {
         affiliate_network: classifyAffiliateNetwork(row.retailer),
-        item_name: articleTitle,
+        item_name: row.itemName ?? articleTitle,
         item_brand: brand,
         placement: "article_body",
         article_id: articleId,
@@ -78,7 +86,9 @@ export function PurchaseLinks({
   return (
     <div className="my-8 overflow-hidden rounded-xl border border-border">
       <div className="bg-accent px-4 py-3">
-        <h2 className="text-sm font-bold text-accent-foreground">販売店舗・オンラインリンク（随時更新）</h2>
+        <h2 className="text-sm font-bold text-accent-foreground">
+          {primaryItemName ? `「${primaryItemName}」の販売先・中古相場を探す` : "販売店舗・オンラインリンク（随時更新）"}
+        </h2>
       </div>
       {showGroupLabels && (
         <p className="border-b border-border bg-secondary/20 px-4 py-2 text-xs text-muted-foreground">
@@ -161,7 +171,7 @@ function AffiliateRowLink({
             firedRef.current = true
             trackEvent("affiliate_impression", {
               affiliate_network: classifyAffiliateNetwork(row.retailer),
-              item_name: row.label,
+              item_name: row.itemName ?? row.label,
               placement: "article_body",
               article_id: articleId,
             })
@@ -179,7 +189,7 @@ function AffiliateRowLink({
       if (timer) clearTimeout(timer)
       observer.disconnect()
     }
-  }, [row.retailer, row.label, articleId])
+  }, [row.retailer, row.label, row.itemName, articleId])
 
   return (
     <a
