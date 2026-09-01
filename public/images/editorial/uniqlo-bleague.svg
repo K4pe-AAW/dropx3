@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">UNIQLO B LEAGUE editorial cover</title>
+  <desc id="desc">DROP DROP DROP original editorial news cover</desc>
+  <rect width="1200" height="630" fill="#121212"/>
+  <rect x="820" width="380" height="630" fill="#e60012"/>
+  <circle cx="1010" cy="315" r="130" fill="none" stroke="#fff" stroke-width="18"/>
+  <path d="M1010 185V445M880 315H1140M920 225C1030 300 1030 330 1100 405M1100 225C990 300 990 330 920 405" fill="none" stroke="#fff" stroke-width="12"/>
+  <text x="72" y="96" fill="#ff4a57" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="7">DROP DROP DROP / NEWS</text>
+  <text x="72" y="276" fill="#fff" font-family="Arial, sans-serif" font-size="92" font-weight="900">UNIQLO</text>
+  <text x="72" y="378" fill="#fff" font-family="Arial, sans-serif" font-size="82" font-weight="900">× B.LEAGUE</text>
+  <text x="72" y="548" fill="#ff4a57" font-family="Arial, sans-serif" font-size="30" font-weight="700">PARTNERSHIP / 2026–2027</text>
+</svg>

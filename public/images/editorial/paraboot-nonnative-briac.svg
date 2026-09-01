@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Paraboot nonnative BRIAC editorial cover</title>
+  <desc id="desc">DROP DROP DROP original editorial news cover</desc>
+  <rect width="1200" height="630" fill="#171717"/>
+  <path d="M700 0H1200V630H420Z" fill="#5c5c5c"/>
+  <path d="M860 0H1200V630H700Z" fill="#2c2c2c" opacity=".8"/>
+  <text x="72" y="96" fill="#bdbdbd" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="7">DROP DROP DROP / NEWS</text>
+  <text x="72" y="272" fill="#fff" font-family="Arial, sans-serif" font-size="64" font-weight="900">PARABOOT × NONNATIVE</text>
+  <text x="72" y="372" fill="#fff" font-family="Arial, sans-serif" font-size="94" font-weight="900">BRIAC</text>
+  <text x="72" y="548" fill="#d7d7d7" font-family="Arial, sans-serif" font-size="32" font-weight="700">CHARCOAL GREY / SEPTEMBER 5</text>
+</svg>

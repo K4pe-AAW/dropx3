@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">graniph Attack on Titan editorial cover</title>
+  <desc id="desc">DROP DROP DROP original editorial news cover</desc>
+  <rect width="1200" height="630" fill="#171a1d"/>
+  <path d="M820 0L1200 0V630H650Z" fill="#71261f"/>
+  <path d="M1020 0L1200 0V630H900Z" fill="#b98b5d" opacity=".65"/>
+  <text x="72" y="96" fill="#cda477" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="7">DROP DROP DROP / NEWS</text>
+  <text x="72" y="260" fill="#fff" font-family="Arial, sans-serif" font-size="78" font-weight="900">GRANIPH</text>
+  <text x="72" y="360" fill="#fff" font-family="Arial, sans-serif" font-size="68" font-weight="900">ATTACK ON TITAN</text>
+  <text x="72" y="455" fill="#fff" font-family="Arial, sans-serif" font-size="52" font-weight="700">TRACK JACKET</text>
+  <text x="72" y="548" fill="#cda477" font-family="Arial, sans-serif" font-size="30" font-weight="700">WEB PRE-ORDER / SEPTEMBER 8</text>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">adidas Virginia Watermoc editorial cover</title>
+  <desc id="desc">DROP DROP DROP original editorial news cover</desc>
+  <rect width="1200" height="630" fill="#0b1d32"/>
+  <circle cx="1020" cy="315" r="330" fill="#218cff" opacity=".72"/>
+  <circle cx="1000" cy="310" r="175" fill="#f5cf31" opacity=".9"/>
+  <text x="72" y="96" fill="#78bcff" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="7">DROP DROP DROP / NEWS</text>
+  <text x="72" y="272" fill="#fff" font-family="Arial, sans-serif" font-size="66" font-weight="900">PHARRELL × ADIDAS</text>
+  <text x="72" y="362" fill="#fff" font-family="Arial, sans-serif" font-size="72" font-weight="900">VIRGINIA WATERMOC</text>
+  <text x="72" y="548" fill="#f5cf31" font-family="Arial, sans-serif" font-size="30" font-weight="700">BLUE / YELLOW / BLACK — SEPTEMBER 2026</text>
+</svg>
