@@ -13,7 +13,27 @@ export type Category =
   | "youtube"
 
 /** 記事の事業上の役割。カテゴリーとは別に、送客率・収益を比較する集計軸。 */
-export type ContentType = "NEWS" | "BUY" | "GUIDE" | "VIDEO" | "COLUMN" | "PICKS"
+export type ContentType = "NEWS" | "BUY" | "GUIDE" | "VIDEO" | "COLUMN" | "PICKS" | "SNAP"
+
+export type SnapItem = {
+  brand: string
+  itemName: string
+  category?: string
+  note?: string
+}
+
+/** 編集部が撮影・掲載許可を確認したスナップだけを公開するための構造化情報。 */
+export type SnapProfile = {
+  displayName: string
+  ageGroup?: string
+  occupation?: string
+  location?: string
+  stylePoint: string
+  instagramUrl?: string
+  consentConfirmed: boolean
+  consentConfirmedAt?: string
+  items: SnapItem[]
+}
 
 export type AffiliateLink = {
   label: string // 例: "楽天市場で探す"
@@ -119,6 +139,8 @@ export type Article = {
   seriesName?: string
   /** アフィリエイトリンクが無いタイアップ記事でもPR表記を出すための明示フラグ。 */
   isSponsored?: boolean
+  /** SNAP記事のみ。coverImage=全身、galleryImages=ディテール写真として扱う。 */
+  snapProfile?: SnapProfile
   /** 情報の確度。未設定の既存記事は通常記事として扱う（後方互換）。 */
   informationStatus?: InformationStatus
   brands: string[]
@@ -192,6 +214,7 @@ export type Draft = {
   editorialAuthor?: string
   seriesName?: string
   isSponsored?: boolean
+  snapProfile?: SnapProfile
   brands: string[]
   tags: string[]
   /**

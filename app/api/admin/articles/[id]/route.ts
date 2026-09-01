@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types"
 import { inferContentType, isContentType } from "@/lib/content-type"
 import { isInformationStatus } from "@/lib/information-status"
+import { sanitizeSnapProfile, validateSnapProfile } from "@/lib/snap"
 
 function isAllowedImageUrl(url: string): boolean {
   if (url.startsWith("/") && !url.startsWith("//")) return true
@@ -165,6 +166,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     typeof body.editorialAuthor === "string" ? body.editorialAuthor.trim() || undefined : existing.editorialAuthor
   const seriesName = typeof body.seriesName === "string" ? body.seriesName.trim() || undefined : existing.seriesName
   const isSponsored = typeof body.isSponsored === "boolean" ? body.isSponsored : Boolean(existing.isSponsored)
+  const snapProfile = body.snapProfile !== undefined ? sanitizeSnapProfile(body.snapProfile) : existing.snapProfile
   const brands: string[] = canonicalBrandNames(
     Array.isArray(body.brands) ? body.brands.filter((b: unknown) => typeof b === "string") : existing.brands
   )
@@ -202,6 +204,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!coverImage || !isAllowedImageUrl(coverImage)) {
     return NextResponse.json({ error: "coverImageが未設定か不正です" }, { status: 400 })
   }
+  if (contentType === "SNAP") {
+    const snapError = validateSnapProfile(snapProfile)
+    if (snapError) return NextResponse.json({ error: snapError }, { status: 400 })
+  }
 
   const updated = await updateArticle(id, {
     title,
@@ -212,6 +218,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     editorialAuthor,
     seriesName,
     isSponsored,
+    snapProfile: contentType === "SNAP" ? snapProfile : undefined,
     informationStatus,
     brands,
     tags,
@@ -256,6 +263,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     editorialAuthor: removed.editorialAuthor,
     seriesName: removed.seriesName,
     isSponsored: removed.isSponsored,
+    snapProfile: removed.snapProfile,
     brands: removed.brands,
     tags: removed.tags,
     suggestedAffiliateSearch: [],

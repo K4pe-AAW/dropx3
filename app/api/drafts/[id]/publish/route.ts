@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDraftById, removeDraft, publishArticle } from "@/lib/storage"
+import { getAllArticles, getDraftById, getScheduledArticles, removeDraft, publishArticle } from "@/lib/storage"
 import { buildArticleFromDraft } from "@/lib/draft-publish"
 import type { Article } from "@/lib/types"
+import { findDuplicateSnap } from "@/lib/snap"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -15,6 +16,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const result = buildArticleFromDraft(draft, id, body)
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
+  }
+
+  if (result.article.contentType === "SNAP" && result.article.snapProfile) {
+    const [published, scheduled] = await Promise.all([getAllArticles(), getScheduledArticles()])
+    const duplicate = findDuplicateSnap([...published, ...scheduled.map((item) => ({ ...item, publishedAt: item.scheduledPublishAt }))], result.article.coverImage, result.article.snapProfile)
+    if (duplicate) {
+      return NextResponse.json({ error: `同じ人物または画像のSNAPが公開済みです: ${duplicate.title}` }, { status: 409 })
+    }
   }
 
   const article: Article = { ...result.article, publishedAt: new Date().toISOString() }

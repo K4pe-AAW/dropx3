@@ -27,6 +27,7 @@ export default async function HomePage({
   const popular = await getFeaturedArticles(6)
   const columns = all.filter((article) => article.contentType === "COLUMN").slice(0, 3)
   const picks = all.filter((article) => article.contentType === "PICKS").slice(0, 3)
+  const snaps = all.filter((article) => article.contentType === "SNAP").slice(0, 3)
 
   // トップが何のサイトかを機械に伝える。記事ページ側と違い、ここには
   // 個別のArticleが無いのでサイト自体を主語にする。
@@ -80,6 +81,9 @@ export default async function HomePage({
           )}
           {currentPage === 1 && picks.length > 0 && (
             <EditorialSection title="編集部おすすめ品" eyebrow="EDITOR’S PICKS" href="/picks" articles={picks} />
+          )}
+          {currentPage === 1 && snaps.length > 0 && (
+            <EditorialSection title="編集部スナップ" eyebrow="EDITORIAL SNAP" href="/snap" articles={snaps} />
           )}
           <div className="mb-5 flex items-end justify-between">
             <div>

@@ -68,6 +68,13 @@ export function NavMenu() {
             >
               PICKS
             </Link>
+            <Link
+              href="/snap"
+              onClick={() => setOpen(false)}
+              className="col-span-2 rounded-full border border-accent px-2.5 py-2 text-center text-xs text-primary-foreground/85 transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              編集部スナップ
+            </Link>
             {siteConfig.categories.map((c) => (
               <Link
                 key={c.slug}

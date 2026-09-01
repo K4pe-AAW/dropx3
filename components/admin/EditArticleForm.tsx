@@ -12,6 +12,7 @@ import type {
   PurchaseChannelInfo,
   RelatedArticleLink,
   SourceRef,
+  SnapItem,
 } from "@/lib/types"
 import { CONTENT_TYPES, inferContentType } from "@/lib/content-type"
 import { siteConfig } from "@/lib/site-config"
@@ -32,6 +33,14 @@ export function EditArticleForm({ article }: { article: Article }) {
   const [editorialAuthor, setEditorialAuthor] = useState(article.editorialAuthor ?? "DROP DROP DROP編集部")
   const [seriesName, setSeriesName] = useState(article.seriesName ?? "")
   const [isSponsored, setIsSponsored] = useState(Boolean(article.isSponsored))
+  const [snapDisplayName, setSnapDisplayName] = useState(article.snapProfile?.displayName ?? "")
+  const [snapAgeGroup, setSnapAgeGroup] = useState(article.snapProfile?.ageGroup ?? "")
+  const [snapOccupation, setSnapOccupation] = useState(article.snapProfile?.occupation ?? "")
+  const [snapLocation, setSnapLocation] = useState(article.snapProfile?.location ?? "")
+  const [snapStylePoint, setSnapStylePoint] = useState(article.snapProfile?.stylePoint ?? "")
+  const [snapInstagramUrl, setSnapInstagramUrl] = useState(article.snapProfile?.instagramUrl ?? "")
+  const [snapConsentConfirmed, setSnapConsentConfirmed] = useState(Boolean(article.snapProfile?.consentConfirmed))
+  const [snapItems, setSnapItems] = useState<SnapItem[]>(article.snapProfile?.items ?? [])
   const [informationStatus, setInformationStatus] = useState<InformationStatus>(article.informationStatus ?? "report")
   const [brandsText, setBrandsText] = useState(article.brands.join(", "))
   const [tagsText, setTagsText] = useState(article.tags.join(", "))
@@ -155,6 +164,9 @@ export function EditArticleForm({ article }: { article: Article }) {
         ...(contentType === "COLUMN" || contentType === "PICKS"
           ? { editorialAuthor, seriesName, isSponsored }
           : { editorialAuthor: "", seriesName: "", isSponsored: false }),
+        ...(contentType === "SNAP"
+          ? { snapProfile: { displayName: snapDisplayName, ageGroup: snapAgeGroup, occupation: snapOccupation, location: snapLocation, stylePoint: snapStylePoint, instagramUrl: snapInstagramUrl, consentConfirmed: snapConsentConfirmed, consentConfirmedAt: article.snapProfile?.consentConfirmedAt ?? new Date().toISOString(), items: snapItems } }
+          : { snapProfile: undefined }),
         informationStatus,
         brands: brandsText.split(",").map((b) => b.trim()).filter(Boolean),
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
@@ -277,6 +289,19 @@ export function EditArticleForm({ article }: { article: Article }) {
             タイアップ・提供記事としてPR表記する
           </label>
         </div>
+      )}
+
+      {contentType === "SNAP" && (
+        <SnapEditor
+          displayName={snapDisplayName} setDisplayName={setSnapDisplayName}
+          ageGroup={snapAgeGroup} setAgeGroup={setSnapAgeGroup}
+          occupation={snapOccupation} setOccupation={setSnapOccupation}
+          location={snapLocation} setLocation={setSnapLocation}
+          stylePoint={snapStylePoint} setStylePoint={setSnapStylePoint}
+          instagramUrl={snapInstagramUrl} setInstagramUrl={setSnapInstagramUrl}
+          consentConfirmed={snapConsentConfirmed} setConsentConfirmed={setSnapConsentConfirmed}
+          items={snapItems} setItems={setSnapItems}
+        />
       )}
 
       <Field label="ブランド（カンマ区切り）">
@@ -737,4 +762,31 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </label>
   )
+}
+
+function SnapEditor({ displayName, setDisplayName, ageGroup, setAgeGroup, occupation, setOccupation, location, setLocation, stylePoint, setStylePoint, instagramUrl, setInstagramUrl, consentConfirmed, setConsentConfirmed, items, setItems }: {
+  displayName: string; setDisplayName: (v: string) => void; ageGroup: string; setAgeGroup: (v: string) => void
+  occupation: string; setOccupation: (v: string) => void; location: string; setLocation: (v: string) => void
+  stylePoint: string; setStylePoint: (v: string) => void; instagramUrl: string; setInstagramUrl: (v: string) => void
+  consentConfirmed: boolean; setConsentConfirmed: (v: boolean) => void; items: SnapItem[]; setItems: (v: SnapItem[]) => void
+}) {
+  const updateItem = (index: number, patch: Partial<SnapItem>) => setItems(items.map((item, i) => i === index ? { ...item, ...patch } : item))
+  return <section className="space-y-4 rounded-xl border border-accent/40 bg-accent/5 p-4">
+    <div><p className="text-sm font-black">編集部スナップ情報</p><p className="text-xs text-muted-foreground">カバー画像は全身写真、追加画像はディテール写真です。</p></div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Field label="名前・ニックネーム（必須）"><input required className={inputClass} value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></Field>
+      <Field label="年代"><input className={inputClass} value={ageGroup} onChange={(e) => setAgeGroup(e.target.value)} /></Field>
+      <Field label="職業"><input className={inputClass} value={occupation} onChange={(e) => setOccupation(e.target.value)} /></Field>
+      <Field label="撮影場所"><input className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
+      <Field label="Instagram URL"><input className={inputClass} value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} /></Field>
+      <Field label="今日のポイント（必須）"><textarea required className={inputClass} value={stylePoint} onChange={(e) => setStylePoint(e.target.value)} /></Field>
+    </div>
+    <div className="space-y-2"><p className="text-xs font-semibold">着用アイテム</p>{items.map((item, index) => <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4">
+      <input className={inputClass} value={item.category ?? ""} onChange={(e) => updateItem(index, { category: e.target.value })} placeholder="部位" />
+      <input className={inputClass} value={item.brand} onChange={(e) => updateItem(index, { brand: e.target.value })} placeholder="ブランド" />
+      <input className={inputClass} value={item.itemName} onChange={(e) => updateItem(index, { itemName: e.target.value })} placeholder="アイテム名" />
+      <button type="button" className="text-xs text-muted-foreground" onClick={() => setItems(items.filter((_, i) => i !== index))}>削除</button>
+    </div>)}<button type="button" className="text-xs underline" onClick={() => setItems([...items, { brand: "", itemName: "" }])}>+ 着用アイテムを追加</button></div>
+    <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={consentConfirmed} onChange={(e) => setConsentConfirmed(e.target.checked)} />撮影・掲載・SNSリンクの掲載同意を確認済み</label>
+  </section>
 }

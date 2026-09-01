@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDraftById, removeDraft, addScheduledArticle, getScheduledArticles } from "@/lib/storage"
+import { getAllArticles, getDraftById, removeDraft, addScheduledArticle, getScheduledArticles } from "@/lib/storage"
 import { buildArticleFromDraft } from "@/lib/draft-publish"
 import { computeNextSlot } from "@/lib/publish-schedule"
 import type { ScheduledArticle } from "@/lib/types"
+import { findDuplicateSnap } from "@/lib/snap"
 
 /**
  * 8,10,...,22時(JST)・各枠2件という固定ペースの「次に空いている枠」を自動計算して予約する。
@@ -22,6 +23,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const existing = await getScheduledArticles()
+  if (result.article.contentType === "SNAP" && result.article.snapProfile) {
+    const duplicate = findDuplicateSnap([...(await getAllArticles()), ...existing.map((item) => ({ ...item, publishedAt: item.scheduledPublishAt }))], result.article.coverImage, result.article.snapProfile)
+    if (duplicate) return NextResponse.json({ error: `同じ人物または画像のSNAPが公開・予約済みです: ${duplicate.title}` }, { status: 409 })
+  }
   const slot = computeNextSlot(existing.map((a) => a.scheduledPublishAt))
 
   const scheduled: ScheduledArticle = { ...result.article, scheduledPublishAt: slot.toISOString() }

@@ -15,6 +15,7 @@ import type {
 } from "@/lib/types"
 import { inferContentType, isContentType } from "@/lib/content-type"
 import { isInformationStatus } from "@/lib/information-status"
+import { sanitizeSnapProfile, validateSnapProfile } from "@/lib/snap"
 
 /** ローカルパス(/images/xxx.jpg)か、http(s)の絶対URLのみ許可する（//host/pathのprotocol-relativeは除外） */
 function isAllowedImageUrl(url: string): boolean {
@@ -149,6 +150,7 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
   const seriesName =
     typeof body.seriesName === "string" && body.seriesName.trim() ? body.seriesName.trim() : draft?.seriesName
   const isSponsored = typeof body.isSponsored === "boolean" ? body.isSponsored : Boolean(draft?.isSponsored)
+  const snapProfile = sanitizeSnapProfile(body.snapProfile ?? draft?.snapProfile)
   const youtubeVideoIdInput: string = typeof body.youtubeVideoId === "string" ? body.youtubeVideoId.trim() : ""
   const youtubeVideoId = /^[A-Za-z0-9_-]{6,20}$/.test(youtubeVideoIdInput) ? youtubeVideoIdInput : undefined
   const galleryImages: GalleryImage[] = sanitizeGalleryImages(body.galleryImages)
@@ -171,6 +173,10 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
   if (bodyParagraphs.length === 0) {
     return { ok: false, error: "本文が空です", status: 400 }
   }
+  if (contentType === "SNAP") {
+    const snapError = validateSnapProfile(snapProfile)
+    if (snapError) return { ok: false, error: snapError, status: 400 }
+  }
 
   const newId = generateId(`${id}-${Date.now()}`)
   const article: Omit<Article, "publishedAt"> = {
@@ -188,6 +194,7 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
     ...(editorialAuthor ? { editorialAuthor } : {}),
     ...(seriesName ? { seriesName } : {}),
     ...(isSponsored ? { isSponsored: true } : {}),
+    ...(contentType === "SNAP" && snapProfile ? { snapProfile } : {}),
     ...(informationStatus ? { informationStatus } : {}),
     brands,
     tags,

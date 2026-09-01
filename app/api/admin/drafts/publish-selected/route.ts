@@ -81,8 +81,9 @@ export async function POST(req: NextRequest) {
   const { drafts } = await readDrafts()
   const targets = drafts.filter((d) => ids.includes(d.id))
 
-  const ready = targets.filter((d) => Boolean(d.suggestedCoverImage))
-  const skipped = targets.filter((d) => !d.suggestedCoverImage)
+  // SNAPは人物情報と掲載同意の個別確認が必要なため、一括公開の対象にしない。
+  const ready = targets.filter((d) => Boolean(d.suggestedCoverImage) && d.contentType !== "SNAP")
+  const skipped = targets.filter((d) => !d.suggestedCoverImage || d.contentType === "SNAP")
 
   if (ready.length > 0) {
     if (autoSchedule) {

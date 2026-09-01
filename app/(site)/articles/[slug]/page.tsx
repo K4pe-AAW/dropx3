@@ -16,6 +16,7 @@ import { categoryLabel, siteConfig } from "@/lib/site-config"
 import { linkDomain } from "@/lib/analytics"
 import { INFORMATION_STATUS_LABELS, isUnconfirmedStatus, unconfirmedNotice } from "@/lib/information-status"
 import { CONTENT_TYPE_LABELS, isEditorialContentType } from "@/lib/content-type"
+import { SnapProfileCard } from "@/components/SnapProfileCard"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -186,6 +187,8 @@ export default async function ArticleDetailPage({
         brand={article.brands[0]}
         contentType={article.contentType}
       />
+
+      {article.contentType === "SNAP" && article.snapProfile && <SnapProfileCard profile={article.snapProfile} />}
 
       {isUnconfirmedStatus(article.informationStatus) && (
         <p className="mt-8 rounded-xl bg-secondary p-4 text-sm leading-relaxed">
