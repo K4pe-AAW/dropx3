@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { mutateDrafts, readDrafts, readJson, writeJson } from "@/lib/storage"
+import { get, head } from "@vercel/blob"
+import { DRAFTS_PATH, mutateDrafts, readDrafts, readJson, writeJson } from "@/lib/storage"
 import type { Draft, DraftsData } from "@/lib/types"
 
 const RECOVERY_IDS = [
@@ -10,6 +11,21 @@ const RECOVERY_IDS = [
 ] as const
 
 const BACKUP_PATHS = ["backups/2026-09-03/drafts.json", "backups/2026-09-02/drafts.json"]
+
+/** 復元完了までの診断用。public/private originの到達可否とETagだけを返し、本文は返さない。 */
+export async function GET() {
+  const metadata = await head(DRAFTS_PATH).catch(() => null)
+  const publicRead = await get(DRAFTS_PATH, { access: "public", useCache: false }).catch(() => null)
+  const privateRead = await get(DRAFTS_PATH, { access: "private", useCache: false }).catch(() => null)
+  await publicRead?.stream?.cancel().catch(() => undefined)
+  await privateRead?.stream?.cancel().catch(() => undefined)
+  return NextResponse.json({
+    head: metadata?.etag ?? null,
+    public: publicRead?.blob.etag ?? null,
+    private: privateRead?.blob.etag ?? null,
+    privateStatus: privateRead?.statusCode ?? null,
+  })
+}
 
 /** 今回の一括公開障害で消えた4件だけを日次バックアップから復元する一度限りの保全エンドポイント。 */
 export async function POST() {
