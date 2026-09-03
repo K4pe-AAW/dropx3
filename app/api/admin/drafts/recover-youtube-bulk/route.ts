@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { get, head } from "@vercel/blob"
 import { DRAFTS_PATH, mutateDrafts, readDrafts, readJson, writeJson } from "@/lib/storage"
 import type { Draft, DraftsData } from "@/lib/types"
+import { normalizeGosspLabel } from "@/lib/gossp-migration"
 
 const RECOVERY_IDS = [
   "e95be7ca52a8b2f7a8ebbee5ddce8c92",
@@ -50,8 +51,7 @@ export async function POST() {
       const candidate = recoveryCandidates.get(id)
       return candidate && !existing.has(id) ? [candidate] : []
     })
-    data.drafts = [...restored, ...data.drafts]
-    return data
+    return normalizeGosspLabel({ ...data, drafts: [...restored, ...data.drafts] }).value
   })
 
   const finalIds = new Set(next.drafts.map((draft) => draft.id))
