@@ -20,6 +20,13 @@ export const DRAFTS_PATH = "data/drafts.json"
 export const SCHEDULED_PATH = "data/scheduled.json"
 export const CRAWL_SOURCES_PATH = "data/crawl-sources.json"
 
+export function isBlobPreconditionConflict(err: unknown): boolean {
+  return (
+    err instanceof BlobPreconditionFailedError ||
+    (err instanceof Error && err.message.includes("Precondition failed: ETag mismatch"))
+  )
+}
+
 /** SOURCE WATCH等、他モジュールからも同じBlob read-modify-write規約を使うためexportする */
 export async function readJson<T>(pathname: string, fallback: T): Promise<T> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -93,9 +100,11 @@ export async function mutateJson<T>(pathname: string, fallback: T, mutate: (data
       })
       return next
     } catch (err) {
-      const isConflict = err instanceof BlobPreconditionFailedError
+      const isConflict = isBlobPreconditionConflict(err)
       if (!isConflict || i === attempts - 1) throw err
       // ETagが一致しなかった = 読み取り後に他の書き込みが入った。最新を読み直して次のループでやり直す
+      // 同時リクエストが処理中のままなら即時再試行を繰り返しても全回衝突するため、短い待機を入れる。
+      await new Promise((resolve) => setTimeout(resolve, 50 * (i + 1)))
     }
   }
   throw new Error(`mutateJson: competing writes to ${pathname} could not be resolved after ${attempts} attempts`)
