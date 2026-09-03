@@ -1,54 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readDrafts, mutateDrafts, mutateArticles, mutateScheduledArticles, generateSlug, generateId } from "@/lib/storage"
-import { QUICK_AFFILIATE_RETAILERS } from "@/lib/affiliate"
-import { canonicalBrandNames } from "@/lib/brands"
+import { readDrafts, mutateDrafts, mutateArticles, mutateScheduledArticles } from "@/lib/storage"
 import { computeNextSlot } from "@/lib/publish-schedule"
-import type { Article, AffiliateLink, Draft, ScheduledArticle } from "@/lib/types"
-import { inferContentType } from "@/lib/content-type"
-
-/** AIが提案した検索キーワードから、自動生成できる店舗の実リンクをまとめて組み立てる(PublishFormの「自動でリンクを追加」と同じロジック) */
-function buildAutoAffiliateLinks(queries: string[]): AffiliateLink[] {
-  const query = queries[0]?.trim()
-  if (!query) return []
-  const links: AffiliateLink[] = []
-  for (const item of QUICK_AFFILIATE_RETAILERS) {
-    if (!item.build) continue
-    try {
-      links.push(item.build(query))
-    } catch {
-      // 具体的すぎない/一般的すぎるキーワード等で作れない場合はそのリンクだけ諦める
-    }
-  }
-  return links
-}
-
-function draftToArticleShape(draft: Draft): Omit<Article, "publishedAt"> {
-  const newId = generateId(`${draft.id}-${Date.now()}`)
-  const affiliateLinks = buildAutoAffiliateLinks(draft.suggestedAffiliateSearch)
-  return {
-    id: newId,
-    slug: generateSlug(draft.title, newId),
-    title: draft.title,
-    excerpt: draft.excerpt,
-    bodyParagraphs: draft.bodyParagraphs,
-    coverImage: draft.suggestedCoverImage!,
-    coverImageAlt: draft.title,
-    galleryImages: draft.suggestedGalleryImages ?? [],
-    category: draft.category,
-    contentType: inferContentType(draft.category, affiliateLinks.length > 0),
-    brands: canonicalBrandNames(draft.brands),
-    tags: draft.tags,
-    featured: false,
-    ...(draft.suggestedYoutubeVideoId ? { youtubeVideoId: draft.suggestedYoutubeVideoId } : {}),
-    ...(draft.suggestedColorways && draft.suggestedColorways.length > 0 ? { colorways: draft.suggestedColorways } : {}),
-    ...(draft.suggestedPurchaseChannels && draft.suggestedPurchaseChannels.length > 0
-      ? { purchaseChannels: draft.suggestedPurchaseChannels }
-      : {}),
-    affiliateLinks,
-    officialLinks: draft.suggestedOfficialLinks ?? [],
-    sourceRefs: draft.sourceRefs,
-  }
-}
+import type { Article, ScheduledArticle } from "@/lib/types"
+import { draftToBulkArticleShape } from "@/lib/bulk-publish"
 
 /**
  * チェックした下書きを単一トランザクションでまとめて公開(または予約)する。
@@ -94,7 +48,7 @@ export async function POST(req: NextRequest) {
         for (const draft of ready) {
           const slot = computeNextSlot(scheduledData.scheduled.map((s) => s.scheduledPublishAt))
           const iso = slot.toISOString()
-          const article = draftToArticleShape(draft)
+          const article = draftToBulkArticleShape(draft)
           const scheduled: ScheduledArticle = { ...article, scheduledPublishAt: iso }
           scheduledData.scheduled = scheduledData.scheduled.filter((s) => s.id !== scheduled.id)
           scheduledData.scheduled.push(scheduled)
@@ -104,7 +58,7 @@ export async function POST(req: NextRequest) {
     } else if (scheduledIso) {
       await mutateScheduledArticles((scheduledData) => {
         for (const draft of ready) {
-          const article = draftToArticleShape(draft)
+          const article = draftToBulkArticleShape(draft)
           const scheduled: ScheduledArticle = { ...article, scheduledPublishAt: scheduledIso }
           scheduledData.scheduled = scheduledData.scheduled.filter((s) => s.id !== scheduled.id)
           scheduledData.scheduled.push(scheduled)
@@ -115,7 +69,8 @@ export async function POST(req: NextRequest) {
       const now = new Date().toISOString()
       await mutateArticles((articlesData) => {
         for (const draft of ready) {
-          const article: Article = { ...draftToArticleShape(draft), publishedAt: now }
+          const article: Article = { ...draftToBulkArticleShape(draft), publishedAt: now }
+          articlesData.articles = articlesData.articles.filter((existing) => existing.id !== article.id)
           articlesData.articles.unshift(article)
         }
         articlesData.lastUpdated = now

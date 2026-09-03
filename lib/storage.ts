@@ -1,5 +1,5 @@
 import crypto from "crypto"
-import { put, head, BlobPreconditionFailedError } from "@vercel/blob"
+import { put, BlobPreconditionFailedError } from "@vercel/blob"
 import {
   Article,
   ArticlesData,
@@ -13,6 +13,7 @@ import {
 } from "./types"
 import { clearDismissedUrls, dismissDraftsInData } from "./draft-dismissal"
 import { canonicalImageKey, isImageNoiseUrl } from "./image-candidates"
+import { readBlobJsonFromOrigin } from "./blob-json"
 
 export const ARTICLES_PATH = "data/articles.json"
 export const DRAFTS_PATH = "data/drafts.json"
@@ -27,13 +28,8 @@ export async function readJson<T>(pathname: string, fallback: T): Promise<T> {
     )
   }
   try {
-    const info = await head(pathname).catch(() => null)
-    if (!info) return fallback
-    // CDNエッジキャッシュが直後の上書きを反映しないことがあるため、毎回ユニークなURLで強制的にバイパスする
-    const bustedUrl = `${info.url}${info.url.includes("?") ? "&" : "?"}_=${Date.now()}`
-    const res = await fetch(bustedUrl, { cache: "no-store" })
-    if (!res.ok) return fallback
-    return (await res.json()) as T
+    const latest = await readBlobJsonFromOrigin<T>(pathname)
+    return latest?.data ?? fallback
   } catch {
     return fallback
   }
@@ -63,12 +59,8 @@ async function readJsonWithEtag<T>(pathname: string, fallback: T): Promise<{ dat
     )
   }
   try {
-    const info = await head(pathname).catch(() => null)
-    if (!info) return { data: fallback, etag: null }
-    const bustedUrl = `${info.url}${info.url.includes("?") ? "&" : "?"}_=${Date.now()}`
-    const res = await fetch(bustedUrl, { cache: "no-store" })
-    if (!res.ok) return { data: fallback, etag: info.etag }
-    return { data: (await res.json()) as T, etag: info.etag }
+    const latest = await readBlobJsonFromOrigin<T>(pathname)
+    return latest ?? { data: fallback, etag: null }
   } catch {
     return { data: fallback, etag: null }
   }

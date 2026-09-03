@@ -37,7 +37,10 @@ export function DraftsList({ drafts: initialDrafts }: { drafts: Draft[] }) {
    * 曖昧)には頼らない)。公開/予約できたものだけをローカル一覧から取り除く。
    */
   function idsReadyToPublish(): string[] {
-    return Array.from(selected).filter((id) => drafts.find((d) => d.id === id)?.suggestedCoverImage)
+    return Array.from(selected).filter((id) => {
+      const draft = drafts.find((d) => d.id === id)
+      return Boolean(draft?.suggestedCoverImage) && draft?.contentType !== "SNAP"
+    })
   }
 
   /** router.refresh()だけに頼るとBlobの書き込み伝播遅延で削除/公開後も一覧に残って見えるため、
@@ -87,7 +90,7 @@ export function DraftsList({ drafts: initialDrafts }: { drafts: Draft[] }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "公開に失敗しました")
       const parts = [`${data.published}件を${data.scheduled ? "予約" : "公開"}しました`]
-      if (data.skipped > 0) parts.push(`${data.skipped}件はカバー画像未設定のためスキップ`)
+      if (data.skipped > 0) parts.push(`${data.skipped}件は画像未設定または個別確認が必要なためスキップ`)
       setMessage(parts.join(" / "))
       const readyIds = new Set(idsReadyToPublish())
       setDrafts((prev) => prev.filter((d) => !readyIds.has(d.id)))
@@ -119,7 +122,7 @@ export function DraftsList({ drafts: initialDrafts }: { drafts: Draft[] }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "予約に失敗しました")
       const parts = [`${data.published}件を次の空き枠へ予約しました`]
-      if (data.skipped > 0) parts.push(`${data.skipped}件はカバー画像未設定のためスキップ`)
+      if (data.skipped > 0) parts.push(`${data.skipped}件は画像未設定または個別確認が必要なためスキップ`)
       setMessage(parts.join(" / "))
       const readyIds = new Set(idsReadyToPublish())
       setDrafts((prev) => prev.filter((d) => !readyIds.has(d.id)))
