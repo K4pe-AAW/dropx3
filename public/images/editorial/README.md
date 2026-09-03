@@ -14,3 +14,6 @@ These covers are resized or layout-only derivatives of official first-party pres
 | `human-made-cup-noodle.webp` | <https://www.humanmade.jp/news/human-made-cupnoodleitems-2026-Sep.html> |
 | `huf-alien.webp` | <https://www.hufworldwide.jp/blogs/what/huf-x-alien> |
 | `crocs-yugioh.webp` | <https://prtimes.jp/main/html/rd/p/000000254.000023595.html> |
+| `yoke-eliminator.webp` | <https://eliminator.co.jp/products/product-2538> |
+| `bape-paisley-pattern.webp` | <https://jp.bape.com/blogs/news/paisley-pattern-0905> |
+| `saint-james-edifice.webp` | <https://baycrews.jp/item/detail/417/cutsew/26070313000030> |
