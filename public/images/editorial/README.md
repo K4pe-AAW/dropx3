@@ -17,3 +17,5 @@ These covers are resized or layout-only derivatives of official first-party pres
 | `yoke-eliminator.webp` | <https://eliminator.co.jp/products/product-2538> |
 | `bape-paisley-pattern.webp` | <https://jp.bape.com/blogs/news/paisley-pattern-0905> |
 | `saint-james-edifice.webp` | <https://baycrews.jp/item/detail/417/cutsew/26070313000030> |
+| `mizuno-enerzy-expo-wmg.webp` | <https://corp.mizuno.com/jp/news-release/2026/20260902> |
+| `prada-buckle.webp` | <https://www.prada.com/us/en/p/prada-buckle-leather-bag-with-belt/2VG126_2CY9_F0002_V_OJO> |
