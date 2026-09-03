@@ -4,6 +4,9 @@ import { computeNextSlot } from "@/lib/publish-schedule"
 import type { Article, ScheduledArticle } from "@/lib/types"
 import { draftToBulkArticleShape } from "@/lib/bulk-publish"
 
+// 公開Blobの上書き直後は最新内容の取得まで最大60秒かかるため、安全なETag再試行を完了できる枠を確保する。
+export const maxDuration = 120
+
 /**
  * チェックした下書きを単一トランザクションでまとめて公開(または予約)する。
  * カバー画像が無い下書き(Youtube以外のほとんどの下書きが該当)は、画像未確認のまま公開しない

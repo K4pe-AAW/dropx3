@@ -81,7 +81,7 @@ async function readJsonWithEtag<T>(pathname: string, fallback: T): Promise<{ dat
  * 読み取り時のETagをput()のifMatchに渡す楽観的排他制御で、書き込み直前に他の更新が
  * 割り込んでいたら失敗させ、最新状態を読み直してmutateからやり直す。
  */
-export async function mutateJson<T>(pathname: string, fallback: T, mutate: (data: T) => T, attempts = 5): Promise<T> {
+export async function mutateJson<T>(pathname: string, fallback: T, mutate: (data: T) => T, attempts = 8): Promise<T> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error(
       "BLOB_READ_WRITE_TOKEN が設定されていません。VercelダッシュボードのStorageタブでBlobを作成し、.env.localに追加してください。"
@@ -103,8 +103,9 @@ export async function mutateJson<T>(pathname: string, fallback: T, mutate: (data
       const isConflict = isBlobPreconditionConflict(err)
       if (!isConflict || i === attempts - 1) throw err
       // ETagが一致しなかった = 読み取り後に他の書き込みが入った。最新を読み直して次のループでやり直す
-      // 同時リクエストが処理中のままなら即時再試行を繰り返しても全回衝突するため、短い待機を入れる。
-      await new Promise((resolve) => setTimeout(resolve, 50 * (i + 1)))
+      // 公開Blobの上書きはCDN反映に最大60秒かかる。同じ本文応答のETagを使うことで古い本文の
+      // 上書きは必ず拒否させ、CDNが最新ETagへ追いつくまで段階的に待ってから読み直す。
+      await new Promise((resolve) => setTimeout(resolve, Math.min(2_000 * 2 ** i, 12_000)))
     }
   }
   throw new Error(`mutateJson: competing writes to ${pathname} could not be resolved after ${attempts} attempts`)
