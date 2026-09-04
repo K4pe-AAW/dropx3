@@ -19,3 +19,6 @@ These covers are resized or layout-only derivatives of official first-party pres
 | `saint-james-edifice.webp` | <https://baycrews.jp/item/detail/417/cutsew/26070313000030> |
 | `mizuno-enerzy-expo-wmg.webp` | <https://corp.mizuno.com/jp/news-release/2026/20260902> |
 | `prada-buckle.webp` | <https://www.prada.com/us/en/p/prada-buckle-leather-bag-with-belt/2VG126_2CY9_F0002_V_OJO> |
+| `on-paf-current-form-5.webp` | <https://www.on.com/ja-jp/collection/on-x-post-archive-faction-paf-26> |
+| `gelato-pique-pokemon-2026.webp` | <https://prtimes.jp/main/html/rd/p/000004219.000018505.html> |
+| `eye-junya-one-piece-of-rock.webp` | <https://www.fashionsnap.com/article/2026-09-04/eye-junya-watanabe-man-one-piece-of-rock-collaboration/> (image supplied by eYe JUNYA WATANABE MAN) |
