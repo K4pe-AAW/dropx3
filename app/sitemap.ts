@@ -2,6 +2,10 @@ import type { MetadataRoute } from "next"
 import { getAllArticles, getAllBrands } from "@/lib/storage"
 import { siteConfig } from "@/lib/site-config"
 
+// Article and brand data live in Vercel Blob. Resolve them at request time so
+// local/CI builds never require a production Blob credential.
+export const dynamic = "force-dynamic"
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const articles = await getAllArticles()
   const brands = await getAllBrands()

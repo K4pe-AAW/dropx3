@@ -6,6 +6,9 @@ import { listProductCards, sortCardsByPriority } from "@/lib/source-watch/presen
 import { SourceWatchDashboard } from "@/components/admin/source-watch/SourceWatchDashboard"
 
 export const metadata: Metadata = { title: "SOURCE WATCH" }
+// This dashboard reads and seeds Vercel Blob data. It must not run during a
+// credential-free local/CI build.
+export const dynamic = "force-dynamic"
 
 /** 運用ガイド(Artifact)。同じfile_pathで再公開すればURLは変わらない */
 const ADMIN_GUIDE_URL = "https://claude.ai/code/artifact/643aaaf7-ac93-4cc5-8924-29896976591c"

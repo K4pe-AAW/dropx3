@@ -5,6 +5,7 @@ import { INITIAL_SOURCES } from "@/lib/source-watch/seed-sources"
 import { SourceWatchSources } from "@/components/admin/SourceWatchSources"
 
 export const metadata: Metadata = { title: "SOURCE WATCH - 情報源管理" }
+export const dynamic = "force-dynamic"
 
 export default async function SourceWatchSourcesPage() {
   try {

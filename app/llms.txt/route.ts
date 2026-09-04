@@ -12,7 +12,9 @@ import { siteConfig, categoryLabel } from "@/lib/site-config"
  * 静的ファイルにしないのは、毎日記事が増えるサイトで内容が陳腐化するため。
  * ads.txt と同じくルートで生成する。
  */
-export const revalidate = 3600
+// The content is sourced from Vercel Blob. Keep credential-free builds
+// reproducible and resolve the latest article list at request time.
+export const dynamic = "force-dynamic"
 
 const MAX_RECENT = 20
 

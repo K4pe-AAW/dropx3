@@ -6,6 +6,7 @@ import { listProductCards } from "@/lib/source-watch/present"
 import { SocialWatchDashboard } from "@/components/admin/source-watch/social/SocialWatchDashboard"
 
 export const metadata: Metadata = { title: "SOCIAL WATCH" }
+export const dynamic = "force-dynamic"
 
 export default async function SocialWatchPage() {
   try {
