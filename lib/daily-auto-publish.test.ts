@@ -37,10 +37,10 @@ test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する",
 })
 
 test("JSTの同じ2時間帯は1つの公開枠として扱う", () => {
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-safe-v4")
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-safe-v4")
-  assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-safe-v4")
-  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-safe-v4")
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-safe-v3")
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-safe-v3")
+  assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-safe-v3")
+  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-safe-v3")
 })
 
 const safeDraft = {

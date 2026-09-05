@@ -15,8 +15,8 @@ import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 
 // 旧自動公開の実行履歴と分離し、2時間枠ごとの重複実行を独立して管理する。
-const STATE_PATH = "data/daily-auto-publish-state-safe-v4.json"
-const AUTO_PUBLISH_POLICY_VERSION = "safe-v4"
+const STATE_PATH = "data/daily-auto-publish-state-safe-v3.json"
+const AUTO_PUBLISH_POLICY_VERSION = "safe-v3"
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
 export const MAX_YOUTUBE_ARTICLES_PER_RUN = 0
 
