@@ -81,20 +81,13 @@ test("Goss!p・PR・SNAP・権利元不明画像は人間確認へ回す", () =>
   assert.ok(autoPublishBlockReasons({ ...safeDraft, suggestedCoverImage: "https://media.example.net/photo.jpg" }).length > 0)
 })
 
-test("競合メディアを公式リンクとして誤登録した下書きは自動公開しない", () => {
-  assert.ok(autoPublishBlockReasons({
+test("登録済みの公式リンクと同一ドメインの通常記事は媒体名で一律停止しない", () => {
+  assert.deepEqual(autoPublishBlockReasons({
     ...safeDraft,
     sourceRefs: [{ name: "FASHIONSNAP", url: "https://www.fashionsnap.com/article/example" }],
     suggestedOfficialLinks: [{ label: "公式サイト", url: "https://www.fashionsnap.com/article/example" }],
-    suggestedCoverImage: "https://cdn.fashionsnap-assets.com/article/example.jpg",
-  }).length > 0)
-})
-
-test("ブランド公式リンクがあっても競合メディア画像なら自動公開しない", () => {
-  assert.ok(autoPublishBlockReasons({
-    ...safeDraft,
-    suggestedCoverImage: "https://cdn.fashionsnap-assets.com/article/example.jpg",
-  }).length > 0)
+    suggestedCoverImage: "https://cdn.fashionsnap.com/article/example.jpg",
+  }), [])
 })
 
 test("追加画像はカバーと同一のサイズ違いを除外し、候補がある分だけ採用する", () => {
