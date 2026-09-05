@@ -1,4 +1,3 @@
-import crypto from "node:crypto"
 import { QUICK_AFFILIATE_RETAILERS, isSafeExternalUrl } from "./affiliate"
 import { brushUpDraftWithUrl } from "./draft-brushup"
 import {
@@ -16,26 +15,67 @@ import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 
 const STATE_PATH = "data/daily-auto-publish-state.json"
-export const AUTO_PUBLISH_HOURS_JST = [8, 12, 18, 20] as const
-export const ARTICLES_PER_AUTO_PUBLISH_RUN = 4
-export const MAX_YOUTUBE_ARTICLES_PER_RUN = 1
+export const ARTICLES_PER_AUTO_PUBLISH_RUN = 2
+export const MAX_YOUTUBE_ARTICLES_PER_RUN = 0
 
 type RunRecord = { startedAt: string; publishedArticleIds?: string[]; titles?: string[] }
 type AutoPublishState = { runs: Record<string, RunRecord> }
 
-export function jstSlotKey(now = new Date()): string | null {
+export function jstSlotKey(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour: "2-digit",
-    hourCycle: "h23",
   }).formatToParts(now)
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
-  const hour = Number(get("hour"))
-  if (!AUTO_PUBLISH_HOURS_JST.includes(hour as (typeof AUTO_PUBLISH_HOURS_JST)[number])) return null
-  return `${get("year")}-${get("month")}-${get("day")}-${String(hour).padStart(2, "0")}`
+  return `${get("year")}-${get("month")}-${get("day")}`
+}
+
+function normalizedHost(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "")
+  } catch {
+    return null
+  }
+}
+
+function hostsSharePublisher(left: string, right: string): boolean {
+  return left === right || left.endsWith(`.${right}`) || right.endsWith(`.${left}`)
+}
+
+/**
+ * 人間確認なしで公開できる下書きだけを通す保守的なゲート。
+ * 迷う記事は削除せず下書きに残し、通常の管理画面レビューへ回す。
+ */
+export function autoPublishBlockReasons(draft: Draft): string[] {
+  const reasons: string[] = []
+  const officialLinks = (draft.suggestedOfficialLinks ?? []).filter((link) => isSafeExternalUrl(link.url))
+  const officialHosts = officialLinks.map((link) => normalizedHost(link.url)).filter((host): host is string => Boolean(host))
+  const cover = draft.suggestedCoverImage?.trim() ?? ""
+  const coverHost = normalizedHost(cover)
+  const text = [draft.title, draft.excerpt, ...draft.bodyParagraphs].join(" ")
+
+  if (draft.status !== "pending") reasons.push("公開待ちではありません")
+  if (!hasPublishableTheme(draft)) reasons.push("本文が不足しています")
+  if (draft.informationStatus !== "official") reasons.push("公式確認済みではありません")
+  if (draft.isSponsored) reasons.push("PR・タイアップ記事です")
+  if (draft.contentType === "SNAP" || draft.snapProfile) reasons.push("SNAP・人物情報を含みます")
+  if (draft.suggestedYoutubeVideoId || draft.category === "youtube") reasons.push("動画記事は個別確認が必要です")
+  if (officialLinks.length === 0) reasons.push("公式リンクがありません")
+  if (!draft.sourceRefs.some((ref) => isSafeExternalUrl(ref.url))) reasons.push("検証可能な出典がありません")
+  if (draft.sourceRefs.some((ref) => /(?:PR\s*TIMES|prtimes\.jp)/i.test(`${ref.name} ${ref.url}`))) {
+    reasons.push("プレスリリース由来です")
+  }
+  if (!draft.suggestedAffiliateSearch[0]?.trim()) reasons.push("商品検索語がありません")
+  if (!cover) reasons.push("カバー画像がありません")
+  else if (!cover.startsWith("/images/editorial/") && (!coverHost || !officialHosts.some((host) => hostsSharePublisher(coverHost, host)))) {
+    reasons.push("画像の権利元を公式リンクと照合できません")
+  }
+  if (/(?:Goss!p|Gossp!|未確認情報|リーク|rumou?rs?|leak(?:ed|s|ing)?)/i.test(text)) {
+    reasons.push("未確認情報を含みます")
+  }
+  return [...new Set(reasons)]
 }
 
 export function buildRequiredAffiliateLinks(query: string): AffiliateLink[] {
@@ -43,15 +83,6 @@ export function buildRequiredAffiliateLinks(query: string): AffiliateLink[] {
     if (!item.build) throw new Error(`${item.retailer}の自動リンク生成が未設定です`)
     return item.build(query)
   })
-}
-
-function shuffled<T>(items: T[]): T[] {
-  const copy = [...items]
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = crypto.randomInt(i + 1)
-    ;[copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy
 }
 
 function referenceSourceUrl(draft: Draft): string | null {
@@ -149,7 +180,7 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     ? `https://img.youtube.com/vi/${draft.suggestedYoutubeVideoId}/hqdefault.jpg`
     : draft.suggestedCoverImage
   if (!sourceCoverImage) throw new Error("公式ページから一致画像を取得できません")
-  const coverImage = draft.suggestedYoutubeVideoId
+  const coverImage = draft.suggestedYoutubeVideoId || sourceCoverImage.startsWith("/")
     ? sourceCoverImage
     : await saveArticleImage(sourceCoverImage, draft, "cover")
   const galleryImages = draft.suggestedYoutubeVideoId ? [] : await saveGalleryImages(draft, sourceCoverImage)
@@ -191,7 +222,6 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   skipped?: string[]
 }> {
   const slot = jstSlotKey(now)
-  if (!slot) return { published: false, publishedCount: 0, slot: null, skipped: ["対象時刻ではありません"] }
 
   let alreadyStarted = false
   await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
@@ -204,13 +234,11 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   const { drafts } = await readDrafts()
   const errors: string[] = []
   const publishedArticles: Article[] = []
-  // 通常記事を先に試し、YouTubeは各公開枠で最大1件に抑える。
-  // YouTubeはサムネイルと動画URLが常に揃うため、完全ランダムだと通常記事より成功しやすく、
-  // 公開面がYouTubeだけに偏ってしまう。
-  const candidates = [
-    ...shuffled(drafts.filter((draft) => !draft.suggestedYoutubeVideoId)),
-    ...shuffled(drafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId))),
-  ]
+  // 安全ゲートを通った通常記事だけを、元情報が新しい順に公開する。
+  // YouTubeは公式性と埋め込み可否を個別確認するため、この経路では公開しない。
+  const candidates = drafts
+    .filter((draft) => autoPublishBlockReasons(draft).length === 0)
+    .sort((a, b) => Date.parse(b.sourcePublishedAt ?? b.createdAt) - Date.parse(a.sourcePublishedAt ?? a.createdAt))
   let youtubePublished = 0
   for (const draft of candidates) {
     if (publishedArticles.length >= ARTICLES_PER_AUTO_PUBLISH_RUN) break

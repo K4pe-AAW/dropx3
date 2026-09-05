@@ -3,18 +3,19 @@ import assert from "node:assert/strict"
 import {
   ARTICLES_PER_AUTO_PUBLISH_RUN,
   MAX_YOUTUBE_ARTICLES_PER_RUN,
+  autoPublishBlockReasons,
   buildRequiredAffiliateLinks,
   jstSlotKey,
   isSameProductAssetFamily,
   uniqueGalleryCandidates,
 } from "./daily-auto-publish"
 
-test("各時刻の公開目標は4記事", () => {
-  assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 4)
+test("1日の自動公開上限は2記事", () => {
+  assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 2)
 })
 
-test("各公開枠のYouTube記事は最大1件", () => {
-  assert.equal(MAX_YOUTUBE_ARTICLES_PER_RUN, 1)
+test("YouTube記事は自動公開せず個別確認へ回す", () => {
+  assert.equal(MAX_YOUTUBE_ARTICLES_PER_RUN, 0)
 })
 
 test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する", () => {
@@ -34,12 +35,39 @@ test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する",
   }
 })
 
-test("JSTの8時・12時・18時・20時だけ公開枠になる", () => {
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08")
-  assert.equal(jstSlotKey(new Date("2026-08-29T03:00:00Z")), "2026-08-29-12")
-  assert.equal(jstSlotKey(new Date("2026-08-29T09:00:00Z")), "2026-08-29-18")
-  assert.equal(jstSlotKey(new Date("2026-08-29T11:00:00Z")), "2026-08-29-20")
-  assert.equal(jstSlotKey(new Date("2026-08-29T04:00:00Z")), null)
+test("同じJST日付は1つの公開枠として扱う", () => {
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29")
+  assert.equal(jstSlotKey(new Date("2026-08-29T11:00:00Z")), "2026-08-29")
+  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30")
+})
+
+const safeDraft = {
+  id: "safe",
+  status: "pending" as const,
+  title: "公式発表された新作スニーカー",
+  excerpt: "公式情報をもとに紹介します。",
+  bodyParagraphs: ["ブランドが発売を発表しました。"],
+  category: "sneaker" as const,
+  contentType: "BUY" as const,
+  informationStatus: "official" as const,
+  brands: ["Example"],
+  tags: ["新作"],
+  suggestedAffiliateSearch: ["Example Model 1"],
+  sourceRefs: [{ name: "Example公式", url: "https://example.com/news/model-1" }],
+  createdAt: "2026-09-05T00:00:00.000Z",
+  suggestedCoverImage: "https://images.example.com/model-1.jpg",
+  suggestedOfficialLinks: [{ label: "公式サイト", url: "https://example.com/products/model-1" }],
+}
+
+test("公式情報・公式画像・商品検索語が揃う通常記事だけ自動公開できる", () => {
+  assert.deepEqual(autoPublishBlockReasons(safeDraft), [])
+})
+
+test("Goss!p・PR・SNAP・権利元不明画像は人間確認へ回す", () => {
+  assert.ok(autoPublishBlockReasons({ ...safeDraft, informationStatus: "rumor", title: "Goss!p｜新作か" }).length > 0)
+  assert.ok(autoPublishBlockReasons({ ...safeDraft, isSponsored: true }).length > 0)
+  assert.ok(autoPublishBlockReasons({ ...safeDraft, contentType: "SNAP" }).length > 0)
+  assert.ok(autoPublishBlockReasons({ ...safeDraft, suggestedCoverImage: "https://media.example.net/photo.jpg" }).length > 0)
 })
 
 test("追加画像はカバーと同一のサイズ違いを除外し、候補がある分だけ採用する", () => {

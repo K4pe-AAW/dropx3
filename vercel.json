@@ -9,6 +9,10 @@
       "schedule": "0 */4 * * *"
     },
     {
+      "path": "/api/cron/daily-auto-publish",
+      "schedule": "0 23 * * *"
+    },
+    {
       "path": "/api/cron/publish-scheduled",
       "schedule": "*/5 * * * *"
     },
