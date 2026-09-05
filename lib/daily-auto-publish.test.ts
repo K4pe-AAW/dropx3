@@ -10,8 +10,8 @@ import {
   uniqueGalleryCandidates,
 } from "./daily-auto-publish"
 
-test("1日の自動公開上限は2記事", () => {
-  assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 2)
+test("1回の自動公開上限は3記事", () => {
+  assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 3)
 })
 
 test("YouTube記事は自動公開せず個別確認へ回す", () => {
@@ -35,10 +35,11 @@ test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する",
   }
 })
 
-test("同じJST日付は1つの公開枠として扱う", () => {
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-safe-v2")
-  assert.equal(jstSlotKey(new Date("2026-08-29T11:00:00Z")), "2026-08-29-safe-v2")
-  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-safe-v2")
+test("JSTの同じ2時間帯は1つの公開枠として扱う", () => {
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-safe-v3")
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-safe-v3")
+  assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-safe-v3")
+  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-safe-v3")
 })
 
 const safeDraft = {

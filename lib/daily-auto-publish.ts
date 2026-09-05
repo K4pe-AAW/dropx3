@@ -14,11 +14,10 @@ import { canonicalImageKey, isSameProductAssetFamily } from "./image-candidates"
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 
-// 旧自動公開の大量実行履歴と分離する。巨大な旧BlobのETag競合を引き継がず、
-// safe-v2の1日2件制限だけを独立して管理する。
-const STATE_PATH = "data/daily-auto-publish-state-safe-v2.json"
-const AUTO_PUBLISH_POLICY_VERSION = "safe-v2"
-export const ARTICLES_PER_AUTO_PUBLISH_RUN = 2
+// 旧自動公開の実行履歴と分離し、2時間枠ごとの重複実行を独立して管理する。
+const STATE_PATH = "data/daily-auto-publish-state-safe-v3.json"
+const AUTO_PUBLISH_POLICY_VERSION = "safe-v3"
+export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
 export const MAX_YOUTUBE_ARTICLES_PER_RUN = 0
 
 const MEDIA_PUBLISHER_HOSTS = [
@@ -41,9 +40,12 @@ export function jstSlotKey(now = new Date()): string {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
   }).formatToParts(now)
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
-  return `${get("year")}-${get("month")}-${get("day")}-${AUTO_PUBLISH_POLICY_VERSION}`
+  const twoHourBucket = Math.floor(Number(get("hour")) / 2) * 2
+  return `${get("year")}-${get("month")}-${get("day")}-${String(twoHourBucket).padStart(2, "0")}-${AUTO_PUBLISH_POLICY_VERSION}`
 }
 
 function normalizedHost(url: string): string | null {

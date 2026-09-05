@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/daily-auto-publish",
-      "schedule": "0 23 * * *"
+      "schedule": "0 */2 * * *"
     },
     {
       "path": "/api/cron/publish-scheduled",
