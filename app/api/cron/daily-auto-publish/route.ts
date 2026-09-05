@@ -5,6 +5,10 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 300
 
 export async function GET(req: NextRequest) {
+  // 公開は人間レビュー後のみ。過去の互換ルートは明示的な再承認なしでは動かさない。
+  if (process.env.DAILY_AUTO_PUBLISH_ENABLED !== "true") {
+    return NextResponse.json({ error: "disabled" }, { status: 410 })
+  }
   const bearer = req.headers.get("authorization")
   const legacy = req.headers.get("x-cron-secret")
   const provided = bearer?.replace(/^Bearer\s+/i, "") ?? legacy

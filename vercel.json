@@ -19,10 +19,6 @@
     {
       "path": "/api/cron/backup",
       "schedule": "0 22 * * *"
-    },
-    {
-      "path": "/api/cron/daily-auto-publish",
-      "schedule": "0 3,9,11,23 * * *"
     }
   ]
 }
