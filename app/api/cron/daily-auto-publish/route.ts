@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   try {
     return NextResponse.json({ ok: true, ...(await runDailyAutoPublish()) })
   } catch (err) {
+    console.error("daily-auto-publish failed", err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "自動公開に失敗しました" },
       { status: 500 }
