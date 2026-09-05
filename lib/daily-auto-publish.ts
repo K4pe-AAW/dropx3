@@ -14,7 +14,9 @@ import { canonicalImageKey, isSameProductAssetFamily } from "./image-candidates"
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 
-const STATE_PATH = "data/daily-auto-publish-state.json"
+// 旧自動公開の大量実行履歴と分離する。巨大な旧BlobのETag競合を引き継がず、
+// safe-v2の1日2件制限だけを独立して管理する。
+const STATE_PATH = "data/daily-auto-publish-state-safe-v2.json"
 const AUTO_PUBLISH_POLICY_VERSION = "safe-v2"
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 2
 export const MAX_YOUTUBE_ARTICLES_PER_RUN = 0
