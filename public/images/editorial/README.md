@@ -1,9 +1,11 @@
 # Editorial image sources
 
-These covers are resized or layout-only derivatives of official first-party press/product assets. No generative edits are applied.
+These covers are either resized/layout-only derivatives of official first-party assets or original editorial graphics made from verified facts. Each row identifies the source and treatment.
 
 | File | Official source |
 | --- | --- |
+| `new-balance-apparel-time-sale-2026.jpg` | <https://shop.newbalance.jp/time-sale/> (original editorial graphic; no source image copied) |
+| `beams-club-time-sale-2026.svg` | <https://www.beams.co.jp/news/2429/> (original editorial graphic; no source image copied) |
 | `stone-island-aw26.webp` | <https://www.stoneisland.com/en-ch/autumn-winter-26-27-collection.html> |
 | `paraboot-nonnative-briac.webp` | <https://www.nonnative.com/specialproducts/paraboot-x-nonnative-briac-cow-leather/> |
 | `graniph-attack-on-titan.webp` | <https://www.graniph.com/item-detail/033000693107> |

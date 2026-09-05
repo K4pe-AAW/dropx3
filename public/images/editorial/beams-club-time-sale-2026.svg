@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024" role="img" aria-labelledby="title desc">
+  <title id="title">BEAMS CLUB会員限定TIME SALE</title>
+  <desc id="desc">オレンジと黒を基調に、開催期限とセール情報を示す編集部制作の情報グラフィック</desc>
+  <rect width="1536" height="1024" fill="#f2eee5"/>
+  <path d="M0 0h520L190 1024H0z" fill="#111"/>
+  <path d="M1230 0h306v1024H900z" fill="#ef5b25"/>
+  <circle cx="1350" cy="160" r="210" fill="#ffcf49" opacity=".92"/>
+  <g fill="#111" font-family="Arial, Helvetica, sans-serif" font-weight="800">
+    <text x="420" y="270" font-size="84" letter-spacing="9">MEMBERS ONLY</text>
+    <text x="420" y="500" font-size="180" letter-spacing="-5">TIME SALE</text>
+  </g>
+  <rect x="418" y="580" width="760" height="132" rx="10" fill="#111"/>
+  <text x="798" y="672" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="800">9.10 23:59まで</text>
+  <text x="420" y="805" fill="#111" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" letter-spacing="4">OFFICIAL ONLINE SHOP</text>
+  <g fill="#ef5b25">
+    <rect x="420" y="860" width="420" height="24"/>
+    <rect x="420" y="904" width="610" height="24"/>
+  </g>
+</svg>
