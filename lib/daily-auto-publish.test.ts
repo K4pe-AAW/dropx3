@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
   ARTICLES_PER_AUTO_PUBLISH_RUN,
+  MIN_ARTICLES_PER_TWO_HOUR_SLOT,
   MAX_YOUTUBE_ARTICLES_PER_RUN,
   autoPublishBlockReasons,
   autoPublishPriorityScore,
@@ -11,8 +12,9 @@ import {
   uniqueGalleryCandidates,
 } from "./daily-auto-publish"
 
-test("1回の自動公開上限は3記事", () => {
+test("各2時間枠の最低公開目標は3記事", () => {
   assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 3)
+  assert.equal(MIN_ARTICLES_PER_TWO_HOUR_SLOT, 3)
 })
 
 test("YouTube記事は自動公開せず個別確認へ回す", () => {
@@ -36,11 +38,11 @@ test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する",
   }
 })
 
-test("JSTの同じ2時間帯は1つの公開枠として扱う", () => {
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-safe-v3")
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-safe-v3")
-  assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-safe-v3")
-  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-safe-v3")
+test("JSTの同じ2時間帯は再試行しても1つの公開枠として扱う", () => {
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-throughput-v4")
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-throughput-v4")
+  assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-throughput-v4")
+  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-throughput-v4")
 })
 
 const safeDraft = {

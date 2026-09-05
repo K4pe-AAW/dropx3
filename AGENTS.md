@@ -16,7 +16,8 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   the brand here, not by grepping across files.
 - `data/articles.json` — published articles (served to the public site).
 - `data/drafts.json` — AI-drafted candidates. Official, non-sponsored normal articles
-  with verified official links and image provenance may auto-publish at up to 2/day;
+  with verified official links and image provenance are retried every 30 minutes until
+  each two-hour slot reaches 3 published articles;
   Goss!p/leaks, PR, SNAP, video, or unclear rights always stay for human review.
 - Affiliate links must go through `lib/affiliate.ts` so disclosure (`PR` badge,
   `rel="nofollow sponsored"`) is never accidentally dropped — see README's

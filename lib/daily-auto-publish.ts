@@ -14,13 +14,19 @@ import { canonicalImageKey, isSameProductAssetFamily } from "./image-candidates"
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 
-// 旧自動公開の実行履歴と分離し、2時間枠ごとの重複実行を独立して管理する。
-const STATE_PATH = "data/daily-auto-publish-state-safe-v3.json"
-const AUTO_PUBLISH_POLICY_VERSION = "safe-v3"
+// 旧自動公開の実行履歴と分離し、2時間枠ごとに3件へ達するまで再試行する。
+const STATE_PATH = "data/daily-auto-publish-state-throughput-v4.json"
+const AUTO_PUBLISH_POLICY_VERSION = "throughput-v4"
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
+export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 3
 export const MAX_YOUTUBE_ARTICLES_PER_RUN = 0
 
-type RunRecord = { startedAt: string; publishedArticleIds?: string[]; titles?: string[] }
+type RunRecord = {
+  startedAt: string
+  lastAttemptAt?: string
+  publishedArticleIds?: string[]
+  titles?: string[]
+}
 type AutoPublishState = { runs: Record<string, RunRecord> }
 
 export function jstSlotKey(now = new Date()): string {
@@ -246,17 +252,28 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
 }> {
   const slot = jstSlotKey(now)
 
-  let alreadyStarted = false
+  let alreadyPublishedArticleIds: string[] = []
+  let alreadyPublishedTitles: string[] = []
   await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
-    if (state.runs[slot]) alreadyStarted = true
-    else state.runs[slot] = { startedAt: now.toISOString() }
+    const existing = state.runs[slot]
+    alreadyPublishedArticleIds = existing?.publishedArticleIds ?? []
+    alreadyPublishedTitles = existing?.titles ?? []
+    state.runs[slot] = {
+      startedAt: existing?.startedAt ?? now.toISOString(),
+      lastAttemptAt: now.toISOString(),
+      publishedArticleIds: alreadyPublishedArticleIds,
+      titles: alreadyPublishedTitles,
+    }
     return state
   })
-  if (alreadyStarted) return { published: false, publishedCount: 0, slot, skipped: ["この時刻は処理済みです"] }
+  if (alreadyPublishedArticleIds.length >= MIN_ARTICLES_PER_TWO_HOUR_SLOT) {
+    return { published: false, publishedCount: 0, slot, skipped: ["この2時間枠は3件公開済みです"] }
+  }
 
   const { drafts } = await readDrafts()
   const errors: string[] = []
   const publishedArticles: Article[] = []
+  const remainingTarget = MIN_ARTICLES_PER_TWO_HOUR_SLOT - alreadyPublishedArticleIds.length
   // 安全ゲートを通った通常記事だけを、鮮度と購買意図が高い順に公開する。
   // YouTubeは公式性と埋め込み可否を個別確認するため、この経路では公開しない。
   const candidates = drafts
@@ -268,7 +285,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     })
   let youtubePublished = 0
   for (const draft of candidates) {
-    if (publishedArticles.length >= ARTICLES_PER_AUTO_PUBLISH_RUN) break
+    if (publishedArticles.length >= Math.min(ARTICLES_PER_AUTO_PUBLISH_RUN, remainingTarget)) break
     if (draft.suggestedYoutubeVideoId && youtubePublished >= MAX_YOUTUBE_ARTICLES_PER_RUN) continue
     try {
       const article = await prepareArticle(draft)
@@ -288,18 +305,33 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     }
   }
   await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
+    const existing = state.runs[slot]
+    const publishedArticleIds = [...new Set([
+      ...(existing?.publishedArticleIds ?? alreadyPublishedArticleIds),
+      ...publishedArticles.map((article) => article.id),
+    ])]
+    const titles = [...new Set([
+      ...(existing?.titles ?? alreadyPublishedTitles),
+      ...publishedArticles.map((article) => article.title),
+    ])]
     state.runs[slot] = {
-      startedAt: state.runs[slot]?.startedAt ?? now.toISOString(),
-      publishedArticleIds: publishedArticles.map((article) => article.id),
-      titles: publishedArticles.map((article) => article.title),
+      startedAt: existing?.startedAt ?? now.toISOString(),
+      lastAttemptAt: now.toISOString(),
+      publishedArticleIds,
+      titles,
     }
     return state
   })
+  const totalPublishedInSlot = alreadyPublishedArticleIds.length + publishedArticles.length
   return {
     published: publishedArticles.length > 0,
     publishedCount: publishedArticles.length,
     slot,
     titles: publishedArticles.map((article) => article.title),
-    skipped: errors.length > 0 ? errors : publishedArticles.length === 0 ? ["下書きがありません"] : [],
+    skipped: errors.length > 0
+      ? errors
+      : totalPublishedInSlot < MIN_ARTICLES_PER_TWO_HOUR_SLOT
+        ? [`この2時間枠は${totalPublishedInSlot}/3件です。次の30分実行で再試行します`]
+        : [],
   }
 }
