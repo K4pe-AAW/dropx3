@@ -36,9 +36,9 @@ test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する",
 })
 
 test("同じJST日付は1つの公開枠として扱う", () => {
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29")
-  assert.equal(jstSlotKey(new Date("2026-08-29T11:00:00Z")), "2026-08-29")
-  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30")
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-safe-v2")
+  assert.equal(jstSlotKey(new Date("2026-08-29T11:00:00Z")), "2026-08-29-safe-v2")
+  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-safe-v2")
 })
 
 const safeDraft = {
@@ -68,6 +68,22 @@ test("Goss!p・PR・SNAP・権利元不明画像は人間確認へ回す", () =>
   assert.ok(autoPublishBlockReasons({ ...safeDraft, isSponsored: true }).length > 0)
   assert.ok(autoPublishBlockReasons({ ...safeDraft, contentType: "SNAP" }).length > 0)
   assert.ok(autoPublishBlockReasons({ ...safeDraft, suggestedCoverImage: "https://media.example.net/photo.jpg" }).length > 0)
+})
+
+test("競合メディアを公式リンクとして誤登録した下書きは自動公開しない", () => {
+  assert.ok(autoPublishBlockReasons({
+    ...safeDraft,
+    sourceRefs: [{ name: "FASHIONSNAP", url: "https://www.fashionsnap.com/article/example" }],
+    suggestedOfficialLinks: [{ label: "公式サイト", url: "https://www.fashionsnap.com/article/example" }],
+    suggestedCoverImage: "https://cdn.fashionsnap-assets.com/article/example.jpg",
+  }).length > 0)
+})
+
+test("ブランド公式リンクがあっても競合メディア画像なら自動公開しない", () => {
+  assert.ok(autoPublishBlockReasons({
+    ...safeDraft,
+    suggestedCoverImage: "https://cdn.fashionsnap-assets.com/article/example.jpg",
+  }).length > 0)
 })
 
 test("追加画像はカバーと同一のサイズ違いを除外し、候補がある分だけ採用する", () => {

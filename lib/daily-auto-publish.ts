@@ -15,8 +15,20 @@ import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 
 const STATE_PATH = "data/daily-auto-publish-state.json"
+const AUTO_PUBLISH_POLICY_VERSION = "safe-v2"
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 2
 export const MAX_YOUTUBE_ARTICLES_PER_RUN = 0
+
+const MEDIA_PUBLISHER_HOSTS = [
+  "fashionsnap.com",
+  "fashionsnap-assets.com",
+  "fashion-press.net",
+  "fullress.com",
+  "hypebeast.com",
+  "prtimes.jp",
+  "sneakerwars.jp",
+  "uptodate.tokyo",
+]
 
 type RunRecord = { startedAt: string; publishedArticleIds?: string[]; titles?: string[] }
 type AutoPublishState = { runs: Record<string, RunRecord> }
@@ -29,7 +41,7 @@ export function jstSlotKey(now = new Date()): string {
     day: "2-digit",
   }).formatToParts(now)
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
-  return `${get("year")}-${get("month")}-${get("day")}`
+  return `${get("year")}-${get("month")}-${get("day")}-${AUTO_PUBLISH_POLICY_VERSION}`
 }
 
 function normalizedHost(url: string): string | null {
@@ -44,14 +56,30 @@ function hostsSharePublisher(left: string, right: string): boolean {
   return left === right || left.endsWith(`.${right}`) || right.endsWith(`.${left}`)
 }
 
+function isMediaPublisherHost(host: string): boolean {
+  return MEDIA_PUBLISHER_HOSTS.some((mediaHost) => hostsSharePublisher(host, mediaHost))
+}
+
+function verifiedOfficialHosts(draft: Draft): string[] {
+  return (draft.suggestedOfficialLinks ?? [])
+    .filter((link) => isSafeExternalUrl(link.url))
+    .map((link) => normalizedHost(link.url))
+    .filter((host): host is string => host !== null)
+    .filter((host) => !isMediaPublisherHost(host))
+}
+
+function imageMatchesVerifiedOfficialHost(imageUrl: string, officialHosts: string[]): boolean {
+  const imageHost = normalizedHost(imageUrl)
+  return Boolean(imageHost && !isMediaPublisherHost(imageHost) && officialHosts.some((host) => hostsSharePublisher(imageHost, host)))
+}
+
 /**
  * 人間確認なしで公開できる下書きだけを通す保守的なゲート。
  * 迷う記事は削除せず下書きに残し、通常の管理画面レビューへ回す。
  */
 export function autoPublishBlockReasons(draft: Draft): string[] {
   const reasons: string[] = []
-  const officialLinks = (draft.suggestedOfficialLinks ?? []).filter((link) => isSafeExternalUrl(link.url))
-  const officialHosts = officialLinks.map((link) => normalizedHost(link.url)).filter((host): host is string => Boolean(host))
+  const officialHosts = verifiedOfficialHosts(draft)
   const cover = draft.suggestedCoverImage?.trim() ?? ""
   const coverHost = normalizedHost(cover)
   const text = [draft.title, draft.excerpt, ...draft.bodyParagraphs].join(" ")
@@ -62,14 +90,14 @@ export function autoPublishBlockReasons(draft: Draft): string[] {
   if (draft.isSponsored) reasons.push("PR・タイアップ記事です")
   if (draft.contentType === "SNAP" || draft.snapProfile) reasons.push("SNAP・人物情報を含みます")
   if (draft.suggestedYoutubeVideoId || draft.category === "youtube") reasons.push("動画記事は個別確認が必要です")
-  if (officialLinks.length === 0) reasons.push("公式リンクがありません")
+  if (officialHosts.length === 0) reasons.push("ブランド・店舗の公式リンクを確認できません")
   if (!draft.sourceRefs.some((ref) => isSafeExternalUrl(ref.url))) reasons.push("検証可能な出典がありません")
   if (draft.sourceRefs.some((ref) => /(?:PR\s*TIMES|prtimes\.jp)/i.test(`${ref.name} ${ref.url}`))) {
     reasons.push("プレスリリース由来です")
   }
   if (!draft.suggestedAffiliateSearch[0]?.trim()) reasons.push("商品検索語がありません")
   if (!cover) reasons.push("カバー画像がありません")
-  else if (!cover.startsWith("/images/editorial/") && (!coverHost || !officialHosts.some((host) => hostsSharePublisher(coverHost, host)))) {
+  else if (!cover.startsWith("/images/editorial/") && (!coverHost || !imageMatchesVerifiedOfficialHost(cover, officialHosts))) {
     reasons.push("画像の権利元を公式リンクと照合できません")
   }
   if (/(?:Goss!p|Gossp!|未確認情報|リーク|rumou?rs?|leak(?:ed|s|ing)?)/i.test(text)) {
@@ -86,7 +114,11 @@ export function buildRequiredAffiliateLinks(query: string): AffiliateLink[] {
 }
 
 function referenceSourceUrl(draft: Draft): string | null {
-  const url = draft.suggestedOfficialLinks?.find((link) => isSafeExternalUrl(link.url))?.url
+  const url = draft.suggestedOfficialLinks?.find((link) => {
+    if (!isSafeExternalUrl(link.url)) return false
+    const host = normalizedHost(link.url)
+    return Boolean(host && !isMediaPublisherHost(host))
+  })?.url
   if (url) return url
   if (draft.suggestedYoutubeVideoId) {
     return draft.sourceRefs.find((ref) => /(?:youtube\.com|youtu\.be)/i.test(ref.url))?.url ?? null
@@ -102,11 +134,18 @@ function hasPublishableTheme(draft: Draft): boolean {
 }
 
 async function saveArticleImage(imageUrl: string, draft: Draft, name: string): Promise<string> {
+  const officialHosts = verifiedOfficialHosts(draft)
+  if (!imageMatchesVerifiedOfficialHost(imageUrl, officialHosts)) {
+    throw new Error("画像URLを公式ドメインと照合できません")
+  }
   const res = await fetch(imageUrl, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; DropDropDropImageCollector/1.0; +https://dropx3.com)" },
     signal: AbortSignal.timeout(12000),
   })
   if (!res.ok) throw new Error(`公式画像を保存できませんでした(HTTP ${res.status})`)
+  if (!imageMatchesVerifiedOfficialHost(res.url, officialHosts)) {
+    throw new Error("画像の転送先を公式ドメインと照合できません")
+  }
   const contentType = res.headers.get("content-type")?.split(";")[0]?.trim() ?? ""
   if (!contentType.startsWith("image/")) throw new Error("公式画像の応答が画像ではありません")
   const buffer = Buffer.from(await res.arrayBuffer())
@@ -185,7 +224,8 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     : await saveArticleImage(sourceCoverImage, draft, "cover")
   const galleryImages = draft.suggestedYoutubeVideoId ? [] : await saveGalleryImages(draft, sourceCoverImage)
 
-  const id = generateId(`${draft.id}-${Date.now()}`)
+  // 同じ下書きを再試行しても記事IDを増殖させない。
+  const id = generateId(`${draft.id}-${AUTO_PUBLISH_POLICY_VERSION}`)
   const now = new Date().toISOString()
   return {
     id,
