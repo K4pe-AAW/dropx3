@@ -15,8 +15,8 @@ import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 
 // 旧自動公開の実行履歴と分離し、2時間枠ごとの重複実行を独立して管理する。
-const STATE_PATH = "data/daily-auto-publish-state-safe-v3.json"
-const AUTO_PUBLISH_POLICY_VERSION = "safe-v3"
+const STATE_PATH = "data/daily-auto-publish-state-safe-v4.json"
+const AUTO_PUBLISH_POLICY_VERSION = "safe-v4"
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
 export const MAX_YOUTUBE_ARTICLES_PER_RUN = 0
 
@@ -135,6 +135,23 @@ function referenceSourceUrl(draft: Draft): string | null {
 
 function hasPublishableTheme(draft: Draft): boolean {
   return Boolean(draft.title.trim() && draft.excerpt.trim() && draft.bodyParagraphs.some((p) => p.trim()))
+}
+
+/**
+ * 安全ゲート通過後の公開順。時限性と購買意図を優先し、単なる収集順にしない。
+ * 点数は公開可否に使わず、同じ安全水準の候補を並べ替えるためだけに使う。
+ */
+export function autoPublishPriorityScore(draft: Draft, now = new Date()): number {
+  const sourceDate = Date.parse(draft.sourcePublishedAt ?? draft.createdAt)
+  const ageHours = Number.isFinite(sourceDate) ? Math.max(0, now.getTime() - sourceDate) / 3_600_000 : Number.POSITIVE_INFINITY
+  const text = `${draft.title} ${draft.excerpt}`
+  const query = draft.suggestedAffiliateSearch[0]?.trim() ?? ""
+  let score = ageHours <= 48 ? 6 : ageHours <= 168 ? 3 : 0
+  if (draft.contentType === "BUY") score += 5
+  if (/(?:セール|割引|オフ|OFF|発売|予約|抽選|限定|再販|入荷|タイムセール)/i.test(text)) score += 4
+  if (/(?:¥|￥|円|%|％|まで|終了|締切)/.test(text)) score += 2
+  if (query.split(/\s+/).filter(Boolean).length >= 2) score += 2
+  return score
 }
 
 async function saveArticleImage(imageUrl: string, draft: Draft, name: string): Promise<string> {
@@ -278,11 +295,15 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   const { drafts } = await readDrafts()
   const errors: string[] = []
   const publishedArticles: Article[] = []
-  // 安全ゲートを通った通常記事だけを、元情報が新しい順に公開する。
+  // 安全ゲートを通った通常記事だけを、鮮度と購買意図が高い順に公開する。
   // YouTubeは公式性と埋め込み可否を個別確認するため、この経路では公開しない。
   const candidates = drafts
     .filter((draft) => autoPublishBlockReasons(draft).length === 0)
-    .sort((a, b) => Date.parse(b.sourcePublishedAt ?? b.createdAt) - Date.parse(a.sourcePublishedAt ?? a.createdAt))
+    .sort((a, b) => {
+      const scoreDifference = autoPublishPriorityScore(b, now) - autoPublishPriorityScore(a, now)
+      if (scoreDifference !== 0) return scoreDifference
+      return Date.parse(b.sourcePublishedAt ?? b.createdAt) - Date.parse(a.sourcePublishedAt ?? a.createdAt)
+    })
   let youtubePublished = 0
   for (const draft of candidates) {
     if (publishedArticles.length >= ARTICLES_PER_AUTO_PUBLISH_RUN) break

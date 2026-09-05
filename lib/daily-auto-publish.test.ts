@@ -4,6 +4,7 @@ import {
   ARTICLES_PER_AUTO_PUBLISH_RUN,
   MAX_YOUTUBE_ARTICLES_PER_RUN,
   autoPublishBlockReasons,
+  autoPublishPriorityScore,
   buildRequiredAffiliateLinks,
   jstSlotKey,
   isSameProductAssetFamily,
@@ -36,10 +37,10 @@ test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する",
 })
 
 test("JSTの同じ2時間帯は1つの公開枠として扱う", () => {
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-safe-v3")
-  assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-safe-v3")
-  assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-safe-v3")
-  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-safe-v3")
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-safe-v4")
+  assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-safe-v4")
+  assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-safe-v4")
+  assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-safe-v4")
 })
 
 const safeDraft = {
@@ -62,6 +63,15 @@ const safeDraft = {
 
 test("公式情報・公式画像・商品検索語が揃う通常記事だけ自動公開できる", () => {
   assert.deepEqual(autoPublishBlockReasons(safeDraft), [])
+})
+
+test("自動公開順位は安全通過後に鮮度と購買意図を優先する", () => {
+  const now = new Date("2026-09-06T00:00:00.000Z")
+  const commercial = { ...safeDraft, contentType: "BUY" as const, title: "公式タイムセール 50%オフ、9月7日まで", sourcePublishedAt: "2026-09-05T00:00:00.000Z" }
+  const editorial = { ...safeDraft, contentType: "NEWS" as const, title: "ブランドの新ビジュアル公開", sourcePublishedAt: "2026-09-05T00:00:00.000Z" }
+  const stale = { ...commercial, sourcePublishedAt: "2026-08-01T00:00:00.000Z" }
+  assert.ok(autoPublishPriorityScore(commercial, now) > autoPublishPriorityScore(editorial, now))
+  assert.ok(autoPublishPriorityScore(commercial, now) > autoPublishPriorityScore(stale, now))
 })
 
 test("Goss!p・PR・SNAP・権利元不明画像は人間確認へ回す", () => {
