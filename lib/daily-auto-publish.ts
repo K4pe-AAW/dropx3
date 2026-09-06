@@ -13,6 +13,7 @@ import { canonicalBrandNames } from "./brands"
 import { canonicalImageKey, isSameProductAssetFamily } from "./image-candidates"
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
+import { ensureUnconfirmedTitle } from "./information-status"
 
 // 旧自動公開の実行履歴と分離し、2時間枠ごとに3件へ達するまで再試行する。
 const STATE_PATH = "data/daily-auto-publish-state-throughput-v4.json"
@@ -63,28 +64,38 @@ export function autoPublishBlockReasons(draft: Draft): string[] {
   const reasons: string[] = []
   const officialLinks = (draft.suggestedOfficialLinks ?? []).filter((link) => isSafeExternalUrl(link.url))
   const officialHosts = officialLinks.map((link) => normalizedHost(link.url)).filter((host): host is string => Boolean(host))
+  const sourceHosts = draft.sourceRefs
+    .filter((ref) => isSafeExternalUrl(ref.url))
+    .map((ref) => normalizedHost(ref.url))
+    .filter((host): host is string => Boolean(host))
+  const imageReferenceHosts = draft.informationStatus === "rumor"
+    ? [...new Set([...officialHosts, ...sourceHosts])]
+    : officialHosts
   const cover = draft.suggestedCoverImage?.trim() ?? ""
   const coverHost = normalizedHost(cover)
   const text = [draft.title, draft.excerpt, ...draft.bodyParagraphs].join(" ")
+  const containsRumor = /(?:Goss!p|Gossp!|噂|未確認情報|rumou?rs?)/i.test(text)
+  const containsLeak = /(?:リーク|流出画像|流出した|leak(?:ed|s|ing)?)/i.test(text)
 
   if (draft.status !== "pending") reasons.push("公開待ちではありません")
   if (!hasPublishableTheme(draft)) reasons.push("本文が不足しています")
-  if (draft.informationStatus !== "official") reasons.push("公式確認済みではありません")
+  if (draft.informationStatus !== "official" && draft.informationStatus !== "rumor") {
+    reasons.push("公開対象の情報区分ではありません")
+  }
+  if (draft.informationStatus === "leak" || containsLeak) reasons.push("リーク情報を含みます")
+  if (containsRumor && draft.informationStatus !== "rumor") reasons.push("Goss!pの未確認表示が設定されていません")
   if (draft.isSponsored) reasons.push("PR・タイアップ記事です")
   if (draft.contentType === "SNAP" || draft.snapProfile) reasons.push("SNAP・人物情報を含みます")
   if (draft.suggestedYoutubeVideoId || draft.category === "youtube") reasons.push("動画記事は個別確認が必要です")
-  if (officialLinks.length === 0) reasons.push("公式リンクがありません")
+  if (draft.informationStatus !== "rumor" && officialLinks.length === 0) reasons.push("公式リンクがありません")
   if (!draft.sourceRefs.some((ref) => isSafeExternalUrl(ref.url))) reasons.push("検証可能な出典がありません")
   if (draft.sourceRefs.some((ref) => /(?:PR\s*TIMES|prtimes\.jp)/i.test(`${ref.name} ${ref.url}`))) {
     reasons.push("プレスリリース由来です")
   }
   if (!draft.suggestedAffiliateSearch[0]?.trim()) reasons.push("商品検索語がありません")
   if (!cover) reasons.push("カバー画像がありません")
-  else if (!cover.startsWith("/images/editorial/") && (!coverHost || !officialHosts.some((host) => hostsSharePublisher(coverHost, host)))) {
-    reasons.push("画像の権利元を公式リンクと照合できません")
-  }
-  if (/(?:Goss!p|Gossp!|未確認情報|リーク|rumou?rs?|leak(?:ed|s|ing)?)/i.test(text)) {
-    reasons.push("未確認情報を含みます")
+  else if (!cover.startsWith("/images/editorial/") && (!coverHost || !imageReferenceHosts.some((host) => hostsSharePublisher(coverHost, host)))) {
+    reasons.push("画像の権利元を公式リンクまたは出典と照合できません")
   }
   return [...new Set(reasons)]
 }
@@ -212,24 +223,26 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     ? sourceCoverImage
     : await saveArticleImage(sourceCoverImage, draft, "cover")
   const galleryImages = draft.suggestedYoutubeVideoId ? [] : await saveGalleryImages(draft, sourceCoverImage)
+  const informationStatus = draft.informationStatus ?? "report"
+  const title = ensureUnconfirmedTitle(brushed.title, informationStatus)
 
   // 同じ下書きを再試行しても記事IDを増殖させない。
   const id = generateId(`${draft.id}-${AUTO_PUBLISH_POLICY_VERSION}`)
   const now = new Date().toISOString()
   return {
     id,
-    slug: generateSlug(brushed.title, id),
-    title: brushed.title,
+    slug: generateSlug(title, id),
+    title,
     excerpt: brushed.excerpt,
     bodyParagraphs: brushed.bodyParagraphs,
     coverImage,
-    coverImageAlt: brushed.title,
+    coverImageAlt: title,
     // カバーを必須・最優先にし、同一画像を除いた取得可能な追加画像だけを自己ホストして採用する。
     galleryImages,
     ...(draft.suggestedYoutubeVideoId ? { youtubeVideoId: draft.suggestedYoutubeVideoId } : {}),
     category: draft.category,
     contentType: inferContentType(draft.category, affiliateLinks.length > 0),
-    ...(draft.informationStatus ? { informationStatus: draft.informationStatus } : {}),
+    informationStatus,
     brands: canonicalBrandNames(draft.brands),
     tags: draft.tags,
     publishedAt: now,

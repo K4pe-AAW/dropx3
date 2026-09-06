@@ -76,8 +76,18 @@ test("自動公開順位は安全通過後に鮮度と購買意図を優先す�
   assert.ok(autoPublishPriorityScore(commercial, now) > autoPublishPriorityScore(stale, now))
 })
 
-test("Goss!p・PR・SNAP・権利元不明画像は人間確認へ回す", () => {
-  assert.ok(autoPublishBlockReasons({ ...safeDraft, informationStatus: "rumor", title: "Goss!p｜新作か" }).length > 0)
+test("Goss!pは未確認表示と出典画像が揃えば公開できる", () => {
+  assert.deepEqual(autoPublishBlockReasons({
+    ...safeDraft,
+    informationStatus: "rumor",
+    title: "Goss!p｜新作が登場か",
+    suggestedOfficialLinks: [],
+  }), [])
+})
+
+test("リーク・PR・SNAP・権利元不明画像は人間確認へ回す", () => {
+  assert.ok(autoPublishBlockReasons({ ...safeDraft, informationStatus: "leak", title: "リーク｜新作か" }).length > 0)
+  assert.ok(autoPublishBlockReasons({ ...safeDraft, informationStatus: "official", title: "新作の噂" }).includes("Goss!pの未確認表示が設定されていません"))
   assert.ok(autoPublishBlockReasons({ ...safeDraft, isSponsored: true }).length > 0)
   assert.ok(autoPublishBlockReasons({ ...safeDraft, contentType: "SNAP" }).length > 0)
   assert.ok(autoPublishBlockReasons({ ...safeDraft, suggestedCoverImage: "https://media.example.net/photo.jpg" }).length > 0)
