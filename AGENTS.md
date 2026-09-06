@@ -15,11 +15,11 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
 - `lib/site-config.ts` — single source of truth for brand name/tagline/URL. Change
   the brand here, not by grepping across files.
 - `data/articles.json` — published articles (served to the public site).
-- `data/drafts.json` — AI-drafted candidates. Official, non-sponsored normal articles
-  with verified official links and image provenance are retried every 30 minutes until
-  each two-hour slot reaches 3 published articles. Goss!p may auto-publish only with
-  explicit unconfirmed labeling and source-matched imagery; leaks, PR, SNAP, video,
-  or unclear rights always stay for human review.
+- `data/drafts.json` — AI-drafted candidates. The auto-publisher uses the 2026-09-04
+  operating standard: it attempts drafts without a separate policy gate, while the
+  publish preparation still requires body text, a usable source/reference, a cover
+  image, and a concrete affiliate search term. Goss!p/leaks retain prominent
+  unconfirmed labels. Each two-hour slot targets 3 articles; YouTube is capped at 1.
 - Affiliate links must go through `lib/affiliate.ts` so disclosure (`PR` badge,
   `rel="nofollow sponsored"`) is never accidentally dropped — see README's
   "法令・アフィリエイト表記について" section before removing that wrapper.

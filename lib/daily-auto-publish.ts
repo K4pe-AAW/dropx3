@@ -1,3 +1,4 @@
+import crypto from "node:crypto"
 import { QUICK_AFFILIATE_RETAILERS, isSafeExternalUrl } from "./affiliate"
 import { brushUpDraftWithUrl } from "./draft-brushup"
 import {
@@ -20,7 +21,7 @@ const STATE_PATH = "data/daily-auto-publish-state-throughput-v4.json"
 const AUTO_PUBLISH_POLICY_VERSION = "throughput-v4"
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
 export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 3
-export const MAX_YOUTUBE_ARTICLES_PER_RUN = 0
+export const MAX_YOUTUBE_ARTICLES_PER_RUN = 1
 
 type RunRecord = {
   startedAt: string
@@ -42,62 +43,6 @@ export function jstSlotKey(now = new Date()): string {
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
   const twoHourBucket = Math.floor(Number(get("hour")) / 2) * 2
   return `${get("year")}-${get("month")}-${get("day")}-${String(twoHourBucket).padStart(2, "0")}-${AUTO_PUBLISH_POLICY_VERSION}`
-}
-
-function normalizedHost(url: string): string | null {
-  try {
-    return new URL(url).hostname.toLowerCase().replace(/^www\./, "")
-  } catch {
-    return null
-  }
-}
-
-function hostsSharePublisher(left: string, right: string): boolean {
-  return left === right || left.endsWith(`.${right}`) || right.endsWith(`.${left}`)
-}
-
-/**
- * 人間確認なしで公開できる下書きだけを通す保守的なゲート。
- * 迷う記事は削除せず下書きに残し、通常の管理画面レビューへ回す。
- */
-export function autoPublishBlockReasons(draft: Draft): string[] {
-  const reasons: string[] = []
-  const officialLinks = (draft.suggestedOfficialLinks ?? []).filter((link) => isSafeExternalUrl(link.url))
-  const officialHosts = officialLinks.map((link) => normalizedHost(link.url)).filter((host): host is string => Boolean(host))
-  const sourceHosts = draft.sourceRefs
-    .filter((ref) => isSafeExternalUrl(ref.url))
-    .map((ref) => normalizedHost(ref.url))
-    .filter((host): host is string => Boolean(host))
-  const imageReferenceHosts = draft.informationStatus === "rumor"
-    ? [...new Set([...officialHosts, ...sourceHosts])]
-    : officialHosts
-  const cover = draft.suggestedCoverImage?.trim() ?? ""
-  const coverHost = normalizedHost(cover)
-  const text = [draft.title, draft.excerpt, ...draft.bodyParagraphs].join(" ")
-  const containsRumor = /(?:Goss!p|Gossp!|噂|未確認情報|rumou?rs?)/i.test(text)
-  const containsLeak = /(?:リーク|流出画像|流出した|leak(?:ed|s|ing)?)/i.test(text)
-
-  if (draft.status !== "pending") reasons.push("公開待ちではありません")
-  if (!hasPublishableTheme(draft)) reasons.push("本文が不足しています")
-  if (draft.informationStatus !== "official" && draft.informationStatus !== "rumor") {
-    reasons.push("公開対象の情報区分ではありません")
-  }
-  if (draft.informationStatus === "leak" || containsLeak) reasons.push("リーク情報を含みます")
-  if (containsRumor && draft.informationStatus !== "rumor") reasons.push("Goss!pの未確認表示が設定されていません")
-  if (draft.isSponsored) reasons.push("PR・タイアップ記事です")
-  if (draft.contentType === "SNAP" || draft.snapProfile) reasons.push("SNAP・人物情報を含みます")
-  if (draft.suggestedYoutubeVideoId || draft.category === "youtube") reasons.push("動画記事は個別確認が必要です")
-  if (draft.informationStatus !== "rumor" && officialLinks.length === 0) reasons.push("公式リンクがありません")
-  if (!draft.sourceRefs.some((ref) => isSafeExternalUrl(ref.url))) reasons.push("検証可能な出典がありません")
-  if (draft.sourceRefs.some((ref) => /(?:PR\s*TIMES|prtimes\.jp)/i.test(`${ref.name} ${ref.url}`))) {
-    reasons.push("プレスリリース由来です")
-  }
-  if (!draft.suggestedAffiliateSearch[0]?.trim()) reasons.push("商品検索語がありません")
-  if (!cover) reasons.push("カバー画像がありません")
-  else if (!cover.startsWith("/images/editorial/") && (!coverHost || !imageReferenceHosts.some((host) => hostsSharePublisher(coverHost, host)))) {
-    reasons.push("画像の権利元を公式リンクまたは出典と照合できません")
-  }
-  return [...new Set(reasons)]
 }
 
 export function buildRequiredAffiliateLinks(query: string): AffiliateLink[] {
@@ -123,21 +68,13 @@ function hasPublishableTheme(draft: Draft): boolean {
   return Boolean(draft.title.trim() && draft.excerpt.trim() && draft.bodyParagraphs.some((p) => p.trim()))
 }
 
-/**
- * 安全ゲート通過後の公開順。時限性と購買意図を優先し、単なる収集順にしない。
- * 点数は公開可否に使わず、同じ安全水準の候補を並べ替えるためだけに使う。
- */
-export function autoPublishPriorityScore(draft: Draft, now = new Date()): number {
-  const sourceDate = Date.parse(draft.sourcePublishedAt ?? draft.createdAt)
-  const ageHours = Number.isFinite(sourceDate) ? Math.max(0, now.getTime() - sourceDate) / 3_600_000 : Number.POSITIVE_INFINITY
-  const text = `${draft.title} ${draft.excerpt}`
-  const query = draft.suggestedAffiliateSearch[0]?.trim() ?? ""
-  let score = ageHours <= 48 ? 6 : ageHours <= 168 ? 3 : 0
-  if (draft.contentType === "BUY") score += 5
-  if (/(?:セール|割引|オフ|OFF|発売|予約|抽選|限定|再販|入荷|タイムセール)/i.test(text)) score += 4
-  if (/(?:¥|￥|円|%|％|まで|終了|締切)/.test(text)) score += 2
-  if (query.split(/\s+/).filter(Boolean).length >= 2) score += 2
-  return score
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1)
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
 }
 
 async function saveArticleImage(imageUrl: string, draft: Draft, name: string): Promise<string> {
@@ -287,15 +224,12 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   const errors: string[] = []
   const publishedArticles: Article[] = []
   const remainingTarget = MIN_ARTICLES_PER_TWO_HOUR_SLOT - alreadyPublishedArticleIds.length
-  // 安全ゲートを通った通常記事だけを、鮮度と購買意図が高い順に公開する。
-  // YouTubeは公式性と埋め込み可否を個別確認するため、この経路では公開しない。
-  const candidates = drafts
-    .filter((draft) => autoPublishBlockReasons(draft).length === 0)
-    .sort((a, b) => {
-      const scoreDifference = autoPublishPriorityScore(b, now) - autoPublishPriorityScore(a, now)
-      if (scoreDifference !== 0) return scoreDifference
-      return Date.parse(b.sourcePublishedAt ?? b.createdAt) - Date.parse(a.sourcePublishedAt ?? a.createdAt)
-    })
+  // 9/4までの運用と同じく、下書きを一律ゲートで除外せず公開処理を試す。
+  // 通常記事を先にし、YouTubeだけは公開面の偏りを防ぐため各枠1件までに抑える。
+  const candidates = [
+    ...shuffled(drafts.filter((draft) => !draft.suggestedYoutubeVideoId)),
+    ...shuffled(drafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId))),
+  ]
   let youtubePublished = 0
   for (const draft of candidates) {
     if (publishedArticles.length >= Math.min(ARTICLES_PER_AUTO_PUBLISH_RUN, remainingTarget)) break

@@ -4,8 +4,6 @@ import {
   ARTICLES_PER_AUTO_PUBLISH_RUN,
   MIN_ARTICLES_PER_TWO_HOUR_SLOT,
   MAX_YOUTUBE_ARTICLES_PER_RUN,
-  autoPublishBlockReasons,
-  autoPublishPriorityScore,
   buildRequiredAffiliateLinks,
   jstSlotKey,
   isSameProductAssetFamily,
@@ -17,8 +15,8 @@ test("各2時間枠の最低公開目標は3記事", () => {
   assert.equal(MIN_ARTICLES_PER_TWO_HOUR_SLOT, 3)
 })
 
-test("YouTube記事は自動公開せず個別確認へ回す", () => {
-  assert.equal(MAX_YOUTUBE_ARTICLES_PER_RUN, 0)
+test("各公開枠のYouTube記事は最大1件", () => {
+  assert.equal(MAX_YOUTUBE_ARTICLES_PER_RUN, 1)
 })
 
 test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する", () => {
@@ -43,63 +41,6 @@ test("JSTの同じ2時間帯は再試行しても1つの公開枠として扱う
   assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-throughput-v4")
   assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-throughput-v4")
   assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-throughput-v4")
-})
-
-const safeDraft = {
-  id: "safe",
-  status: "pending" as const,
-  title: "公式発表された新作スニーカー",
-  excerpt: "公式情報をもとに紹介します。",
-  bodyParagraphs: ["ブランドが発売を発表しました。"],
-  category: "sneaker" as const,
-  contentType: "BUY" as const,
-  informationStatus: "official" as const,
-  brands: ["Example"],
-  tags: ["新作"],
-  suggestedAffiliateSearch: ["Example Model 1"],
-  sourceRefs: [{ name: "Example公式", url: "https://example.com/news/model-1" }],
-  createdAt: "2026-09-05T00:00:00.000Z",
-  suggestedCoverImage: "https://images.example.com/model-1.jpg",
-  suggestedOfficialLinks: [{ label: "公式サイト", url: "https://example.com/products/model-1" }],
-}
-
-test("公式情報・公式画像・商品検索語が揃う通常記事だけ自動公開できる", () => {
-  assert.deepEqual(autoPublishBlockReasons(safeDraft), [])
-})
-
-test("自動公開順位は安全通過後に鮮度と購買意図を優先する", () => {
-  const now = new Date("2026-09-06T00:00:00.000Z")
-  const commercial = { ...safeDraft, contentType: "BUY" as const, title: "公式タイムセール 50%オフ、9月7日まで", sourcePublishedAt: "2026-09-05T00:00:00.000Z" }
-  const editorial = { ...safeDraft, contentType: "NEWS" as const, title: "ブランドの新ビジュアル公開", sourcePublishedAt: "2026-09-05T00:00:00.000Z" }
-  const stale = { ...commercial, sourcePublishedAt: "2026-08-01T00:00:00.000Z" }
-  assert.ok(autoPublishPriorityScore(commercial, now) > autoPublishPriorityScore(editorial, now))
-  assert.ok(autoPublishPriorityScore(commercial, now) > autoPublishPriorityScore(stale, now))
-})
-
-test("Goss!pは未確認表示と出典画像が揃えば公開できる", () => {
-  assert.deepEqual(autoPublishBlockReasons({
-    ...safeDraft,
-    informationStatus: "rumor",
-    title: "Goss!p｜新作が登場か",
-    suggestedOfficialLinks: [],
-  }), [])
-})
-
-test("リーク・PR・SNAP・権利元不明画像は人間確認へ回す", () => {
-  assert.ok(autoPublishBlockReasons({ ...safeDraft, informationStatus: "leak", title: "リーク｜新作か" }).length > 0)
-  assert.ok(autoPublishBlockReasons({ ...safeDraft, informationStatus: "official", title: "新作の噂" }).includes("Goss!pの未確認表示が設定されていません"))
-  assert.ok(autoPublishBlockReasons({ ...safeDraft, isSponsored: true }).length > 0)
-  assert.ok(autoPublishBlockReasons({ ...safeDraft, contentType: "SNAP" }).length > 0)
-  assert.ok(autoPublishBlockReasons({ ...safeDraft, suggestedCoverImage: "https://media.example.net/photo.jpg" }).length > 0)
-})
-
-test("登録済みの公式リンクと同一ドメインの通常記事は媒体名で一律停止しない", () => {
-  assert.deepEqual(autoPublishBlockReasons({
-    ...safeDraft,
-    sourceRefs: [{ name: "FASHIONSNAP", url: "https://www.fashionsnap.com/article/example" }],
-    suggestedOfficialLinks: [{ label: "公式サイト", url: "https://www.fashionsnap.com/article/example" }],
-    suggestedCoverImage: "https://cdn.fashionsnap.com/article/example.jpg",
-  }), [])
 })
 
 test("追加画像はカバーと同一のサイズ違いを除外し、候補がある分だけ採用する", () => {
