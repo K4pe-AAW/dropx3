@@ -16,17 +16,22 @@ import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 import { ensureUnconfirmedTitle } from "./information-status"
 
-// 旧自動公開の実行履歴と分離し、2時間枠ごとに3件へ達するまで再試行する。
+// 既存の公開数を引き継ぎつつ、2時間枠ごとに3件、4時間（6件）ごとに
+// YouTube 1件を目安として再試行する。
 const STATE_PATH = "data/daily-auto-publish-state-throughput-v4.json"
 const AUTO_PUBLISH_POLICY_VERSION = "throughput-v4"
+const YOUTUBE_MIX_POLICY_VERSION = "youtube-mix-v1"
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
 export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 3
-export const MAX_YOUTUBE_ARTICLES_PER_RUN = 1
+export const ARTICLES_PER_YOUTUBE_MIX_CYCLE = 6
+export const TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE = 1
 
 type RunRecord = {
   startedAt: string
   lastAttemptAt?: string
+  mixCycle?: string
   publishedArticleIds?: string[]
+  publishedYoutubeArticleIds?: string[]
   titles?: string[]
 }
 type AutoPublishState = { runs: Record<string, RunRecord> }
@@ -43,6 +48,20 @@ export function jstSlotKey(now = new Date()): string {
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
   const twoHourBucket = Math.floor(Number(get("hour")) / 2) * 2
   return `${get("year")}-${get("month")}-${get("day")}-${String(twoHourBucket).padStart(2, "0")}-${AUTO_PUBLISH_POLICY_VERSION}`
+}
+
+export function jstYoutubeMixCycleKey(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now)
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
+  const fourHourBucket = Math.floor(Number(get("hour")) / 4) * 4
+  return `${get("year")}-${get("month")}-${get("day")}-${String(fourHourBucket).padStart(2, "0")}-${YOUTUBE_MIX_POLICY_VERSION}`
 }
 
 export function buildRequiredAffiliateLinks(query: string): AffiliateLink[] {
@@ -75,6 +94,18 @@ function shuffled<T>(items: T[]): T[] {
     ;[copy[i], copy[j]] = [copy[j], copy[i]]
   }
   return copy
+}
+
+export function orderAutoPublishCandidates(drafts: Draft[], youtubePublishedInCycle: number): Draft[] {
+  const youtubeQuotaRemaining = Math.max(
+    0,
+    TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE - youtubePublishedInCycle
+  )
+  const normalCandidates = shuffled(drafts.filter((draft) => !draft.suggestedYoutubeVideoId))
+  const youtubeCandidates = shuffled(drafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId)))
+  return youtubeQuotaRemaining > 0
+    ? [...youtubeCandidates, ...normalCandidates]
+    : normalCandidates
 }
 
 async function saveArticleImage(imageUrl: string, draft: Draft, name: string): Promise<string> {
@@ -201,17 +232,26 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   skipped?: string[]
 }> {
   const slot = jstSlotKey(now)
+  const mixCycle = jstYoutubeMixCycleKey(now)
 
   let alreadyPublishedArticleIds: string[] = []
+  let alreadyPublishedYoutubeArticleIds: string[] = []
   let alreadyPublishedTitles: string[] = []
   await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
     const existing = state.runs[slot]
     alreadyPublishedArticleIds = existing?.publishedArticleIds ?? []
+    alreadyPublishedYoutubeArticleIds = [...new Set(
+      Object.values(state.runs)
+        .filter((run) => run.mixCycle === mixCycle)
+        .flatMap((run) => run.publishedYoutubeArticleIds ?? [])
+    )]
     alreadyPublishedTitles = existing?.titles ?? []
     state.runs[slot] = {
       startedAt: existing?.startedAt ?? now.toISOString(),
       lastAttemptAt: now.toISOString(),
+      mixCycle,
       publishedArticleIds: alreadyPublishedArticleIds,
+      publishedYoutubeArticleIds: existing?.publishedYoutubeArticleIds ?? [],
       titles: alreadyPublishedTitles,
     }
     return state
@@ -225,15 +265,17 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   const publishedArticles: Article[] = []
   const remainingTarget = MIN_ARTICLES_PER_TWO_HOUR_SLOT - alreadyPublishedArticleIds.length
   // 9/4までの運用と同じく、下書きを一律ゲートで除外せず公開処理を試す。
-  // 通常記事を先にし、YouTubeだけは公開面の偏りを防ぐため各枠1件までに抑える。
-  const candidates = [
-    ...shuffled(drafts.filter((draft) => !draft.suggestedYoutubeVideoId)),
-    ...shuffled(drafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId))),
-  ]
+  // 4時間（6件）の中でYouTubeがまだ0件なら先に1件を試し、残りは通常記事にする。
+  // YouTubeが公開条件を満たさない場合は通常記事へ進み、公開本数そのものは止めない。
+  const youtubeQuotaRemaining = Math.max(
+    0,
+    TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE - alreadyPublishedYoutubeArticleIds.length
+  )
+  const candidates = orderAutoPublishCandidates(drafts, alreadyPublishedYoutubeArticleIds.length)
   let youtubePublished = 0
   for (const draft of candidates) {
     if (publishedArticles.length >= Math.min(ARTICLES_PER_AUTO_PUBLISH_RUN, remainingTarget)) break
-    if (draft.suggestedYoutubeVideoId && youtubePublished >= MAX_YOUTUBE_ARTICLES_PER_RUN) continue
+    if (draft.suggestedYoutubeVideoId && youtubePublished >= youtubeQuotaRemaining) continue
     try {
       const article = await prepareArticle(draft)
       await mutateArticles((data) => {
@@ -264,7 +306,12 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     state.runs[slot] = {
       startedAt: existing?.startedAt ?? now.toISOString(),
       lastAttemptAt: now.toISOString(),
+      mixCycle,
       publishedArticleIds,
+      publishedYoutubeArticleIds: [...new Set([
+        ...(existing?.publishedYoutubeArticleIds ?? []),
+        ...publishedArticles.filter((article) => Boolean(article.youtubeVideoId)).map((article) => article.id),
+      ])],
       titles,
     }
     return state
