@@ -200,7 +200,7 @@ function PostEntryCard({
   const [submitting, setSubmitting] = useState<"publish" | "draft" | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<
-    { type: "published"; merged: boolean; slug: string; id: string } | { type: "draft" } | null
+    { type: "published"; slug: string; id: string } | { type: "draft" } | null
   >(null)
 
   const coverPreviewUrl = useObjectUrl(coverImageFile)
@@ -319,7 +319,7 @@ function PostEntryCard({
       const res = await fetch("/api/admin/vintage-shop/publish", { method: "POST", body: buildFormData() })
       const data = await readJsonResponse(res)
       if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "公開に失敗しました")
-      setOutcome({ type: "published", merged: !!data.merged, slug: (data.slug as string) ?? "", id: (data.id as string) ?? "" })
+      setOutcome({ type: "published", slug: (data.slug as string) ?? "", id: (data.id as string) ?? "" })
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "公開に失敗しました")
     } finally {
@@ -608,7 +608,7 @@ function PostEntryCard({
       {submitError && <p className="mt-3 text-sm text-destructive">{submitError}</p>}
       {outcome?.type === "published" && (
         <p className="mt-3 text-sm text-emerald-700">
-          {outcome.merged ? "本日の既存記事に追記しました: " : "新規記事として公開しました: "}
+          新規記事として公開しました:
           <a href={`/articles/${outcome.slug}`} target="_blank" rel="noopener noreferrer" className="underline">
             /articles/{outcome.slug}
           </a>

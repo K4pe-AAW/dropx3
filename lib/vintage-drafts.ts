@@ -5,9 +5,8 @@ const VINTAGE_DRAFTS_PATH = "data/vintage-drafts.json"
 
 /**
  * 古着屋(tonari/ROOM)投稿の「下書き」。generic な収集パイプラインのDraft型(lib/types.ts)とは
- * あえて別にしてある——あちらの公開APIは毎回新規Articleを作るだけで、shop-update.tsの
- * 「同じ日は1記事にまとめる」ロジックを経由しないため、下書きから公開する際もこちらの
- * publishShopUpdate経由にする必要がある。画像は保存時点でBlobにアップロード済みのURLで持つ
+ * あえて別にしてある。下書きからの公開も、Instagram投稿URL単位の重複防止と店舗情報の付与を
+ * 共通化するためpublishShopUpdate経由にする。画像は保存時点でBlobにアップロード済みのURLで持つ
  * (公開前提の下書きなので、都度Fileを持ち回らない)。
  */
 export type VintageDraft = {
