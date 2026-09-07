@@ -6,6 +6,7 @@ import {
   MIN_ARTICLES_PER_TWO_HOUR_SLOT,
   TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE,
   buildRequiredAffiliateLinks,
+  galleryCandidatesForPublish,
   jstSlotKey,
   jstYoutubeMixCycleKey,
   isSameProductAssetFamily,
@@ -106,4 +107,33 @@ test("自動公開は安全な別カットを追加最大12枚まで保持する
 
   assert.equal(selected.length, 12)
   assert.equal(selected.some((image) => image.url.includes("unrelated")), false)
+})
+
+test("公開直前に確認済み公式リンクから見つけた画像だけ追加候補へ加える", () => {
+  const draft = {
+    id: "official-images",
+    title: "Air Max 90",
+    suggestedGalleryImages: [
+      { url: "https://cdn.example.com/products/airmax90-side.jpg", alt: "既存" },
+    ],
+    suggestedOfficialLinks: [
+      { label: "Nike公式", url: "https://www.nike.example/products/airmax90" },
+    ],
+  } as Draft
+
+  assert.deepEqual(
+    galleryCandidatesForPublish(draft, "https://www.nike.example/products/airmax90", [
+      "https://cdn.example.com/products/airmax90-back.jpg",
+    ]).map((image) => image.url),
+    [
+      "https://cdn.example.com/products/airmax90-side.jpg",
+      "https://cdn.example.com/products/airmax90-back.jpg",
+    ]
+  )
+  assert.deepEqual(
+    galleryCandidatesForPublish(draft, "https://media.example/articles/airmax90", [
+      "https://media.example/images/airmax90-back.jpg",
+    ]).map((image) => image.url),
+    ["https://cdn.example.com/products/airmax90-side.jpg"]
+  )
 })

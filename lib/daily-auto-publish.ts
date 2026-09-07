@@ -145,10 +145,32 @@ export function uniqueGalleryCandidates(
   return result
 }
 
+/**
+ * 公開直前のブラッシュアップで再取得した画像は、確認済み公式リンクを取得元にした場合だけ候補へ加える。
+ * 第三者記事から見つかった画像を「同一商品らしい」という理由だけで自動転載しない。
+ */
+export function galleryCandidatesForPublish(
+  draft: Draft,
+  sourceUrl: string,
+  refreshedImageUrls: string[]
+): GalleryImage[] {
+  const existing = draft.suggestedGalleryImages ?? []
+  const sourceIsConfirmedOfficial = draft.suggestedOfficialLinks?.some((link) => link.url === sourceUrl) ?? false
+  if (!sourceIsConfirmedOfficial) return existing
+  return [
+    ...existing,
+    ...refreshedImageUrls.map((url) => ({ url, alt: draft.title })),
+  ]
+}
+
 export { isSameProductAssetFamily } from "./image-candidates"
 
-async function saveGalleryImages(draft: Draft, coverImageUrl: string): Promise<GalleryImage[]> {
-  const candidates = uniqueGalleryCandidates(coverImageUrl, draft.suggestedGalleryImages ?? [])
+async function saveGalleryImages(
+  draft: Draft,
+  coverImageUrl: string,
+  galleryCandidates: GalleryImage[]
+): Promise<GalleryImage[]> {
+  const candidates = uniqueGalleryCandidates(coverImageUrl, galleryCandidates)
   const saved: GalleryImage[] = []
   for (const [index, image] of candidates.entries()) {
     try {
@@ -190,7 +212,13 @@ async function prepareArticle(draft: Draft): Promise<Article> {
   const coverImage = draft.suggestedYoutubeVideoId || sourceCoverImage.startsWith("/")
     ? sourceCoverImage
     : await saveArticleImage(sourceCoverImage, draft, "cover")
-  const galleryImages = draft.suggestedYoutubeVideoId ? [] : await saveGalleryImages(draft, sourceCoverImage)
+  const galleryImages = draft.suggestedYoutubeVideoId
+    ? []
+    : await saveGalleryImages(
+        draft,
+        sourceCoverImage,
+        galleryCandidatesForPublish(draft, sourceUrl, brushed.imageCandidates)
+      )
   const informationStatus = draft.informationStatus ?? "report"
   const title = ensureUnconfirmedTitle(brushed.title, informationStatus)
 
