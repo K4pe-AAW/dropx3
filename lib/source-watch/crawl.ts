@@ -13,6 +13,7 @@ import {
   updateSourceItem,
   upsertProduct,
 } from "./storage"
+import { MAX_ARTICLE_IMAGE_CANDIDATES } from "@/lib/image-candidates"
 import { checkRobots } from "./robots"
 import { fetchRss } from "./fetchers/rss"
 import { fetchSitemap } from "./fetchers/sitemap"
@@ -127,7 +128,7 @@ async function buildImageAssets(source: Source, item: SourceItem): Promise<Image
   if (source.imagePolicy === "do_not_use" || !item.imageCandidates?.length) return []
   const sourceType = imageSourceTypeFor(source)
   const assets: ImageAsset[] = []
-  for (const url of item.imageCandidates.slice(0, 5)) {
+  for (const url of item.imageCandidates.slice(0, MAX_ARTICLE_IMAGE_CANDIDATES)) {
     try {
       new URL(url) // 不正なURLは無視
     } catch {

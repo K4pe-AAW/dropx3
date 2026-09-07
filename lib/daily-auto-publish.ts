@@ -11,7 +11,7 @@ import {
   readDrafts,
 } from "./storage"
 import { canonicalBrandNames } from "./brands"
-import { canonicalImageKey, isSameProductAssetFamily } from "./image-candidates"
+import { MAX_ARTICLE_GALLERY_IMAGES, canonicalImageKey, isSameProductAssetFamily } from "./image-candidates"
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 import { ensureUnconfirmedTitle } from "./information-status"
@@ -131,7 +131,7 @@ async function saveArticleImage(imageUrl: string, draft: Draft, name: string): P
 export function uniqueGalleryCandidates(
   coverImageUrl: string,
   gallery: { url: string; alt: string; credit?: string }[],
-  limit = 8
+  limit = MAX_ARTICLE_GALLERY_IMAGES
 ): { url: string; alt: string; credit?: string }[] {
   const seen = new Set([canonicalImageKey(coverImageUrl)])
   const result: { url: string; alt: string; credit?: string }[] = []

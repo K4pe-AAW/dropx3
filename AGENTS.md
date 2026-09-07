@@ -21,6 +21,9 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   image, and a concrete affiliate search term. Goss!p/leaks retain prominent
   unconfirmed labels. Each two-hour slot targets 3 articles; across each four-hour
   cycle, the target mix is 5 regular articles and 1 YouTube article.
+- Additional article images use a strict product-match filter: reject logos, social/recommended assets,
+  transformed duplicates, and different products; when candidates pass those checks, keep up to 12 gallery images.
+  SOURCE WATCH assets with unresolved rights remain review-only and must never be auto-published.
 - Affiliate links must go through `lib/affiliate.ts` so disclosure (`PR` badge,
   `rel="nofollow sponsored"`) is never accidentally dropped — see README's
   "法令・アフィリエイト表記について" section before removing that wrapper.

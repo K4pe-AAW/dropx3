@@ -90,3 +90,20 @@ test("同じページ由来でも商品識別子が一致しない画像は追�
     true
   )
 })
+
+test("自動公開は安全な別カットを追加最大12枚まで保持する", () => {
+  const gallery = Array.from({ length: 15 }, (_, index) => ({
+    url: `https://img.example.com/products/airmax90-view-${index + 1}.jpg`,
+    alt: `別カット${index + 1}`,
+  }))
+  const selected = uniqueGalleryCandidates(
+    "https://img.example.com/products/airmax90-cover.jpg",
+    [
+      ...gallery,
+      { url: "https://img.example.com/products/unrelated-view-1.jpg", alt: "別商品" },
+    ]
+  )
+
+  assert.equal(selected.length, 12)
+  assert.equal(selected.some((image) => image.url.includes("unrelated")), false)
+})

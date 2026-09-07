@@ -3,6 +3,7 @@ import type { Source } from "../types"
 import type { FetchResult } from "./types"
 import { prioritizeProductFacts } from "@/lib/product-fact-evidence"
 import {
+  MAX_ARTICLE_IMAGE_CANDIDATES,
   canonicalImageKey,
   deduplicateImageUrls,
   isImageNoiseUrl,
@@ -177,7 +178,7 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
   return [
     cover,
     ...all.slice(1).filter((url) => trustedKeys.has(canonicalImageKey(url)) || isSameProductAssetFamily(cover, url)),
-  ].slice(0, 8)
+  ].slice(0, MAX_ARTICLE_IMAGE_CANDIDATES)
 }
 
 /** 販売先・抽選応募先として人間に提示する価値があるリンクだけを元HTMLからURL付きで拾う。 */

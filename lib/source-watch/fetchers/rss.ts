@@ -2,6 +2,7 @@ import Parser from "rss-parser"
 import * as cheerio from "cheerio"
 import type { Source } from "../types"
 import type { FetchResult } from "./types"
+import { MAX_ARTICLE_IMAGE_CANDIDATES } from "@/lib/image-candidates"
 import { extractImageCandidatesFromHtml } from "./html"
 import { FASHIONSNAP_INCLUDE_KEYWORDS, FASHIONSNAP_EXCLUDE_KEYWORDS } from "../../sources"
 
@@ -54,7 +55,7 @@ export async function fetchRss(source: Source): Promise<FetchResult> {
           title: (entry.title as string).trim(),
           publishedAt: entry.isoDate || entry.pubDate,
           rawText: entry.contentSnippet?.slice(0, 2000) || entry.content?.slice(0, 2000),
-          imageCandidates: [...new Set(imageCandidates)].slice(0, 8),
+          imageCandidates: [...new Set(imageCandidates)].slice(0, MAX_ARTICLE_IMAGE_CANDIDATES),
         }
       })
 

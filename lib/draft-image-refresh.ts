@@ -27,7 +27,7 @@ function existingImages(draft: Draft): string[] {
 async function collectForDraft(draft: Draft): Promise<ImageUpdate> {
   for (const sourceUrl of orderedSourceUrls(draft)) {
     const page = await fetchPageText(sourceUrl)
-    const selected = selectProductImageCandidates(page.imageCandidates, 8)
+    const selected = selectProductImageCandidates(page.imageCandidates)
     if (selected.length > 0) {
       return {
         cover: selected[0],
@@ -37,7 +37,7 @@ async function collectForDraft(draft: Draft): Promise<ImageUpdate> {
     }
   }
 
-  const selected = selectProductImageCandidates(existingImages(draft), 8)
+  const selected = selectProductImageCandidates(existingImages(draft))
   return {
     ...(selected[0] ? { cover: selected[0] } : {}),
     gallery: selected.slice(1).map((url) => ({ url, alt: draft.title })),

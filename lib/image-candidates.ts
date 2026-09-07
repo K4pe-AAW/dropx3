@@ -2,12 +2,18 @@ const TRANSFORM_QUERY_PARAMS = new Set([
   "w", "width", "h", "height", "q", "quality", "fit", "crop", "fm", "format", "auto", "dpr", "resize", "scale",
 ])
 
+/** 記事詳細で表示する追加画像の上限。安全判定を通った別カットは最大12枚まで活用する。 */
+export const MAX_ARTICLE_GALLERY_IMAGES = 12
+/** カバー1枚を含む、収集・選定段階の画像総数上限。 */
+export const MAX_ARTICLE_IMAGE_CANDIDATES = MAX_ARTICLE_GALLERY_IMAGES + 1
+
 const IMAGE_NOISE_PATTERN =
   /(?:^|[\/_\-.?=&%])(icon|favicon|logo|logomark|brandmark|sprite|pixel|tracking|avatar|profile|author|share|social|sns|facebook|twitter|x-logo|instagram|line|tiktok|youtube|pinterest|whatsapp|spinner|loading|placeholder|badge|banner|advert|recommend|related)(?:[\/_\-.?=&%]|$)/i
 
 const GENERIC_ASSET_TOKENS = new Set([
   "image", "img", "photo", "picture", "product", "detail", "main", "large", "small", "thumb", "thumbnail",
-  "front", "back", "side", "pc", "sp", "desktop", "mobile", "original", "upload", "uploads", "media",
+  "front", "back", "side", "view", "angle", "shot", "hero", "gallery", "pc", "sp", "desktop", "mobile",
+  "original", "upload", "uploads", "media",
 ])
 
 export function isImageNoiseUrl(rawUrl: string): boolean {
@@ -87,7 +93,7 @@ export function isSameProductAssetFamily(coverRaw: string, candidateRaw: string)
 }
 
 /** カバーを必ず先頭に残し、追加画像は同一商品と確認できる候補だけに絞る。 */
-export function selectProductImageCandidates(urls: string[], limit = 8): string[] {
+export function selectProductImageCandidates(urls: string[], limit = MAX_ARTICLE_IMAGE_CANDIDATES): string[] {
   const clean = deduplicateImageUrls(urls, Math.max(limit * 4, 24))
   const cover = clean[0]
   if (!cover) return []

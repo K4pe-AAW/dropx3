@@ -1,4 +1,4 @@
-import { canonicalImageKey } from "../lib/image-candidates"
+import { MAX_ARTICLE_GALLERY_IMAGES, canonicalImageKey } from "../lib/image-candidates"
 import { brushUpDraftWithUrl } from "../lib/draft-brushup"
 import { isSafeExternalUrl } from "../lib/affiliate"
 import { mutateDrafts, readDrafts, writeJson } from "../lib/storage"
@@ -28,7 +28,7 @@ function mergeImages(draft: Draft, candidates: string[]): Pick<Draft, "suggested
   const gallery: GalleryImage[] = [
     ...(draft.suggestedGalleryImages ?? []),
     ...added.map((url) => ({ url, alt: draft.title, credit: "" })),
-  ].slice(0, 12)
+  ].slice(0, MAX_ARTICLE_GALLERY_IMAGES)
   return {
     ...(cover ? { suggestedCoverImage: cover } : {}),
     ...(gallery.length > 0 ? { suggestedGalleryImages: gallery } : {}),
