@@ -15,6 +15,7 @@ import { MAX_ARTICLE_GALLERY_IMAGES, canonicalImageKey, isSameProductAssetFamily
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 import { ensureUnconfirmedTitle } from "./information-status"
+import { isDraftAllowedByYoutubeCollectionPolicy } from "./youtube-collection-policy"
 
 // 既存の公開数を引き継ぎつつ、2時間枠ごとに3件、4時間（6件）ごとに
 // YouTube 1件を目安として再試行する。
@@ -97,12 +98,13 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 export function orderAutoPublishCandidates(drafts: Draft[], youtubePublishedInCycle: number): Draft[] {
+  const allowedDrafts = drafts.filter(isDraftAllowedByYoutubeCollectionPolicy)
   const youtubeQuotaRemaining = Math.max(
     0,
     TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE - youtubePublishedInCycle
   )
-  const normalCandidates = shuffled(drafts.filter((draft) => !draft.suggestedYoutubeVideoId))
-  const youtubeCandidates = shuffled(drafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId)))
+  const normalCandidates = shuffled(allowedDrafts.filter((draft) => !draft.suggestedYoutubeVideoId))
+  const youtubeCandidates = shuffled(allowedDrafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId)))
   return youtubeQuotaRemaining > 0
     ? [...youtubeCandidates, ...normalCandidates]
     : normalCandidates

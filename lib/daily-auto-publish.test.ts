@@ -62,6 +62,26 @@ test("6記事周期にYouTubeが無ければYouTube候補を先にし、1件公�
   assert.deepEqual(orderAutoPublishCandidates([normal, youtube], 1).map((draft) => draft.id), ["normal"])
 })
 
+test("髭ミルクのラジオ下書きは自動公開候補から除外する", () => {
+  const radio = {
+    id: "radio",
+    title: "髭ミルク・嫁ヘルツが贈るラジオの魅力",
+    excerpt: "モーニンググッドの最新回",
+    bodyParagraphs: ["ポッドキャストです"],
+    suggestedYoutubeVideoId: "abcdefghijk",
+    sourceRefs: [{ name: "髭ミルク", url: "https://www.youtube.com/watch?v=abcdefghijk" }],
+  } as Draft
+  const product = {
+    id: "product",
+    title: "KITH NEW BALANCEを開封・レビュー",
+    excerpt: "商品紹介",
+    bodyParagraphs: ["スニーカーを確認"],
+    suggestedYoutubeVideoId: "lmnopqrstuv",
+    sourceRefs: [{ name: "髭ミルク", url: "https://www.youtube.com/watch?v=lmnopqrstuv" }],
+  } as Draft
+  assert.deepEqual(orderAutoPublishCandidates([radio, product], 0).map((draft) => draft.id), ["product"])
+})
+
 test("追加画像はカバーと同一のサイズ違いを除外し、候補がある分だけ採用する", () => {
   assert.deepEqual(
     uniqueGalleryCandidates("https://img.example.com/products/airmax90-front-1200x800.jpg?w=1200", [

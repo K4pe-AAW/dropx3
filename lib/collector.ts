@@ -9,6 +9,7 @@ import {
 import { RawItem } from "./types"
 import { generateId, getCrawlSources } from "./storage"
 import { youtubeChannelRssUrl } from "./source-watch/youtube"
+import { isYoutubeVideoCollectable } from "./youtube-collection-policy"
 
 /**
  * customFields.item: YouTubeのチャンネルフィードはAtom+media namespaceで、動画の説明文が
@@ -56,7 +57,7 @@ function stripHtml(html: string): string {
     .trim()
 }
 
-function toRawItem(sourceName: string, item: FeedItem): RawItem | null {
+function toRawItem(sourceName: string, item: FeedItem, youtubeChannelId?: string): RawItem | null {
   if (!item.title || !item.link) return null
   if (isYoutubeShorts(item.link)) return null
   if (!isFashionsnapAllowed(sourceName, item)) return null
@@ -65,6 +66,7 @@ function toRawItem(sourceName: string, item: FeedItem): RawItem | null {
   // ここが欠落してai-draft.tsが取り扱い店舗を拾えなくなるため
   const raw = item.content || item.contentSnippet || item.mediaGroup?.["media:description"]?.[0]
   const snippet = raw ? stripHtml(raw) : undefined
+  if (!isYoutubeVideoCollectable(sourceName, item.title, snippet, youtubeChannelId)) return null
   return {
     id: generateId(item.link),
     sourceName,
@@ -81,13 +83,24 @@ export async function collectFromRss(): Promise<{ items: RawItem[]; errors: stri
   const errors: string[] = []
 
   const { youtube } = await getCrawlSources()
-  const youtubeSources = youtube.map((y) => ({ name: y.name, rssUrl: youtubeChannelRssUrl(y.channelId), siteUrl: y.siteUrl }))
+  const youtubeSources = youtube.map((y) => ({
+    name: y.name,
+    rssUrl: youtubeChannelRssUrl(y.channelId),
+    siteUrl: y.siteUrl,
+    youtubeChannelId: y.channelId,
+  }))
 
   for (const source of [...SOURCES, ...youtubeSources]) {
     try {
       const feed = await parser.parseURL(source.rssUrl)
       for (const entry of feed.items.slice(0, 10)) {
-        const raw = toRawItem(source.name, entry)
+        const raw = toRawItem(
+          source.name,
+          entry,
+          "youtubeChannelId" in source && typeof source.youtubeChannelId === "string"
+            ? source.youtubeChannelId
+            : undefined
+        )
         if (raw) items.push(raw)
       }
     } catch (err) {
