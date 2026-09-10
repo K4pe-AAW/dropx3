@@ -17,6 +17,7 @@ import { linkDomain } from "@/lib/analytics"
 import { INFORMATION_STATUS_LABELS, isUnconfirmedStatus, unconfirmedNotice } from "@/lib/information-status"
 import { CONTENT_TYPE_LABELS, isEditorialContentType } from "@/lib/content-type"
 import { SnapProfileCard } from "@/components/SnapProfileCard"
+import { buildArticleStructuredData } from "@/lib/article-structured-data"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -62,58 +63,11 @@ export default async function ArticleDetailPage({
   if (!article) notFound()
 
   const related = await getRelatedArticles(article, 4)
-  const articleUrl = absoluteUrl(`/articles/${article.slug}`)
-  const coverImageUrl = absoluteUrl(article.coverImage)
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Article",
-        headline: article.title,
-        description: article.excerpt,
-        image: [coverImageUrl],
-        datePublished: article.publishedAt,
-        dateModified: article.updatedAt || article.publishedAt,
-        author: article.editorialAuthor
-          ? { "@type": "Person", name: article.editorialAuthor }
-          : { "@type": "Organization", name: siteConfig.name },
-        publisher: { "@type": "Organization", name: siteConfig.name },
-        mainEntityOfPage: articleUrl,
-      },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "TOP", item: absoluteUrl("/") },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name: categoryLabel(article.category),
-            item: absoluteUrl(`/category/${article.category}`),
-          },
-          { "@type": "ListItem", position: 3, name: article.title, item: articleUrl },
-        ],
-      },
-      ...(article.colorways ?? []).map((cw) => ({
-        "@type": "Product",
-        name: `${article.title} ${cw.colorName}`,
-        color: cw.colorName,
-        ...(cw.styleCode ? { sku: cw.styleCode, mpn: cw.styleCode } : {}),
-        ...(cw.image ? { image: [absoluteUrl(cw.image)] } : {}),
-        brand: article.brands.map((b) => ({ "@type": "Brand", name: b })),
-        ...(cw.price
-          ? {
-              offers: {
-                "@type": "Offer",
-                priceCurrency: "JPY",
-                price: (cw.price.match(/[\d,]+/)?.[0] ?? "").replace(/,/g, ""),
-                availability: "https://schema.org/PreOrder",
-              },
-            }
-          : {}),
-      })),
-    ],
-  }
+  const jsonLd = buildArticleStructuredData(article, {
+    siteUrl: siteConfig.url,
+    siteName: siteConfig.name,
+    categoryName: categoryLabel(article.category),
+  })
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
