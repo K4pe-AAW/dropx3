@@ -4,6 +4,7 @@ import { siteConfig } from "./site-config"
 import { getOpenAIClient } from "./openai-client"
 import { resolveKnownAffiliateBuilder, isSafeExternalUrl } from "./affiliate"
 import { detectUnconfirmedStatus, ensureUnconfirmedTitle } from "./information-status"
+import { STANDARD_ARTICLE_BODY_GUIDELINE } from "./article-writing-guidelines"
 
 const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
 const DEFAULT_CATEGORY: Category = "sneaker"
@@ -229,7 +230,7 @@ suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと
 {
   "title": "${siteConfig.name}らしい独自タイトル(40文字前後)",
   "excerpt": "検索結果・SNSシェア時に表示される説明文(100〜160文字。記事一覧カードには表示されないため短く削る必要はない。何が起きたか+読みたくなる一言を含め、具体的な商品名・ブランド名を入れる)",
-  "bodyParagraphs": ["段落1", "段落2", "段落3", "段落4", "段落5", "(該当すれば)[アイテム情報]", "(該当すれば)商品名：〇〇", "..."],
+  "bodyParagraphs": ["説明段落1", "説明段落2", "説明段落3", "説明段落4(必要な場合)", "(該当すれば)[アイテム情報]", "(該当すれば)商品名：〇〇", "..."],
   "category": "商品として最も近いものを ${CATEGORY_SLUGS.join(" / ")} から1つ選ぶ（tops=トップス, pants=パンツ, jacket=ジャケット/コート/アウター, boots=ブーツ/革靴, sneaker=スニーカー, accessory=バッグ/アクセサリー/バッグ以外の小物, figure=フィギュア/コレクタブル, vintage=古着/ヴィンテージ品, youtube=YouTube動画の紹介記事。新品ならジャンル別のカテゴリを優先し、古着・中古品として紹介する記事のみvintage、動画コンテンツの紹介記事のみyoutubeを選ぶ。どれにも当てはまらなければ最も近いものを選ぶ）",
   "informationStatus": "official（ブランド・販売店の公式発表） / report（媒体による確認済み報道） / rumor（根拠はあるが未確認のGoss!p） / leak（画像・型番・資料等が先行流出した未確認情報）のいずれか",
   "brands": ["関連ブランド名"],
@@ -278,11 +279,8 @@ suggestedOfficialLinksとしてそのURLとブランド/店舗名を拾うこと
   (抜粋にあるものだけ)」、3文目「読みたくなる一言」。3文とも書いた上で合計が120文字に届かなければ、
   2文目か3文目をさらに具体的に書き足して120〜160文字まで伸ばすこと。1〜2文・100文字未満で
   切り上げるのは禁止(以前の実装で50〜90文字程度の短い一文になりがちだったための明示的な修正)。
-- bodyParagraphsの説明文部分(箇条書きの[アイテム情報]ブロックを除く)は4〜5段落、合計800〜1200字程度を
-  目安に厚みを持たせること。単なる事実の要約で終わらせず、背景・見どころ・着こなしや使い方のイメージ・
-  編集部としての感想や期待感など、段落ごとに違う角度の内容を入れて膨らませる。
-- 抜粋の情報量が少ない場合でも、業界の一般的な文脈やブランドの背景など、事実として妥当な範囲で肉付けしてよい
-  (ただし価格・発売日等の具体的数値や、GORE-TEX等の具体的な素材/技術名の捏造は禁止)。`
+- ${STANDARD_ARTICLE_BODY_GUIDELINE}
+- 抜粋の情報量が少ない場合は無理に文字数を埋めず、確認できる事実だけで簡潔にまとめること。`
 }
 
 export async function draftFromRawItem(item: RawItem): Promise<Draft> {

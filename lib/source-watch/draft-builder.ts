@@ -3,6 +3,7 @@ import { getOpenAIClient } from "@/lib/openai-client"
 import { siteConfig } from "@/lib/site-config"
 import type { Category, Draft } from "@/lib/types"
 import { ensureUnconfirmedTitle } from "@/lib/information-status"
+import { STANDARD_ARTICLE_BODY_GUIDELINE } from "@/lib/article-writing-guidelines"
 import { isImageAutoUsable } from "./image-rights"
 import { listImageAssets, listSourceItems, listSourceLinks, updateProduct } from "./storage"
 import type { Product, SourceItem, SourceLink } from "./types"
@@ -72,7 +73,8 @@ const SYSTEM_PROMPT = `あなたはストリートファッション/スニー�
   本文末尾は「今後のブランド公式発表と情報解禁を待ちたい」趣旨で締めること。
 - 実体験のない使用感・着用感や、AIが創作した編集者の感情は書かないこと。
 
-文体は既存の記事と同じく、事実の羅列ではなく編集者の温度感がにじむ文章にすること。`
+文体は既存の記事と同じく、事実の羅列ではなく編集者の温度感がにじむ文章にすること。
+${STANDARD_ARTICLE_BODY_GUIDELINE}`
 
 function buildUserPrompt(product: Product, items: SourceItem[]): string {
   const facts = items
@@ -98,7 +100,7 @@ ${facts}
 {
   "title": "${siteConfig.name}らしい独自タイトル(40文字前後)",
   "excerpt": "記事一覧に出す1文要約(50文字前後)",
-  "bodyParagraphs": ["段落1", "段落2", "段落3", "段落4"]
+  "bodyParagraphs": ["段落1", "段落2", "段落3", "段落4(必要な場合)"]
 }`
 }
 

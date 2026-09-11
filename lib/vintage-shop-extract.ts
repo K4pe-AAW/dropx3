@@ -1,4 +1,5 @@
 import { getOpenAIClient } from "@/lib/openai-client"
+import { VINTAGE_ARTICLE_BODY_GUIDELINE } from "@/lib/article-writing-guidelines"
 
 /**
  * 画像使用許諾済みの古着屋(tonari/ROOM)向け。人間がInstagramで見た投稿のキャプション本文を
@@ -25,9 +26,8 @@ const SYSTEM_PROMPT = `あなたは古着屋のInstagram投稿から、ファッ
 - 渡されるキャプション本文に書かれていない情報(価格・素材・年代等)を推測・捏造しない。書かれていなければ触れない。
 - SOLD・売り切れ等の表記があれば隠さず本文に明記する(一点物の入荷情報として、売り切れでも紹介する価値はある)。
 - 誇張表現や煽り文句を使わず、実際の投稿内容に基づいて淡々と紹介する。
-- bodyParagraphsは2〜3段落、各段落は2〜4文程度の日本語。1段落目で商品(アイテム名・特徴)を紹介し、
-  価格等の情報があれば触れる。最後の段落でショップの簡単な紹介(営業時間・予約制かどうか等、
-  本文から分かる範囲のみ)を添える。分からない情報については書かない。
+- ${VINTAGE_ARTICLE_BODY_GUIDELINE}
+- 1段落目で商品を紹介し、最後の段落でショップ情報（営業時間・予約制かどうか等）を本文から分かる範囲だけ添える。
 - suggestedAffiliateQueryは、その投稿の具体的な商品名(例: "HELMUT LANG デニムショーツ"、ブランドが
   分かれば"ブランド名 アイテム名")。"古着"や"スニーカー"のようなカテゴリ名だけは不可。
 - titleは30〜45文字程度で、ショップ名とアイテムの特徴を含める。
@@ -45,7 +45,7 @@ ${caption}
 {
   "title": "記事タイトル",
   "excerpt": "1文の要約",
-  "bodyParagraphs": ["段落1", "段落2", "段落3(任意)"],
+  "bodyParagraphs": ["商品紹介", "ショップ案内"],
   "suggestedAffiliateQuery": "具体的な商品名",
   "tags": ["古着", "エリア名等"]
 }`

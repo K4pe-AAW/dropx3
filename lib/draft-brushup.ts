@@ -4,6 +4,7 @@ import { fetchPageText } from "./source-watch/fetchers/html"
 import { isSafeExternalUrl } from "./affiliate"
 import { sanitizeSuggestedColorways } from "./ai-draft"
 import type { ColorwayInfo, SourceRef, InformationStatus } from "./types"
+import { STANDARD_ARTICLE_BODY_GUIDELINE } from "./article-writing-guidelines"
 
 /**
  * 下書きレビュー画面での「URLでブラッシュアップ」用。第三者メディアの記事をもとに書かれた下書きを、
@@ -73,7 +74,7 @@ URL: ${sourceUrl}
 {
   "title": "ブラッシュアップ後のタイトル(参考ページの情報で改善点が無ければ現在のタイトルをそのまま返す)",
   "excerpt": "ブラッシュアップ後の要約(100〜160文字)",
-  "bodyParagraphs": ["段落1", "段落2", "...", "(該当すれば)[アイテム情報]", "(該当すれば)商品名：〇〇", "..."],
+  "bodyParagraphs": ["説明段落1", "説明段落2", "説明段落3", "説明段落4(必要な場合)", "(該当すれば)[アイテム情報]", "(該当すれば)商品名：〇〇", "..."],
   "suggestedColorways": [
     {
       "colorName": "カラー名",
@@ -86,6 +87,8 @@ URL: ${sourceUrl}
 }
 
 注意:
+- ${STANDARD_ARTICLE_BODY_GUIDELINE}
+- 現在の下書きが目安より長い場合は、確認済みの商品情報を残したまま重複表現を整理して短くすること。
 - bodyParagraphsの[アイテム情報]ブロックは、参考ページの記載を踏まえて更新すること(既存の下書きに
   [アイテム情報]ブロックがあれば書き換え、無くて参考ページに情報があれば新しく追加してよい)。
 - suggestedColorwaysは、参考ページに記載のあるカラー展開で置き換えること。下書きに無かった色や、
