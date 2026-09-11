@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildArticleStructuredData, buildEditorialProductNode } from "./article-structured-data"
+import { buildArticleStructuredData } from "./article-structured-data"
 import type { Article } from "./types"
 
 function article(overrides: Partial<Article> = {}): Article {
@@ -27,61 +27,6 @@ function article(overrides: Partial<Article> = {}): Article {
   }
 }
 
-test("NEWSは価格表示データがあってもProduct構造化データを出さない", () => {
-  const node = buildEditorialProductNode(article(), "https://dropx3.com/articles/sample-product", "https://dropx3.com")
-  assert.equal(node, null)
-})
-
-test("BUYは画像・ブランド・単一価格が揃う場合だけProductを1件出す", () => {
-  const node = buildEditorialProductNode(
-    article({ contentType: "BUY" }),
-    "https://dropx3.com/articles/sample-product",
-    "https://dropx3.com"
-  )
-  assert.equal(node?.["@type"], "Product")
-  assert.deepEqual(node?.image, ["https://dropx3.com/images/sample.webp"])
-  assert.deepEqual(node?.brand, { "@type": "Brand", name: "Sample Brand" })
-  assert.deepEqual(node?.offers, {
-    "@type": "Offer",
-    priceCurrency: "JPY",
-    price: 19800,
-    url: "https://dropx3.com/articles/sample-product",
-  })
-})
-
-test("BUYでもカラーごとに価格が異なる場合は不完全なProductを出さない", () => {
-  const node = buildEditorialProductNode(
-    article({
-      contentType: "BUY",
-      colorways: [
-        { colorName: "Black", price: "19,800円" },
-        { colorName: "Special", price: "22,000円" },
-      ],
-    }),
-    "https://dropx3.com/articles/sample-product",
-    "https://dropx3.com"
-  )
-  assert.equal(node, null)
-})
-
-test("PICKSでも価格が無い場合はProductを出さない", () => {
-  const node = buildEditorialProductNode(
-    article({ contentType: "PICKS", colorways: [{ colorName: "Black" }] }),
-    "https://dropx3.com/articles/sample-product",
-    "https://dropx3.com"
-  )
-  assert.equal(node, null)
-})
-
-test("価格欄に発売年だけが入っていても価格と誤認しない", () => {
-  const node = buildEditorialProductNode(
-    article({ contentType: "BUY", colorways: [{ colorName: "Black", price: "2026年発売" }] }),
-    "https://dropx3.com/articles/sample-product",
-    "https://dropx3.com"
-  )
-  assert.equal(node, null)
-})
-
 test("Article、組織、サイト、パンくずを関連付けて出力する", () => {
   const data = buildArticleStructuredData(article(), {
     siteUrl: "https://dropx3.com",
@@ -98,4 +43,16 @@ test("Article、組織、サイト、パンくずを関連付けて出力する"
   assert.equal(articleNode?.inLanguage, "ja-JP")
   assert.equal(articleNode?.articleSection, "スニーカー")
   assert.equal(articleNode?.keywords, "Sample Brand, 新作, スニーカー")
+})
+
+test("BUY/PICKSでも販売者リスティングを誘発するProduct/Offerを出さない", () => {
+  for (const contentType of ["BUY", "PICKS"] as const) {
+    const data = buildArticleStructuredData(article({ contentType }), {
+      siteUrl: "https://dropx3.com",
+      siteName: "DROP DROP DROP",
+      categoryName: "スニーカー",
+    })
+    assert.equal(data["@graph"].some((node) => node["@type"] === "Product"), false)
+    assert.equal(data["@graph"].some((node) => node["@type"] === "Offer"), false)
+  }
 })

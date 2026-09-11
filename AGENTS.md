@@ -29,11 +29,11 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
 - Affiliate links must go through `lib/affiliate.ts` so disclosure (`PR` badge,
   `rel="nofollow sponsored"`) is never accidentally dropped — see README's
   "法令・アフィリエイト表記について" section before removing that wrapper.
-- Public article pages always keep visible price/release/purchase information, but must not emit one
-  `Product` JSON-LD node per colorway. Emit a single editorial product-snippet candidate only for
-  BUY/PICKS articles whose cover image, brand, and one unambiguous JPY price are present; all other
-  articles use Article + Breadcrumb structured data only. Never invent reviews, ratings, shipping,
-  returns, availability, or seller data to silence Search Console warnings.
+- Public article pages always keep visible price/release/purchase information, but never emit
+  `Product` or `Offer` JSON-LD, including BUY/PICKS. DROP DROP DROP is an editorial affiliate medium,
+  not the seller, and Product+Offer causes Google to inspect article pages as merchant listings.
+  Use Article + Breadcrumb structured data only. Never invent reviews, ratings, shipping, returns,
+  availability, or seller data to silence Search Console warnings.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
