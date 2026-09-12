@@ -4,11 +4,30 @@ import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
 import { siteConfig } from "@/lib/site-config"
 import Link from "next/link"
+import type { Metadata } from "next"
 
 const PAGE_SIZE = 12
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}): Promise<Metadata> {
+  const { page } = await searchParams
+  const parsedPage = Number.parseInt(page ?? "1", 10)
+  const currentPage = Number.isFinite(parsedPage) && parsedPage > 1 ? parsedPage : 1
+  const canonical = currentPage === 1 ? absoluteUrl("/") : absoluteUrl(`/?page=${currentPage}`)
+
+  return {
+    title: currentPage === 1 ? undefined : `記事一覧 ${currentPage}ページ目`,
+    description: siteConfig.description,
+    alternates: { canonical },
+    openGraph: { url: canonical },
+  }
 }
 
 export default async function HomePage({
