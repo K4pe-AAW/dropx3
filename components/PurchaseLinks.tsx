@@ -84,7 +84,7 @@ export function PurchaseLinks({
   }
 
   return (
-    <div className="my-8 overflow-hidden rounded-xl border border-border">
+    <div id="purchase-links" className="my-8 scroll-mt-24 overflow-hidden rounded-xl border border-border">
       <div className="bg-accent px-4 py-3">
         <h2 className="text-sm font-bold text-accent-foreground">
           {primaryItemName ? `「${primaryItemName}」の販売先・中古相場を探す` : "販売店舗・オンラインリンク（随時更新）"}
