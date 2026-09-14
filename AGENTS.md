@@ -29,9 +29,10 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
 - Affiliate links must go through `lib/affiliate.ts` so disclosure (`PR` badge,
   `rel="nofollow sponsored"`) is never accidentally dropped — see README's
   "法令・アフィリエイト表記について" section before removing that wrapper.
-- Every public article must show a non-affiliate `公式サイトで探す` search link before any
-  affiliate links, even when the article has no saved official URL. Keep confirmed direct official
-  links as additional rows; never guess a brand domain.
+- Every public article must show a non-affiliate `公式サイトで探す` link before any affiliate
+  links. Point it directly to a confirmed brand/store official URL when available; otherwise use
+  the generated Google official-site search fallback. YouTube/social URLs are not direct official
+  site candidates. Keep other confirmed links as additional rows; never guess a brand domain.
 - Generated standard/YouTube article prose should target 2–3 explanatory paragraphs and roughly
   400–600 Japanese characters, excluding the item-information block. Preserve verified price,
   release date, retailer, model number, size, and material facts.

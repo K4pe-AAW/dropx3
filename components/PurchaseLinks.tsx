@@ -26,12 +26,28 @@ export function officialSiteSearchUrl(articleTitle: string, brand?: string, item
   return `https://www.google.com/search?q=${encodeURIComponent(query)}`
 }
 
+export function isDirectOfficialSiteUrl(url: string): boolean {
+  if (!isSafeExternalUrl(url)) return false
+  const hostname = new URL(url).hostname.toLocaleLowerCase().replace(/^www\./, "")
+  return ![
+    "google.com",
+    "youtube.com",
+    "youtu.be",
+    "instagram.com",
+    "x.com",
+    "twitter.com",
+    "tiktok.com",
+    "facebook.com",
+  ].some((domain) => hostname === domain || hostname.endsWith(`.${domain}`))
+}
+
 /**
  * 公式リンクとアフィリエイトリンクを1つの「販売店舗・オンラインリンク」ブロックにまとめて表示する。
  * PRリンクにはrel="sponsored"と控えめなPR表記を付け、非PRリンクとの扱いの違いは維持したまま
  * 見た目だけ統一する(uptodate.tokyo的な、見出しバー+リンク一覧のレイアウト)。
- * 保存済み公式URLの有無にかかわらず、推測ドメインではなくGoogle検索の「公式サイトで探す」を
- * 必ず先頭に置く。その後に確認済み公式リンク、最後に広告リンクを並べる。
+ * 「公式サイトで探す」は必ず先頭に置き、確認済みのブランド/店舗公式URLがあればそこへ直接つなぐ。
+ * 公式URLが無い場合だけ、ドメインを推測せずGoogle検索へフォールバックする。その後に残りの
+ * 確認済み公式リンク、最後に広告リンクを並べる。
  */
 export function PurchaseLinks({
   officialLinks,
@@ -65,17 +81,19 @@ export function PurchaseLinks({
       itemName,
     }
   })
+  const directOfficial = safeOfficial.find((link) => isDirectOfficialSiteUrl(link.url))
   const officialSearchUrl = officialSiteSearchUrl(articleTitle, brand, primaryItemName)
+  const primaryOfficialUrl = directOfficial?.url ?? officialSearchUrl
   const officialRows: Row[] = [
     {
       label: "公式サイトで探す",
-      url: officialSearchUrl,
-      description: "ブランド公式の最新情報を確認",
+      url: primaryOfficialUrl,
+      description: directOfficial ? "確認済み公式ページを開く" : "Googleでブランド公式情報を検索",
       isAd: false,
       retailer: "",
     },
     ...safeOfficial
-      .filter((link) => link.url !== officialSearchUrl)
+      .filter((link) => link.url !== primaryOfficialUrl)
       .map((l) => ({ label: l.label, url: l.url, isAd: false, retailer: "" })),
   ]
 
