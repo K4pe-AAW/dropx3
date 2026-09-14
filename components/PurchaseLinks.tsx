@@ -16,12 +16,22 @@ type Row = {
   itemName?: string
 }
 
+export function officialSiteSearchUrl(articleTitle: string, brand?: string, itemName?: string): string {
+  const subject = itemName?.trim() || articleTitle.trim()
+  const brandName = brand?.trim()
+  const subjectIncludesBrand = brandName
+    ? subject.toLocaleLowerCase().includes(brandName.toLocaleLowerCase())
+    : false
+  const query = [subjectIncludesBrand ? undefined : brandName, subject, "公式"].filter(Boolean).join(" ")
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`
+}
+
 /**
  * 公式リンクとアフィリエイトリンクを1つの「販売店舗・オンラインリンク」ブロックにまとめて表示する。
  * PRリンクにはrel="sponsored"と控えめなPR表記を付け、非PRリンクとの扱いの違いは維持したまま
  * 見た目だけ統一する(uptodate.tokyo的な、見出しバー+リンク一覧のレイアウト)。
- * 両方の種類が揃っている場合のみ「公式」「中古・マーケットプレイス」に分けて見出しを出す
- * (BUY導線の強化: 売り切れ時に中古を探すという次のアクションを示す)。
+ * 保存済み公式URLの有無にかかわらず、推測ドメインではなくGoogle検索の「公式サイトで探す」を
+ * 必ず先頭に置く。その後に確認済み公式リンク、最後に広告リンクを並べる。
  */
 export function PurchaseLinks({
   officialLinks,
@@ -55,11 +65,21 @@ export function PurchaseLinks({
       itemName,
     }
   })
-  const officialRows: Row[] = safeOfficial.map((l) => ({ label: l.label, url: l.url, isAd: false, retailer: "" }))
+  const officialSearchUrl = officialSiteSearchUrl(articleTitle, brand, primaryItemName)
+  const officialRows: Row[] = [
+    {
+      label: "公式サイトで探す",
+      url: officialSearchUrl,
+      description: "ブランド公式の最新情報を確認",
+      isAd: false,
+      retailer: "",
+    },
+    ...safeOfficial
+      .filter((link) => link.url !== officialSearchUrl)
+      .map((l) => ({ label: l.label, url: l.url, isAd: false, retailer: "" })),
+  ]
 
-  if (affiliateRows.length === 0 && officialRows.length === 0) return null
-
-  const showGroupLabels = affiliateRows.length > 0 && officialRows.length > 0
+  const showGroupLabels = affiliateRows.length > 0
 
   function handleRowClick(row: Row) {
     if (row.isAd) {
@@ -87,7 +107,7 @@ export function PurchaseLinks({
     <div id="purchase-links" className="my-8 scroll-mt-24 overflow-hidden rounded-xl border border-border">
       <div className="bg-accent px-4 py-3">
         <h2 className="text-sm font-bold text-accent-foreground">
-          {primaryItemName ? `「${primaryItemName}」の販売先・中古相場を探す` : "販売店舗・オンラインリンク（随時更新）"}
+          {primaryItemName ? `「${primaryItemName}」の公式サイト・販売先を探す` : "公式サイト・販売先を探す"}
         </h2>
       </div>
       {showGroupLabels && (
@@ -95,26 +115,22 @@ export function PurchaseLinks({
           売り切れ・サイズ切れの場合は、中古・マーケットプレイスもあわせてチェックしてみてください。
         </p>
       )}
+      <LinkRowGroup
+        label={showGroupLabels ? "まず公式サイトで確認" : undefined}
+        rows={officialRows}
+        onRowClick={handleRowClick}
+      />
       {affiliateRows.length > 0 && (
         <div>
-          {showGroupLabels && (
-            <div className="bg-secondary/10 px-4 pt-2 text-[11px] font-bold tracking-wide text-muted-foreground/70">
-              中古・マーケットプレイスで探す
-            </div>
-          )}
+          <div className="bg-secondary/10 px-4 pt-2 text-[11px] font-bold tracking-wide text-muted-foreground/70">
+            中古・マーケットプレイスで探す
+          </div>
           <div className="divide-y divide-border">
             {affiliateRows.map((row, i) => (
               <AffiliateRowLink key={i} row={row} articleId={articleId} onRowClick={handleRowClick} />
             ))}
           </div>
         </div>
-      )}
-      {officialRows.length > 0 && (
-        <LinkRowGroup
-          label={showGroupLabels ? "公式・店舗情報" : undefined}
-          rows={officialRows}
-          onRowClick={handleRowClick}
-        />
       )}
       {safeAffiliate.length > 0 && (
         <p className="border-t border-border bg-secondary/30 px-4 py-2 text-[11px] text-muted-foreground">

@@ -133,14 +133,12 @@ export default async function ArticleDetailPage({
         </div>
       )}
 
-      {(article.affiliateLinks.length > 0 || article.officialLinks.length > 0) && (
-        <a
-          href="#purchase-links"
-          className="mb-8 inline-flex min-h-11 items-center rounded-full border border-accent px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-        >
-          販売先・中古相場を先に見る ↓
-        </a>
-      )}
+      <a
+        href="#purchase-links"
+        className="mb-8 inline-flex min-h-11 items-center rounded-full border border-accent px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      >
+        公式サイト・販売先を先に見る ↓
+      </a>
 
       <ArticleBody
         paragraphs={article.bodyParagraphs}
