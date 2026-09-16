@@ -17,7 +17,7 @@ export type AnalyticsEvent =
         affiliate_network: AffiliateNetwork
         item_name: string
         item_brand?: string
-        placement: "article_body"
+        placement: "article_body" | "sidebar_promo"
         article_id: string
         article_title: string
         content_type?: string
@@ -71,7 +71,7 @@ export type AnalyticsEvent =
       params: {
         affiliate_network: AffiliateNetwork
         item_name: string
-        placement: "article_body"
+        placement: "article_body" | "sidebar_promo"
         article_id: string
       }
     }

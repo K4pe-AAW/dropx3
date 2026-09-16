@@ -4,8 +4,11 @@ import { PopularList } from "@/components/PopularList"
 import { ChevronDownIcon } from "@/components/icons"
 import { TrackedLink } from "@/components/TrackedLink"
 import { AdUnit } from "@/components/AdUnit"
+import { AffiliatePromoBanner } from "@/components/AffiliatePromoBanner"
+import { buildRakutenSearchLink } from "@/lib/affiliate"
 
 const SIDEBAR_AD_SLOT = "1676093020"
+const MYTREX_VIDO_AFFILIATE_URL = buildRakutenSearchLink("MYTREX VIDO MT-VD22B").url
 
 export function Sidebar({
   popular,
@@ -28,6 +31,8 @@ export function Sidebar({
         <p className="text-center text-[10px] tracking-widest text-muted-foreground/60 mb-2">SPONSORED</p>
         <AdUnit slot={SIDEBAR_AD_SLOT} />
       </div>
+
+      <AffiliatePromoBanner href={MYTREX_VIDO_AFFILIATE_URL} />
 
       {brands.length > 0 && (
         <details className="group">
