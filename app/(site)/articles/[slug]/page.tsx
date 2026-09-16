@@ -3,7 +3,6 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { getArticleBySlug, getRelatedArticles } from "@/lib/storage"
 import { PurchaseLinks } from "@/components/PurchaseLinks"
-import { PurchaseChannelsSection } from "@/components/PurchaseChannelsSection"
 import { RelatedArticleLinks } from "@/components/RelatedArticleLinks"
 import { OfficialProductWidget } from "@/components/OfficialProductWidget"
 import { ArticleCard } from "@/components/ArticleCard"
@@ -173,10 +172,6 @@ export default async function ArticleDetailPage({
         </div>
       )}
 
-      {article.purchaseChannels && article.purchaseChannels.length > 0 && (
-        <PurchaseChannelsSection channels={article.purchaseChannels} articleId={article.id} />
-      )}
-
       {article.officialProducts && article.officialProducts.length > 0 && (
         <OfficialProductWidget products={article.officialProducts} brand={article.brands[0]} articleId={article.id} />
       )}
@@ -188,6 +183,7 @@ export default async function ArticleDetailPage({
       <PurchaseLinks
         officialLinks={article.officialLinks}
         affiliateLinks={article.affiliateLinks}
+        purchaseChannels={article.purchaseChannels}
         articleId={article.id}
         articleTitle={article.title}
         brand={article.brands[0]}

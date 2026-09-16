@@ -16,7 +16,7 @@ test("PurchaseLinks: 商品検索語を見出しと各販売先に明示する",
     />
   )
 
-  assert.match(html, /「PUMA T7 TRACK JACKET」の公式サイト・販売先を探す/)
+  assert.match(html, /「PUMA T7 TRACK JACKET」の販売情報・購入先/)
   assert.match(html, /公式サイトで探す/)
   assert.match(html, /「PUMA T7 TRACK JACKET」で検索/)
   assert.match(html, /rel="sponsored nofollow noopener noreferrer"/)
@@ -33,7 +33,7 @@ test("PurchaseLinks: 検索語が無い提携リンクは汎用見出しへ戻�
     />
   )
 
-  assert.match(html, /公式サイト・販売先を探す/)
+  assert.match(html, /販売情報・購入先/)
 })
 
 test("PurchaseLinks: 公式リンクも広告リンクも無い記事に公式サイト検索を表示する", () => {
@@ -99,4 +99,37 @@ test("isDirectOfficialSiteUrl: ブランドサイトだけを直接リンク候�
   assert.equal(isDirectOfficialSiteUrl("https://www.youtube.com/watch?v=abc123"), false)
   assert.equal(isDirectOfficialSiteUrl("https://www.instagram.com/example/"), false)
   assert.equal(isDirectOfficialSiteUrl("https://www.google.com/search?q=PUMA"), false)
+})
+
+test("PurchaseLinks: 販売方法と公式リンクを同じブロックへ統合し重複表示しない", () => {
+  const atmosUrl = "https://www.atmos-tokyo.com/item/salomon/l49236600"
+  const html = renderToStaticMarkup(
+    <PurchaseLinks
+      officialLinks={[
+        { label: "サロモン公式商品ページ", url: "https://www.salomon.com/products/xt-whisper-void" },
+        { label: "atmos公式商品ページ", url: atmosUrl },
+      ]}
+      purchaseChannels={[
+        {
+          retailerName: "atmos",
+          channelType: "official",
+          saleMethod: "regular",
+          date: "2026年9月16日",
+          url: atmosUrl,
+        },
+      ]}
+      affiliateLinks={[buildMercariSearchLink("サロモン XT-WHISPER VOID")]}
+      articleId="article-6"
+      articleTitle="サロモン XT-WHISPER VOID"
+      brand="サロモン"
+    />
+  )
+
+  assert.match(html, /販売情報・購入先/)
+  assert.match(html, /公式・正規販売店/)
+  assert.match(html, /atmos公式商品ページ/)
+  assert.match(html, /通常販売/)
+  assert.match(html, /2026年9月16日/)
+  assert.equal((html.match(/atmos公式商品ページ/g) ?? []).length, 1)
+  assert.doesNotMatch(html, /抽選情報・販売方法/)
 })

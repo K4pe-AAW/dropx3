@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { AffiliateLink, OfficialLink } from "@/lib/types"
+import { AffiliateLink, OfficialLink, PurchaseChannelInfo } from "@/lib/types"
 import { AFFILIATE_REL, affiliateSearchQuery, isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
 import { ExternalLinkIcon } from "@/components/icons"
 import { siteConfig } from "@/lib/site-config"
@@ -14,6 +14,24 @@ type Row = {
   isAd: boolean
   retailer: string
   itemName?: string
+  saleMethod?: PurchaseChannelInfo["saleMethod"]
+  date?: string
+}
+
+const SALE_METHOD_LABEL: Record<PurchaseChannelInfo["saleMethod"], string> = {
+  regular: "通常販売",
+  lottery: "抽選",
+  unknown: "販売方法未確認",
+}
+
+function normalizedUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    parsed.hash = ""
+    return parsed.toString().replace(/\/$/, "")
+  } catch {
+    return url.replace(/\/$/, "")
+  }
 }
 
 export function officialSiteSearchUrl(articleTitle: string, brand?: string, itemName?: string): string {
@@ -52,6 +70,7 @@ export function isDirectOfficialSiteUrl(url: string): boolean {
 export function PurchaseLinks({
   officialLinks,
   affiliateLinks,
+  purchaseChannels = [],
   articleId,
   articleTitle,
   brand,
@@ -59,12 +78,19 @@ export function PurchaseLinks({
 }: {
   officialLinks: OfficialLink[]
   affiliateLinks: AffiliateLink[]
+  purchaseChannels?: PurchaseChannelInfo[]
   articleId: string
   articleTitle: string
   brand?: string
   contentType?: string
 }) {
-  const safeOfficial = officialLinks.filter((l) => isSafeExternalUrl(l.url))
+  const safeOfficial = officialLinks.filter(
+    (link, index, links) =>
+      isSafeExternalUrl(link.url) &&
+      links.findIndex((candidate) =>
+        isSafeExternalUrl(candidate.url) && normalizedUrl(candidate.url) === normalizedUrl(link.url)
+      ) === index
+  )
   const safeAffiliate = sanitizeAffiliateLinks(affiliateLinks)
   const primaryItemName = safeAffiliate.map((link) => affiliateSearchQuery(link.url)).find(Boolean)
 
@@ -84,18 +110,85 @@ export function PurchaseLinks({
   const directOfficial = safeOfficial.find((link) => isDirectOfficialSiteUrl(link.url))
   const officialSearchUrl = officialSiteSearchUrl(articleTitle, brand, primaryItemName)
   const primaryOfficialUrl = directOfficial?.url ?? officialSearchUrl
+  const safeChannels = purchaseChannels.filter((channel, index, channels) => {
+    if (!channel.retailerName.trim()) return false
+    const key = channel.url && isSafeExternalUrl(channel.url)
+      ? normalizedUrl(channel.url)
+      : `${channel.retailerName.trim().toLocaleLowerCase()}|${channel.saleMethod}|${channel.date ?? ""}`
+    return channels.findIndex((candidate) => {
+      if (!candidate.retailerName.trim()) return false
+      const candidateKey = candidate.url && isSafeExternalUrl(candidate.url)
+        ? normalizedUrl(candidate.url)
+        : `${candidate.retailerName.trim().toLocaleLowerCase()}|${candidate.saleMethod}|${candidate.date ?? ""}`
+      return candidateKey === key
+    }) === index
+  })
+  const consumedChannels = new Set<number>()
+
+  function matchingChannel(link: OfficialLink): PurchaseChannelInfo | undefined {
+    const linkUrl = normalizedUrl(link.url)
+    const linkLabel = link.label.toLocaleLowerCase()
+    const index = safeChannels.findIndex((channel, i) => {
+      if (consumedChannels.has(i)) return false
+      const sameUrl = channel.url && isSafeExternalUrl(channel.url) && normalizedUrl(channel.url) === linkUrl
+      const retailer = channel.retailerName.trim().toLocaleLowerCase()
+      return Boolean(sameUrl || (retailer && linkLabel.includes(retailer)))
+    })
+    if (index < 0) return undefined
+    consumedChannels.add(index)
+    return safeChannels[index]
+  }
+
+  const primaryChannel = directOfficial ? matchingChannel(directOfficial) : undefined
   const officialRows: Row[] = [
     {
       label: "公式サイトで探す",
       url: primaryOfficialUrl,
-      description: directOfficial ? "確認済み公式ページを開く" : "Googleでブランド公式情報を検索",
+      description: directOfficial
+        ? `確認済み公式ページ${primaryChannel ? `（${primaryChannel.retailerName}）` : ""}を開く`
+        : "Googleでブランド公式情報を検索",
       isAd: false,
       retailer: "",
+      saleMethod: primaryChannel?.saleMethod,
+      date: primaryChannel?.date,
     },
     ...safeOfficial
       .filter((link) => link.url !== primaryOfficialUrl)
-      .map((l) => ({ label: l.label, url: l.url, isAd: false, retailer: "" })),
+      .map((l) => {
+        const channel = matchingChannel(l)
+        return {
+          label: l.label,
+          url: l.url,
+          isAd: false,
+          retailer: "",
+          saleMethod: channel?.saleMethod,
+          date: channel?.date,
+        }
+      }),
   ]
+  const remainingChannels = safeChannels
+    .map((channel, index) => ({ channel, index }))
+    .filter(({ index }) => !consumedChannels.has(index))
+  const officialChannelRows: Row[] = remainingChannels
+    .filter(({ channel }) => channel.channelType === "official")
+    .map(({ channel }) => ({
+      label: channel.retailerName,
+      url: channel.url && isSafeExternalUrl(channel.url) ? channel.url : "",
+      isAd: false,
+      retailer: "",
+      saleMethod: channel.saleMethod,
+      date: channel.date,
+    }))
+  const secondaryChannelRows: Row[] = remainingChannels
+    .filter(({ channel }) => channel.channelType === "secondary")
+    .map(({ channel }) => ({
+      label: channel.retailerName,
+      url: channel.url && isSafeExternalUrl(channel.url) ? channel.url : "",
+      isAd: false,
+      retailer: "",
+      saleMethod: channel.saleMethod,
+      date: channel.date,
+    }))
 
   const showGroupLabels = affiliateRows.length > 0
 
@@ -125,7 +218,7 @@ export function PurchaseLinks({
     <div id="purchase-links" className="my-8 scroll-mt-24 overflow-hidden rounded-xl border border-border">
       <div className="bg-accent px-4 py-3">
         <h2 className="text-sm font-bold text-accent-foreground">
-          {primaryItemName ? `「${primaryItemName}」の公式サイト・販売先を探す` : "公式サイト・販売先を探す"}
+          {primaryItemName ? `「${primaryItemName}」の販売情報・購入先` : "販売情報・購入先"}
         </h2>
       </div>
       {showGroupLabels && (
@@ -134,10 +227,13 @@ export function PurchaseLinks({
         </p>
       )}
       <LinkRowGroup
-        label={showGroupLabels ? "まず公式サイトで確認" : undefined}
-        rows={officialRows}
+        label={showGroupLabels || safeChannels.length > 0 ? "公式・正規販売店" : undefined}
+        rows={[...officialRows, ...officialChannelRows]}
         onRowClick={handleRowClick}
       />
+      {secondaryChannelRows.length > 0 && (
+        <LinkRowGroup label="セレクト店・二次流通" rows={secondaryChannelRows} onRowClick={handleRowClick} />
+      )}
       {affiliateRows.length > 0 && (
         <div>
           <div className="bg-secondary/10 px-4 pt-2 text-[11px] font-bold tracking-wide text-muted-foreground/70">
@@ -164,8 +260,18 @@ function RowContent({ row }: { row: Row }) {
     <>
       <span className="inline-flex items-center gap-1 font-bold text-foreground underline decoration-accent decoration-2 underline-offset-2">
         {row.label}
-        <ExternalLinkIcon className="size-3.5 shrink-0 opacity-60" />
+        {row.url && <ExternalLinkIcon className="size-3.5 shrink-0 opacity-60" />}
       </span>
+      {row.saleMethod && (
+        <span
+          className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+            row.saleMethod === "lottery" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+          }`}
+        >
+          {SALE_METHOD_LABEL[row.saleMethod]}
+        </span>
+      )}
+      {row.date && <span className="text-xs text-muted-foreground">{row.date}</span>}
       {row.description && <span className="text-xs text-muted-foreground">{row.description}</span>}
       {row.isAd && (
         <span className="ml-auto shrink-0 text-[10px] font-bold tracking-wide text-muted-foreground/60">PR</span>
@@ -254,18 +360,24 @@ function LinkRowGroup({
         <div className="bg-secondary/10 px-4 pt-2 text-[11px] font-bold tracking-wide text-muted-foreground/70">{label}</div>
       )}
       <div className="divide-y divide-border">
-        {rows.map((row, i) => (
-          <a
-            key={i}
-            href={row.url}
-            target="_blank"
-            rel={row.isAd ? AFFILIATE_REL : "noopener noreferrer"}
-            onClick={() => onRowClick(row)}
-            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-3 transition-colors hover:bg-secondary/50"
-          >
-            <RowContent row={row} />
-          </a>
-        ))}
+        {rows.map((row, i) =>
+          row.url ? (
+            <a
+              key={i}
+              href={row.url}
+              target="_blank"
+              rel={row.isAd ? AFFILIATE_REL : "noopener noreferrer"}
+              onClick={() => onRowClick(row)}
+              className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-3 transition-colors hover:bg-secondary/50"
+            >
+              <RowContent row={row} />
+            </a>
+          ) : (
+            <div key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-3">
+              <RowContent row={row} />
+            </div>
+          )
+        )}
       </div>
     </div>
   )
