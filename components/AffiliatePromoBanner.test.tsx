@@ -13,6 +13,8 @@ test("AffiliatePromoBanner: VIDOの価格・PR表示・楽天アフィリエイ�
   assert.match(html, /16,280円（税込）/)
   assert.match(html, />PR</)
   assert.match(html, /楽天市場で見る/)
+  assert.match(html, /mytrex-vido-official\.jpg/)
+  assert.match(html, /画像：MYTREX公式/)
   assert.match(html, /rpx\.a8\.net/)
   assert.match(html, /rel="sponsored nofollow noopener noreferrer"/)
 })

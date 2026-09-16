@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import Image from "next/image"
 import { AFFILIATE_REL } from "@/lib/affiliate"
 import { trackEvent } from "@/lib/analytics"
 
@@ -69,23 +70,29 @@ export function AffiliatePromoBanner({ href }: { href: string }) {
           link_url: href,
         })
       }
-      className="group relative block overflow-hidden rounded-xl border border-black bg-black px-5 py-5 text-white shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md"
+      className="group relative grid min-h-44 grid-cols-[42%_58%] overflow-hidden rounded-xl border border-black bg-white shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md"
     >
-      <span className="absolute -right-12 -top-10 size-36 rounded-full border border-white/15" aria-hidden="true" />
-      <span className="absolute -right-7 top-4 size-24 rounded-full border border-white/10" aria-hidden="true" />
+      <span className="relative flex min-h-44 items-center justify-center p-2">
+        <Image
+          src="/images/affiliate/mytrex-vido-official.jpg"
+          alt="MYTREX VIDO 横振動モーションブラシ"
+          width={600}
+          height={600}
+          sizes="(max-width: 1024px) 42vw, 130px"
+          className="h-full max-h-44 w-full object-contain"
+        />
+        <span className="absolute bottom-1 left-2 text-[8px] text-black/40">画像：MYTREX公式</span>
+      </span>
 
-      <span className="relative flex items-center justify-between text-[10px] font-bold tracking-[0.18em] text-white/60">
-        <span>MYTREX</span>
-        <span>PR</span>
-      </span>
-      <span className="relative mt-5 block text-[11px] font-medium text-white/65">横振動モーションブラシ</span>
-      <strong className="relative mt-1 block text-3xl leading-none tracking-[-0.04em]">VIDO</strong>
-      <span className="relative mt-3 block text-xs leading-relaxed text-white/70">
-        頭皮を横方向に刺激する、新感覚のセルフケア。
-      </span>
-      <span className="relative mt-4 flex items-center justify-between gap-3">
-        <span className="text-xs font-bold">16,280円（税込）</span>
-        <span className="rounded-full bg-accent px-3 py-2 text-[11px] font-bold text-accent-foreground transition-colors group-hover:bg-white">
+      <span className="relative flex min-h-44 flex-col bg-black px-4 py-4 text-white">
+        <span className="flex items-center justify-between text-[9px] font-bold tracking-[0.16em] text-white/55">
+          <span>MYTREX</span>
+          <span>PR</span>
+        </span>
+        <span className="mt-5 text-[10px] font-medium leading-tight text-white/65">横振動モーションブラシ</span>
+        <strong className="mt-1 text-2xl leading-none tracking-[-0.04em]">VIDO</strong>
+        <span className="mt-2 text-[11px] font-bold">16,280円（税込）</span>
+        <span className="mt-auto rounded-full bg-accent px-2.5 py-2 text-center text-[10px] font-bold text-accent-foreground transition-colors group-hover:bg-white">
           楽天市場で見る →
         </span>
       </span>
