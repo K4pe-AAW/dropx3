@@ -30,8 +30,29 @@ export const ORBIS_MR_A8_PROMO = {
   imageUrl: "https://www24.a8.net/svt/bgt?aid=260918624311&wid=001&eno=01&mid=s00000008657018004000&mc=1",
   trackingPixelUrl: "https://www14.a8.net/0.gif?a8mat=4BCE3K+555TWY+1USQ+2Z6VR5",
   itemName: "オルビス ミスター",
+  brand: "ORBIS",
+  alt: "オルビス ミスター メンズスキンケア",
+  ariaLabel: "オルビス ミスター公式を見る（PR・オルビス初回限定）",
   placementId: "home-orbis-mr-banner",
 } as const
+
+/**
+ * ZIGENオールインワンフェイスジェル(A8.net、プログラムID s00000025009001)のトップ横長広告。
+ * DROP DROP DROP向けに発行した素材ID020の468×60公式バナーを改変せず使用する。
+ */
+export const ZIGEN_FACE_GEL_A8_PROMO = {
+  href: "https://px.a8.net/svt/ejp?a8mat=4BCE3K+C2MGDU+5CYY+62MDD",
+  imageUrl: "https://www21.a8.net/svt/bgt?aid=260918624730&wid=001&eno=01&mid=s00000025009001020000&mc=1",
+  trackingPixelUrl: "https://www15.a8.net/0.gif?a8mat=4BCE3K+C2MGDU+5CYY+62MDD",
+  itemName: "ZIGENオールインワンフェイスジェル",
+  brand: "ZIGEN",
+  alt: "ZIGEN メンズ用オールインワンフェイスジェル",
+  ariaLabel: "ZIGENオールインワンフェイスジェル公式を見る（PR）",
+  placementId: "home-zigen-face-gel-banner",
+} as const
+
+export const HOME_HORIZONTAL_A8_PROMOS = [ORBIS_MR_A8_PROMO, ZIGEN_FACE_GEL_A8_PROMO] as const
+export type HomeHorizontalA8Promo = (typeof HOME_HORIZONTAL_A8_PROMOS)[number]
 
 /** http(s)以外のスキーム(javascript:, data: 等)を弾く。AI下書きや外部データ由来のURLを描画する前の最終防衛線 */
 export function isSafeExternalUrl(url: string): boolean {
