@@ -5,9 +5,9 @@ export const metadata: Metadata = { title: "サイトについて" }
 
 export default function AboutPage() {
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-black mb-8">サイトについて</h1>
-      <div className="space-y-6 text-sm leading-[1.9] text-foreground/90">
+    <div className="max-w-2xl mx-auto px-4 py-6 sm:py-12">
+      <h1 className="mb-5 text-2xl font-black sm:mb-8">サイトについて</h1>
+      <div className="space-y-5 text-sm leading-[1.9] text-foreground/90 sm:space-y-6">
         <p>
           {siteConfig.name}は、スニーカーとストリートファッションの発売・再販・コラボレーション情報を毎日更新するニュースメディアです。新作リリース情報からブランドコラボ、セール情報まで、ストリートカルチャーを追いかける方に向けて記事をお届けしています。
         </p>

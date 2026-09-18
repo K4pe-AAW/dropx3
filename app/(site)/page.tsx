@@ -82,7 +82,7 @@ export default async function HomePage({
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {/*
         トップにh1が無く、機械から見て「何のページか」が分からない状態だった。
@@ -94,7 +94,7 @@ export default async function HomePage({
           ? `${siteConfig.name}｜${siteConfig.tagline}`
           : `${siteConfig.name}｜記事一覧 ${currentPage}ページ目`}
       </h1>
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10">
+      <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[1fr_300px] lg:gap-10">
         <div>
           {currentPage === 1 && columns.length > 0 && (
             <EditorialSection title="編集部コラム" eyebrow="COLUMN" href="/column" articles={columns} />
@@ -106,7 +106,7 @@ export default async function HomePage({
             <EditorialSection title="編集部スナップ" eyebrow="EDITORIAL SNAP" href="/snap" articles={snaps} />
           )}
           {currentPage === 1 && <HorizontalAffiliateBanner />}
-          <div className="mb-5 flex items-end justify-between">
+          <div className="mb-3 flex items-end justify-between sm:mb-5">
             <div>
               <p className="text-[10px] font-black tracking-[0.22em] text-accent">LATEST</p>
               <h2 className="text-xl font-black">最新記事</h2>
@@ -116,7 +116,7 @@ export default async function HomePage({
             <EmptyState />
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-8">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 sm:gap-y-8 xl:grid-cols-3">
                 {list.map((a, i) => (
                   <ArticleCard key={a.id} article={a} priority={i < 3} />
                 ))}
@@ -143,8 +143,8 @@ function EditorialSection({
   articles: Awaited<ReturnType<typeof getAllArticles>>
 }) {
   return (
-    <section className="mb-12 rounded-2xl border border-border bg-secondary/30 p-5 sm:p-6">
-      <div className="mb-5 flex items-end justify-between gap-4">
+    <section className="mb-6 rounded-2xl border border-border bg-secondary/30 p-4 sm:mb-12 sm:p-6">
+      <div className="mb-3 flex items-end justify-between gap-4 sm:mb-5">
         <div>
           <p className="text-[10px] font-black tracking-[0.22em] text-accent">{eyebrow}</p>
           <h2 className="text-xl font-black">{title}</h2>
@@ -153,7 +153,7 @@ function EditorialSection({
           すべて見る
         </Link>
       </div>
-      <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3 sm:gap-y-6">
         {articles.map((article) => (
           <ArticleCard key={article.id} article={article} />
         ))}

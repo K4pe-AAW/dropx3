@@ -15,9 +15,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export default function PrivacyPage() {
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-black mb-8">プライバシーポリシー</h1>
-      <div className="space-y-8 text-sm leading-[1.9] text-foreground/90">
+    <div className="max-w-2xl mx-auto px-4 py-6 sm:py-12">
+      <h1 className="mb-5 text-2xl font-black sm:mb-8">プライバシーポリシー</h1>
+      <div className="space-y-6 text-sm leading-[1.9] text-foreground/90 sm:space-y-8">
         <p>
           {siteConfig.name}（以下「当サイト」）は、ユーザーの個人情報の取り扱いについて、以下のとおりプライバシーポリシーを定めます。
         </p>

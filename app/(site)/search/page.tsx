@@ -29,8 +29,8 @@ export default async function SearchPage({
   const list = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <form action="/search" method="get" className="mb-8 flex gap-2 max-w-md">
+    <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">
+      <form action="/search" method="get" className="mb-5 flex max-w-md gap-2 sm:mb-8">
         <input
           type="search"
           name="q"
@@ -47,7 +47,7 @@ export default async function SearchPage({
       </form>
 
       {query && (
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="mb-4 text-sm text-muted-foreground sm:mb-6">
           「{query}」の検索結果：{results.length}件
         </p>
       )}
@@ -58,7 +58,7 @@ export default async function SearchPage({
 
       {query && <SearchSubmitTracker query={query} resultCount={results.length} />}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-8">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 sm:gap-y-8 xl:grid-cols-3">
         {list.map((a, i) => (
           <TrackedLink
             key={a.id}

@@ -15,9 +15,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export default function DisclaimerPage() {
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-black mb-8">アフィリエイト表記・免責事項</h1>
-      <div className="space-y-8 text-sm leading-[1.9] text-foreground/90">
+    <div className="max-w-2xl mx-auto px-4 py-6 sm:py-12">
+      <h1 className="mb-5 text-2xl font-black sm:mb-8">アフィリエイト表記・免責事項</h1>
+      <div className="space-y-6 text-sm leading-[1.9] text-foreground/90 sm:space-y-8">
         <Section title="広告について（PR表記）">
           当サイトの記事には、Amazonアソシエイト・楽天アフィリエイト・A8.net・バリューコマース等のアフィリエイトプログラムによる広告リンクが含まれます。「PR」バッジが表示されている記事・リンクは、ユーザーが当該リンク経由で商品の購入・サービスの申込を行った場合に、当サイトが提携先事業者から紹介料を受け取ることがあります。紹介料の有無は記事の内容・評価には一切影響しません。
         </Section>

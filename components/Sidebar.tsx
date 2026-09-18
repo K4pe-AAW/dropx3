@@ -20,7 +20,7 @@ export function Sidebar({
   archive: { key: string; label: string; count: number }[]
 }) {
   return (
-    <aside className="space-y-8">
+    <aside className="space-y-6 sm:space-y-8">
       {popular.length > 0 && (
         <div className="rounded-xl border border-border p-5">
           <PopularList articles={popular} />

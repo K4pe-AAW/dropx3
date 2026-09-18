@@ -71,7 +71,7 @@ export default async function ArticleDetailPage({
   })
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-4 py-4 sm:py-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <nav className="text-xs text-muted-foreground mb-4 flex flex-wrap gap-1.5 items-center">
         <Link href="/" className="hover:text-foreground">
@@ -112,18 +112,18 @@ export default async function ArticleDetailPage({
       )}
 
       {isUnconfirmedStatus(article.informationStatus) && (
-        <aside className="mb-6 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
+        <aside className="mb-4 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950 sm:mb-6">
           <p className="mb-1 text-xs font-black tracking-wide">{INFORMATION_STATUS_LABELS[article.informationStatus]}</p>
           <p className="text-sm leading-relaxed">{unconfirmedNotice(article.informationStatus)}</p>
         </aside>
       )}
 
       {article.youtubeVideoId ? (
-        <div className="mb-8">
+        <div className="mb-5 sm:mb-8">
           <YouTubeEmbed videoId={article.youtubeVideoId} title={article.title} />
         </div>
       ) : (
-        <div className="mb-8">
+        <div className="mb-5 sm:mb-8">
           <div className="overflow-hidden rounded-xl bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を横長枠にcropせず、実際の縦横比のまま表示する */}
             <img src={article.coverImage} alt={article.coverImageAlt} className="w-full h-auto" />
@@ -136,7 +136,7 @@ export default async function ArticleDetailPage({
 
       <a
         href="#purchase-links"
-        className="mb-8 inline-flex min-h-11 items-center rounded-full border border-accent px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        className="mb-5 inline-flex min-h-11 items-center rounded-full border border-accent px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:mb-8"
       >
         公式サイト・販売先を先に見る ↓
       </a>
@@ -161,7 +161,7 @@ export default async function ArticleDetailPage({
       {article.quote && <QuoteBlock text={article.quote.text} sourceLabel={article.quote.sourceLabel} />}
 
       {article.galleryImages.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 mt-8 items-start">
+        <div className="mt-6 grid grid-cols-2 items-start gap-3 sm:mt-8">
           {article.galleryImages.map((img, i) => (
             <div key={i}>
               <div className="overflow-hidden rounded-xl bg-muted">
@@ -193,7 +193,7 @@ export default async function ArticleDetailPage({
       />
 
       {article.sourceRefs.length > 0 && (
-        <div className="mt-8 rounded-xl border border-border p-4">
+        <div className="mt-6 rounded-xl border border-border p-4 sm:mt-8">
           <h2 className="text-xs font-bold text-muted-foreground mb-2">情報元・参考</h2>
           <ul className="space-y-1">
             {article.sourceRefs.map((ref, i) => (
@@ -223,7 +223,7 @@ export default async function ArticleDetailPage({
       )}
 
       {article.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-8 pt-6 border-t border-border">
+        <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4 sm:mt-8 sm:pt-6">
           {article.tags.map((t) => (
             <span key={t} className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
               #{t}
@@ -233,9 +233,9 @@ export default async function ArticleDetailPage({
       )}
 
       {related.length > 0 && (
-        <div className="mt-14">
-          <h2 className="text-lg font-bold mb-5">関連記事</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+        <div className="mt-8 sm:mt-14">
+          <h2 className="mb-3 text-lg font-bold sm:mb-5">関連記事</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
             {related.map((a) => (
               <ArticleCard key={a.id} article={a} />
             ))}

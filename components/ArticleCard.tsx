@@ -25,7 +25,7 @@ export function ArticleCard({ article, priority = false }: { article: Article; p
   return (
     <Link
       href={`/articles/${article.slug}`}
-      className="group flex items-center gap-3 border-b border-border pb-4 sm:block sm:border-0 sm:pb-0"
+      className="group flex items-center gap-3 border-b border-border pb-3 sm:block sm:border-0 sm:pb-0"
     >
       <div className="relative size-24 shrink-0 overflow-hidden rounded-lg border-2 border-accent bg-muted sm:mb-3 sm:aspect-[4/3] sm:size-auto sm:rounded-xl">
         {/* eslint-disable-next-line @next/next/no-img-element -- 提携先ごとに画像ドメインが変わるためnext/imageのremotePatternsを固定できない */}

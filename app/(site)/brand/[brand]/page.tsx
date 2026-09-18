@@ -42,14 +42,14 @@ export default async function BrandPage({
   const popular = await getFeaturedArticles(6)
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-xl font-black mb-6">
+    <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">
+      <h1 className="mb-4 text-xl font-black sm:mb-6">
         <span className="text-muted-foreground font-normal">ブランド：</span>
         {name}
       </h1>
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10">
+      <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[1fr_300px] lg:gap-10">
         <div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-8">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 sm:gap-y-8 xl:grid-cols-3">
             {list.map((a, i) => (
               <ArticleCard key={a.id} article={a} priority={i < 3} />
             ))}

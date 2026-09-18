@@ -20,15 +20,15 @@ export async function EditorialListingPage({ contentType }: { contentType: Extra
   const copy = COPY[contentType]
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <header className="mb-10 max-w-2xl">
+    <main className="mx-auto max-w-6xl px-4 py-5 sm:py-10">
+      <header className="mb-6 max-w-2xl sm:mb-10">
         <p className="mb-2 text-xs font-black tracking-[0.24em] text-accent">{copy.eyebrow}</p>
         <h1 className="mb-3 text-3xl font-black">{copy.title}</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">{copy.description}</p>
       </header>
 
       {articles.length > 0 ? (
-        <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 sm:gap-y-8 lg:grid-cols-3">
           {articles.map((article, index) => (
             <ArticleCard key={article.id} article={article} priority={index < 3} />
           ))}

@@ -60,7 +60,7 @@ export function Pagination({
   const activePillClass = "rounded-full border px-3.5 py-1.5 border-accent bg-accent text-accent-foreground"
 
   return (
-    <nav className="flex flex-wrap items-center justify-center gap-2 mt-10 text-sm font-medium">
+    <nav className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm font-medium sm:mt-10">
       {currentPage > 1 && (
         <Link href={pageHref(currentPage - 1)} className={pillClass}>
           前へ

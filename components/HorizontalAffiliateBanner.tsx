@@ -91,11 +91,11 @@ export function HorizontalAffiliateBanner({ promo: fixedPromo }: { promo?: HomeH
 
   // A8の画像・計測ピクセルを2案件とも先読みしないため、選定完了までは同じ高さの空枠を出す。
   if (!promo) {
-    return <div className="mb-8 min-h-[62px] w-full sm:min-h-[74px]" aria-hidden="true" />
+    return <div className="mb-5 min-h-[62px] w-full sm:mb-8 sm:min-h-[74px]" aria-hidden="true" />
   }
 
   return (
-    <div className="relative mb-8 w-full">
+    <div className="relative mb-5 w-full sm:mb-8">
       <div className="relative w-full overflow-hidden rounded-lg border border-border bg-[#eef1f3] shadow-sm">
         <span className="absolute right-1.5 top-1.5 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-white">
           PR

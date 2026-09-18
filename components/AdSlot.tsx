@@ -8,8 +8,8 @@ const FOOTER_AD_SLOT = "8049929689"
  */
 export function AdSlot() {
   return (
-    <div className="relative z-10 w-full max-w-[1200px] mx-auto bg-background px-4 py-6">
-      <div className="flex flex-row gap-4">
+    <div className="relative z-10 w-full max-w-[1200px] mx-auto bg-background px-4 py-4 sm:py-6">
+      <div className="flex flex-row gap-2 sm:gap-4">
         <AdBox className="flex-[2]" />
         <AdBox className="flex-[1]" />
       </div>
