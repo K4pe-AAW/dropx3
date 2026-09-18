@@ -30,6 +30,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: a.updatedAt ?? a.publishedAt,
     changeFrequency: "weekly",
     priority: 0.6,
+    // カバー画像を画像検索にも明示する。外部画像も絶対URLならsitemap仕様上有効。
+    images: [new URL(a.coverImage, siteConfig.url).toString()],
   }))
 
   const brandPages: MetadataRoute.Sitemap = brands.map((b) => ({

@@ -32,7 +32,9 @@ export async function generateMetadata({
   if (!article) return {}
   const url = absoluteUrl(`/articles/${article.slug}`)
   return {
-    title: article.title,
+    // 記事タイトルは商品名・ブランド名・発売情報を含むため、サイト名を後置すると
+    // 検索結果で重要語が切れやすい。記事ページだけは完全なタイトルをそのまま使う。
+    title: { absolute: article.title },
     description: article.excerpt,
     alternates: { canonical: url },
     robots: { index: true, follow: true, "max-image-preview": "large" },
