@@ -27,7 +27,8 @@ export function Sidebar({
         </div>
       )}
 
-      <div>
+      {/* サイドバーが本文下へ回る幅では縦長広告が大きな空白になるため、PCの2カラム時だけ表示する。 */}
+      <div className="hidden lg:block">
         <p className="text-center text-[10px] tracking-widest text-muted-foreground/60 mb-2">SPONSORED</p>
         <AdUnit slot={SIDEBAR_AD_SLOT} />
       </div>
