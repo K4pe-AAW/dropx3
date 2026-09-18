@@ -32,7 +32,7 @@ export function Sidebar({
         <AdUnit slot={SIDEBAR_AD_SLOT} />
       </div>
 
-      <AffiliatePromoBanner href={MYTREX_VIDO_AFFILIATE_URL} />
+      <AffiliatePromoBanner mytrexHref={MYTREX_VIDO_AFFILIATE_URL} />
 
       {brands.length > 0 && (
         <details className="group">

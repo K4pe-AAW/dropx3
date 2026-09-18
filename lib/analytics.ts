@@ -4,7 +4,7 @@ declare global {
   }
 }
 
-export type AffiliateNetwork = "amazon" | "rakuten" | "other"
+export type AffiliateNetwork = "amazon" | "rakuten" | "a8" | "other"
 
 /**
  * 計測するカスタムイベントの一覧。イベント名とパラメータの組み合わせをここで型として縛り、
@@ -117,6 +117,8 @@ const NETWORK_KEYWORDS: [string, AffiliateNetwork][] = [
   ["rakuten", "rakuten"],
   ["amazon", "amazon"],
   ["アマゾン", "amazon"],
+  ["a8.net", "a8"],
+  ["a8net", "a8"],
 ]
 
 /**

@@ -8,6 +8,19 @@ import { AffiliateLink } from "./types"
  */
 export const AFFILIATE_REL = "sponsored nofollow noopener noreferrer"
 
+/**
+ * ULTORA公式プロテイン(A8.net、プログラムID s00000021719001)のサイドバー広告。
+ * 広告主推奨の素材ID006を、A8.netが発行したリンク・画像・表示計測URLのまま使用する。
+ * ASP配布素材は差し替えや自己ホストをせず、広告主側の更新がそのまま反映されるようにする。
+ */
+export const ULTORA_A8_PROMO = {
+  href: "https://px.a8.net/svt/ejp?a8mat=4BCE3K+34IY42+4NL2+5ZMCH",
+  imageUrl: "https://www27.a8.net/svt/bgt?aid=260918624189&wid=001&eno=01&mid=s00000021719001006000&mc=1",
+  trackingPixelUrl: "https://www11.a8.net/0.gif?a8mat=4BCE3K+34IY42+4NL2+5ZMCH",
+  itemName: "ULTORAプロテイン",
+  placementId: "sidebar-ultora-protein",
+} as const
+
 /** http(s)以外のスキーム(javascript:, data: 等)を弾く。AI下書きや外部データ由来のURLを描画する前の最終防衛線 */
 export function isSafeExternalUrl(url: string): boolean {
   try {

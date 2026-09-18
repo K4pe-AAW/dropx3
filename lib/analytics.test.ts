@@ -71,6 +71,11 @@ test("classifyAffiliateNetwork: Amazon系(大小文字・カナ表記)はamazon"
   assert.equal(classifyAffiliateNetwork("アマゾンアソシエイト"), "amazon")
 })
 
+test("classifyAffiliateNetwork: A8.net系はa8", () => {
+  assert.equal(classifyAffiliateNetwork("A8.net ULTORA"), "a8")
+  assert.equal(classifyAffiliateNetwork("a8net"), "a8")
+})
+
 test("classifyAffiliateNetwork: 該当なしはother", () => {
   assert.equal(classifyAffiliateNetwork("SNKRDUNK"), "other")
   assert.equal(classifyAffiliateNetwork("メルカリ"), "other")
