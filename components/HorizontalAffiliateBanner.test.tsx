@@ -11,6 +11,7 @@ test("HorizontalAffiliateBanner: オルビス ミスターの横長公式素材�
   assert.match(html, /PR/)
   assert.match(html, /width="468"/)
   assert.match(html, /height="60"/)
+  assert.match(html, /min-h-\[60px\] w-full/)
   assert.match(html, new RegExp(ORBIS_MR_A8_PROMO.imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll("&", "(?:&amp;|&)")))
   assert.match(html, new RegExp(ORBIS_MR_A8_PROMO.trackingPixelUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll("&", "(?:&amp;|&)")))
   assert.match(html, /rel="sponsored nofollow noopener noreferrer"/)

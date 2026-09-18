@@ -45,8 +45,8 @@ export function HorizontalAffiliateBanner() {
   }, [])
 
   return (
-    <div className="relative mb-8 flex justify-center">
-      <div className="relative max-w-full overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+    <div className="relative mb-8 w-full">
+      <div className="relative w-full overflow-hidden rounded-lg border border-border bg-[#eef1f3] shadow-sm">
         <span className="absolute right-1.5 top-1.5 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-white">
           PR
         </span>
@@ -68,7 +68,7 @@ export function HorizontalAffiliateBanner() {
               link_url: ORBIS_MR_A8_PROMO.href,
             })
           }
-          className="block transition-opacity hover:opacity-90"
+          className="flex min-h-[60px] w-full items-center justify-center transition-opacity hover:opacity-90 sm:min-h-[72px]"
         >
           {/* A8.net配布素材を改変せず、広告主側の更新が反映されるURLで表示する。 */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
