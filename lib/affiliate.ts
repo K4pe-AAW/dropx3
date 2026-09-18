@@ -21,6 +21,18 @@ export const ULTORA_A8_PROMO = {
   placementId: "sidebar-ultora-protein",
 } as const
 
+/**
+ * オルビス ミスター(A8.net、プログラムID s00000008657018)のトップ横長広告。
+ * DROP DROP DROP向けに発行した素材ID004の468×60公式バナーを改変せず使用する。
+ */
+export const ORBIS_MR_A8_PROMO = {
+  href: "https://px.a8.net/svt/ejp?a8mat=4BCE3K+555TWY+1USQ+2Z6VR5",
+  imageUrl: "https://www24.a8.net/svt/bgt?aid=260918624311&wid=001&eno=01&mid=s00000008657018004000&mc=1",
+  trackingPixelUrl: "https://www14.a8.net/0.gif?a8mat=4BCE3K+555TWY+1USQ+2Z6VR5",
+  itemName: "オルビス ミスター",
+  placementId: "home-orbis-mr-banner",
+} as const
+
 /** http(s)以外のスキーム(javascript:, data: 等)を弾く。AI下書きや外部データ由来のURLを描画する前の最終防衛線 */
 export function isSafeExternalUrl(url: string): boolean {
   try {

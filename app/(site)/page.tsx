@@ -2,6 +2,7 @@ import { getAllArticles, getFeaturedArticles, getAllBrands, getArchiveMonths } f
 import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
+import { HorizontalAffiliateBanner } from "@/components/HorizontalAffiliateBanner"
 import { siteConfig } from "@/lib/site-config"
 import Link from "next/link"
 import type { Metadata } from "next"
@@ -104,6 +105,7 @@ export default async function HomePage({
           {currentPage === 1 && snaps.length > 0 && (
             <EditorialSection title="編集部スナップ" eyebrow="EDITORIAL SNAP" href="/snap" articles={snaps} />
           )}
+          {currentPage === 1 && <HorizontalAffiliateBanner />}
           <div className="mb-5 flex items-end justify-between">
             <div>
               <p className="text-[10px] font-black tracking-[0.22em] text-accent">LATEST</p>
