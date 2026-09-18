@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AffiliateLink, OfficialLink, PurchaseChannelInfo } from "@/lib/types"
 import { AFFILIATE_REL, affiliateSearchQuery, isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
 import { ExternalLinkIcon } from "@/components/icons"
@@ -16,6 +16,15 @@ type Row = {
   itemName?: string
   saleMethod?: PurchaseChannelInfo["saleMethod"]
   date?: string
+  isPrimaryOfficial?: boolean
+}
+
+const SAFARI_PROMPT_SHOWN_KEY = "dropx3-safari-purchase-prompt-shown-v1"
+
+/** Safari本体だけを対象にする。iOS版Chrome/Firefox/Edgeやアプリ内WebViewは含めない。 */
+export function isSafariUserAgent(userAgent: string): boolean {
+  return /Safari\//.test(userAgent) && /Version\//.test(userAgent) &&
+    !/(?:Chrome|Chromium|CriOS|FxiOS|EdgiOS|OPiOS|SamsungBrowser|Android)/.test(userAgent)
 }
 
 const SALE_METHOD_LABEL: Record<PurchaseChannelInfo["saleMethod"], string> = {
@@ -84,6 +93,9 @@ export function PurchaseLinks({
   brand?: string
   contentType?: string
 }) {
+  const [showSafariPrompt, setShowSafariPrompt] = useState(false)
+  const officialDepartureAtRef = useRef<number | null>(null)
+  const promptShownRef = useRef(false)
   const safeOfficial = officialLinks.filter(
     (link, index, links) =>
       isSafeExternalUrl(link.url) &&
@@ -151,6 +163,7 @@ export function PurchaseLinks({
       retailer: "",
       saleMethod: primaryChannel?.saleMethod,
       date: primaryChannel?.date,
+      isPrimaryOfficial: true,
     },
     ...safeOfficial
       .filter((link) => link.url !== primaryOfficialUrl)
@@ -192,30 +205,82 @@ export function PurchaseLinks({
 
   const showGroupLabels = affiliateRows.length > 0
 
-  function handleRowClick(row: Row) {
+  useEffect(() => {
+    if (affiliateRows.length === 0 || !isSafariUserAgent(window.navigator.userAgent)) return
+
+    try {
+      if (window.sessionStorage.getItem(SAFARI_PROMPT_SHOWN_KEY) === "1") {
+        promptShownRef.current = true
+        return
+      }
+    } catch {
+      // sessionStorageが使えない場合も、同じページ内ではrefで二重表示を防ぐ。
+    }
+
+    const showAfterReturn = () => {
+      const departedAt = officialDepartureAtRef.current
+      if (
+        promptShownRef.current ||
+        departedAt === null ||
+        document.visibilityState !== "visible" ||
+        Date.now() - departedAt < 800
+      ) return
+
+      promptShownRef.current = true
+      officialDepartureAtRef.current = null
+      try {
+        window.sessionStorage.setItem(SAFARI_PROMPT_SHOWN_KEY, "1")
+      } catch {
+        // 保存できなくても表示は続行する。
+      }
+      setShowSafariPrompt(true)
+      trackEvent("purchase_prompt_view", {
+        article_id: articleId,
+        article_title: articleTitle,
+        browser_family: "safari",
+        affiliate_count: affiliateRows.length,
+      })
+    }
+
+    document.addEventListener("visibilitychange", showAfterReturn)
+    window.addEventListener("focus", showAfterReturn)
+    return () => {
+      document.removeEventListener("visibilitychange", showAfterReturn)
+      window.removeEventListener("focus", showAfterReturn)
+    }
+  }, [affiliateRows.length, articleId, articleTitle])
+
+  function handleRowClick(row: Row, placement: "article_body" | "official_return_prompt" = "article_body") {
     if (row.isAd) {
       trackEvent("affiliate_click", {
         affiliate_network: classifyAffiliateNetwork(row.retailer),
         item_name: row.itemName ?? articleTitle,
         item_brand: brand,
-        placement: "article_body",
+        placement,
         article_id: articleId,
         article_title: articleTitle,
         content_type: contentType,
         link_url: row.url,
       })
     } else {
+      const safari = isSafariUserAgent(window.navigator.userAgent)
+      if (row.isPrimaryOfficial && safari && affiliateRows.length > 0 && !promptShownRef.current) {
+        officialDepartureAtRef.current = Date.now()
+      }
       trackEvent("outbound_click", {
         link_domain: linkDomain(row.url),
         link_url: row.url,
         placement: "article_body",
         article_id: articleId,
+        browser_family: safari ? "safari" : "other",
+        link_role: row.isPrimaryOfficial ? "primary_official" : "official",
       })
     }
   }
 
   return (
-    <div id="purchase-links" className="my-8 scroll-mt-24 overflow-hidden rounded-xl border border-border">
+    <>
+      <div id="purchase-links" className="my-8 scroll-mt-24 overflow-hidden rounded-xl border border-border">
       <div className="bg-accent px-4 py-3">
         <h2 className="text-sm font-bold text-accent-foreground">
           {primaryItemName ? `「${primaryItemName}」の販売情報・購入先` : "販売情報・購入先"}
@@ -251,7 +316,63 @@ export function PurchaseLinks({
           「PR」表記のリンクは広告を含みます。購入・申込によって{siteConfig.name}に紹介料が入る場合があります。
         </p>
       )}
-    </div>
+      </div>
+      {showSafariPrompt && affiliateRows.length > 0 && (
+        <SafariPurchasePrompt
+          rows={affiliateRows.slice(0, 2)}
+          onClose={() => setShowSafariPrompt(false)}
+          onRowClick={(row) => {
+            handleRowClick(row, "official_return_prompt")
+            setShowSafariPrompt(false)
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+function SafariPurchasePrompt({
+  rows,
+  onClose,
+  onRowClick,
+}: {
+  rows: Row[]
+  onClose: () => void
+  onRowClick: (row: Row) => void
+}) {
+  return (
+    <aside
+      role="dialog"
+      aria-live="polite"
+      aria-label="購入先の案内"
+      className="fixed inset-x-3 bottom-4 z-50 mx-auto max-w-xl rounded-2xl border border-border bg-background p-4 shadow-2xl"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="購入先の案内を閉じる"
+        className="absolute right-3 top-2 text-xl leading-none text-muted-foreground hover:text-foreground"
+      >
+        ×
+      </button>
+      <p className="pr-8 text-sm font-black">公式情報は確認できましたか？</p>
+      <p className="mt-1 text-xs text-muted-foreground">価格や在庫を購入先で比較できます。</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {rows.map((row) => (
+          <a
+            key={`${row.retailer}-${row.url}`}
+            href={row.url}
+            target="_blank"
+            rel={AFFILIATE_REL}
+            onClick={() => onRowClick(row)}
+            className="rounded-full bg-foreground px-4 py-2 text-xs font-bold text-background transition-opacity hover:opacity-80"
+          >
+            {row.retailer || row.label}で見る
+          </a>
+        ))}
+      </div>
+      <p className="mt-2 text-[10px] text-muted-foreground">PR：購入により紹介料が入る場合があります。</p>
+    </aside>
   )
 }
 

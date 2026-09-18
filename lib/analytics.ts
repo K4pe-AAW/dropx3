@@ -17,7 +17,7 @@ export type AnalyticsEvent =
         affiliate_network: AffiliateNetwork
         item_name: string
         item_brand?: string
-        placement: "article_body" | "sidebar_promo" | "home_latest_banner"
+        placement: "article_body" | "official_return_prompt" | "sidebar_promo" | "home_latest_banner"
         article_id: string
         article_title: string
         content_type?: string
@@ -31,6 +31,17 @@ export type AnalyticsEvent =
         link_url: string
         placement: "article_body"
         article_id: string
+        browser_family?: "safari" | "other"
+        link_role?: "primary_official" | "official"
+      }
+    }
+  | {
+      name: "purchase_prompt_view"
+      params: {
+        article_id: string
+        article_title: string
+        browser_family: "safari"
+        affiliate_count: number
       }
     }
   | {

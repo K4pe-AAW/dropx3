@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { renderToStaticMarkup } from "react-dom/server"
 import { buildMercariSearchLink } from "@/lib/affiliate"
-import { isDirectOfficialSiteUrl, officialSiteSearchUrl, PurchaseLinks } from "./PurchaseLinks"
+import { isDirectOfficialSiteUrl, isSafariUserAgent, officialSiteSearchUrl, PurchaseLinks } from "./PurchaseLinks"
 
 test("PurchaseLinks: 商品検索語を見出しと各販売先に明示する", () => {
   const html = renderToStaticMarkup(
@@ -92,6 +92,25 @@ test("officialSiteSearchUrl: ブランド・商品名・公式を検索語にす
 test("officialSiteSearchUrl: 商品名にブランドが含まれる場合は重複させない", () => {
   const url = new URL(officialSiteSearchUrl("記事タイトル", "PUMA", "PUMA T7 TRACK JACKET"))
   assert.equal(url.searchParams.get("q"), "PUMA T7 TRACK JACKET 公式")
+})
+
+test("isSafariUserAgent: macOS/iPhoneのSafari本体だけを判定する", () => {
+  assert.equal(
+    isSafariUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.6 Safari/605.1.15"),
+    true
+  )
+  assert.equal(
+    isSafariUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1"),
+    true
+  )
+  assert.equal(
+    isSafariUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 CriOS/140.0 Mobile/15E148 Safari/604.1"),
+    false
+  )
+  assert.equal(
+    isSafariUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/140.0 Safari/537.36"),
+    false
+  )
 })
 
 test("isDirectOfficialSiteUrl: ブランドサイトだけを直接リンク候補にする", () => {
