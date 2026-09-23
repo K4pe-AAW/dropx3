@@ -62,6 +62,17 @@ test("6記事周期にYouTubeが無ければYouTube候補を先にし、1件公�
   assert.deepEqual(orderAutoPublishCandidates([normal, youtube], 1).map((draft) => draft.id), ["normal"])
 })
 
+test("国内ブランド公式の新着は通常記事の中で優先する", () => {
+  const ordinary = { id: "ordinary", suggestedYoutubeVideoId: undefined } as Draft
+  const domestic = {
+    id: "domestic",
+    suggestedYoutubeVideoId: undefined,
+    editorialPriority: "domestic_brand_new_arrival",
+  } as Draft
+  const ordered = orderAutoPublishCandidates([ordinary, domestic], 1)
+  assert.deepEqual(ordered.map((draft) => draft.id), ["domestic", "ordinary"])
+})
+
 test("髭ミルクのラジオ下書きは自動公開候補から除外する", () => {
   const radio = {
     id: "radio",

@@ -30,9 +30,10 @@ async function hydratePageAssets(items: Awaited<ReturnType<typeof collectFromRss
           const page = await fetchPageText(item.sourceUrl)
           return {
             ...item,
+            ...(item.officialBrand && page.title ? { title: page.title } : {}),
             ...(page.imageCandidates.length > 0 ? { imageCandidates: page.imageCandidates } : {}),
             ...(page.commerceLinkCandidates?.length ? { commerceLinkCandidates: page.commerceLinkCandidates } : {}),
-            ...(page.text && !item.snippet ? { snippet: page.text.slice(0, 3000) } : {}),
+            ...(page.text && (!item.snippet || item.officialBrand) ? { snippet: page.text.slice(0, 3000) } : {}),
           }
         })
       ))

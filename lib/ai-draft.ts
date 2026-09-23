@@ -175,11 +175,15 @@ function buildUserPrompt(item: RawItem): string {
   const commerceLinks = item.commerceLinkCandidates?.length
     ? item.commerceLinkCandidates.map((link) => `- ${link.label}: ${link.url}`).join("\n")
     : "(候補なし)"
+  const sourceContext = item.officialBrand
+    ? `この情報源は${item.officialBrand}自身の公式商品ページです。informationStatusはofficialとし、ブランド名は${item.officialBrand}を必ず含めてください。`
+    : "この情報源の確度を本文から判定してください。"
   return `以下のニュースの要点をもとに、${siteConfig.name}向けの記事下書きを作成してください。
 
 本日の日付: ${today}(西暦の年はこれを基準にすること。あなたの学習データにある年を使わない)
 タイトル: ${item.title}
 出典: ${item.sourceName}
+情報源の扱い: ${sourceContext}
 抜粋: ${item.snippet ?? "(本文抜粋なし。タイトルの情報のみで一般論として書いてください)"}
 元ページから機械抽出した販売・抽選リンク候補(URLはこの一覧からのみ使用可):
 ${commerceLinks}
@@ -313,14 +317,17 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
   // 概要欄等に実際に書かれていたブランド/店舗URL(あれば)。YouTube記事は「チャンネルで見る」の
   // 定番リンクを先頭に必ず残しつつ、紹介されたブランドのリンクをその後ろに続ける
   const brandLinksFromAi = sanitizeSuggestedOfficialLinks(result.suggestedOfficialLinks)
+  const directOfficialLink = item.officialBrand
+    ? [{ label: `${item.officialBrand}公式サイトで見る`, url: item.sourceUrl } satisfies OfficialLink]
+    : []
   const suggestedOfficialLinks = youtubeVideoId
     ? [{ label: `${item.sourceName}で見る`, url: item.sourceUrl } satisfies OfficialLink, ...brandLinksFromAi]
-    : brandLinksFromAi
+    : [...directOfficialLink, ...brandLinksFromAi.filter((link) => link.url !== item.sourceUrl)]
   const suggestedColorways = sanitizeSuggestedColorways(result.suggestedColorways)
   // YouTube動画は公式CDNのサムネイルを優先するため、それ以外の場合のみページから拾った画像候補を使う
   const pageImages = !youtubeVideoId ? (item.imageCandidates ?? []) : []
   const sourceDetectedStatus = detectUnconfirmedStatus(`${item.title}\n${item.snippet ?? ""}`)
-  const informationStatus: InformationStatus = sourceDetectedStatus ?? (
+  const informationStatus: InformationStatus = item.officialBrand ? "official" : sourceDetectedStatus ?? (
     ["official", "report", "rumor", "leak"].includes(result.informationStatus ?? "")
       ? result.informationStatus!
       : "report"
@@ -343,7 +350,11 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
         ? result.category
         : DEFAULT_CATEGORY,
     informationStatus,
-    brands: Array.isArray(result.brands) ? result.brands : [],
+    ...(item.officialBrand ? { editorialPriority: "domestic_brand_new_arrival" as const } : {}),
+    brands: [...new Set([
+      ...(item.officialBrand ? [item.officialBrand] : []),
+      ...(Array.isArray(result.brands) ? result.brands : []),
+    ])],
     tags: Array.isArray(result.tags) ? result.tags : [],
     suggestedAffiliateSearch: Array.isArray(result.suggestedAffiliateSearch)
       ? result.suggestedAffiliateSearch

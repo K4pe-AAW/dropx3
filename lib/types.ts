@@ -196,6 +196,8 @@ export type RawItem = {
   imageCandidates?: string[]
   /** 元ページに実在する販売・抽選関連リンク。AIがURLを創作しないための許可リストとしても使う */
   commerceLinkCandidates?: { label: string; url: string }[]
+  /** ブランド自身の商品ページから取得した一次情報。AI判定ではなく収集設定でのみ付与する。 */
+  officialBrand?: string
 }
 
 export type DraftStatus = "pending" | "approved" | "rejected"
@@ -211,6 +213,8 @@ export type Draft = {
   category: Category
   contentType?: ContentType
   informationStatus?: InformationStatus
+  /** 自動公開候補の中で編集上優先するテーマ。現在は国内ブランド公式の新着に使用する。 */
+  editorialPriority?: "domestic_brand_new_arrival"
   editorialAuthor?: string
   seriesName?: string
   isSponsored?: boolean

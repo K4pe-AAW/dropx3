@@ -1,11 +1,14 @@
 import Parser from "rss-parser"
+import * as cheerio from "cheerio"
 import {
   SOURCES,
+  OFFICIAL_BRAND_LISTING_SOURCES,
   PR_TIMES_RSS_URL,
   PR_TIMES_KEYWORDS,
   FASHIONSNAP_INCLUDE_KEYWORDS,
   FASHIONSNAP_EXCLUDE_KEYWORDS,
 } from "./sources"
+import type { OfficialBrandListingSource } from "./sources"
 import { RawItem } from "./types"
 import { generateId, getCrawlSources } from "./storage"
 import { youtubeChannelRssUrl } from "./source-watch/youtube"
@@ -29,6 +32,81 @@ type FeedItem = {
   isoDate?: string
   pubDate?: string
   mediaGroup?: { "media:description"?: string[] }
+}
+
+const OFFICIAL_LISTING_UA = "Mozilla/5.0 (compatible; DropDropDropOfficialBrandWatch/1.0; +https://dropx3.com)"
+
+function productTitleFromLink(text: string, pathname: string): string {
+  const cleaned = text.replace(/\s+/g, " ").trim()
+  if (cleaned.length >= 3) return cleaned.slice(0, 200)
+  const slug = pathname.split("/").filter(Boolean).at(-1) ?? "新着商品"
+  return decodeURIComponent(slug).replace(/[-_]+/g, " ").slice(0, 200)
+}
+
+/** 公式一覧HTMLから同一ドメインの商品URLだけを、画面上の並び順を保って抽出する。 */
+export function extractOfficialBrandProductLinks(
+  html: string,
+  source: OfficialBrandListingSource
+): { url: string; title: string }[] {
+  const $ = cheerio.load(html)
+  const listing = new URL(source.listingUrl)
+  const seen = new Set<string>()
+  const items: { url: string; title: string }[] = []
+
+  $("a[href]").each((_, el) => {
+    if (items.length >= source.maxItems) return
+    const href = $(el).attr("href")
+    if (!href) return
+    let candidate: URL
+    try {
+      candidate = new URL(href, listing)
+    } catch {
+      return
+    }
+    if (candidate.origin !== listing.origin) return
+    const markerIndex = candidate.pathname.indexOf(source.productPathMarker)
+    if (markerIndex < 0) return
+
+    // Shopifyの /collections/.../products/xxx は同じ商品の別名URLなので /products/xxx に正規化する。
+    const canonicalPath = candidate.pathname.slice(markerIndex)
+    candidate.pathname = canonicalPath
+    candidate.search = ""
+    candidate.hash = ""
+    const url = candidate.toString()
+    if (seen.has(url)) return
+    seen.add(url)
+    items.push({ url, title: productTitleFromLink($(el).text(), canonicalPath) })
+  })
+  return items
+}
+
+export async function collectFromOfficialBrandListings(): Promise<{ items: RawItem[]; errors: string[] }> {
+  const items: RawItem[] = []
+  const errors: string[] = []
+  for (const source of OFFICIAL_BRAND_LISTING_SOURCES) {
+    try {
+      const res = await fetch(source.listingUrl, {
+        headers: { "User-Agent": OFFICIAL_LISTING_UA },
+        signal: AbortSignal.timeout(12000),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const fetchedAt = new Date().toISOString()
+      for (const product of extractOfficialBrandProductLinks(await res.text(), source)) {
+        items.push({
+          id: generateId(product.url),
+          sourceName: source.name,
+          sourceUrl: product.url,
+          title: product.title,
+          publishedAt: fetchedAt,
+          fetchedAt,
+          officialBrand: source.brand,
+        })
+      }
+    } catch (err) {
+      errors.push(`${source.name}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return { items, errors }
 }
 
 /** ショート動画は短尺で情報量が薄く記事化に向かないため収集対象から除外する */
@@ -79,8 +157,9 @@ function toRawItem(sourceName: string, item: FeedItem, youtubeChannelId?: string
 }
 
 export async function collectFromRss(): Promise<{ items: RawItem[]; errors: string[] }> {
-  const items: RawItem[] = []
-  const errors: string[] = []
+  const official = await collectFromOfficialBrandListings()
+  const items: RawItem[] = [...official.items]
+  const errors: string[] = [...official.errors]
 
   const { youtube } = await getCrawlSources()
   const youtubeSources = youtube.map((y) => ({

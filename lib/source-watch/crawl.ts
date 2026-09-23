@@ -47,10 +47,30 @@ const MAX_ITEMS_PER_CRAWL = 5
 // 1回のcron実行で処理するdueソース数の上限。残りは次回の巡回(4時間後)に持ち越す。
 const MAX_SOURCES_PER_RUN = 2
 
-function isSourceDue(source: Source, latestLog: CrawlLog | undefined): boolean {
+function isSourceDue(source: Source, latestLog: CrawlLog | undefined, nowMs = Date.now()): boolean {
   if (!latestLog) return true
-  const elapsedMs = Date.now() - new Date(latestLog.startedAt).getTime()
+  const elapsedMs = nowMs - new Date(latestLog.startedAt).getTime()
   return elapsedMs >= source.monitoringIntervalMinutes * 60 * 1000
+}
+
+/**
+ * 永続配列の先頭だけが毎回選ばれる飢餓を防ぎ、未巡回→最終巡回が古い順に回す。
+ * 1実行の件数上限は維持するため、Vercelの実行時間・APIコストは増やさない。
+ */
+export function selectDueSources(
+  entries: { source: Source; latestLog?: CrawlLog }[],
+  nowMs = Date.now(),
+  limit = MAX_SOURCES_PER_RUN
+): Source[] {
+  return entries
+    .filter(({ source, latestLog }) => isSourceDue(source, latestLog, nowMs))
+    .sort((a, b) => {
+      const timeA = a.latestLog ? new Date(a.latestLog.startedAt).getTime() : 0
+      const timeB = b.latestLog ? new Date(b.latestLog.startedAt).getTime() : 0
+      return timeA - timeB
+    })
+    .slice(0, limit)
+    .map(({ source }) => source)
 }
 
 function sourceLinkTypeFor(category: Source["category"]): SourceLinkType {
@@ -463,13 +483,14 @@ export async function runDueCrawls(sourceId?: string): Promise<{ results: CrawlL
     return s.enabled && s.monitoringMethod !== "manual"
   })
 
+  const selected = sourceId
+    ? targets
+    : selectDueSources(
+        await Promise.all(targets.map(async (source) => ({ source, latestLog: await getLatestCrawlLog(source.id) })))
+      )
+
   const results: CrawlLog[] = []
-  for (const source of targets) {
-    if (!sourceId) {
-      if (results.length >= MAX_SOURCES_PER_RUN) break
-      const latest = await getLatestCrawlLog(source.id)
-      if (!isSourceDue(source, latest)) continue
-    }
+  for (const source of selected) {
     results.push(await crawlSource(source))
   }
   return { results }

@@ -103,11 +103,20 @@ export function orderAutoPublishCandidates(drafts: Draft[], youtubePublishedInCy
     0,
     TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE - youtubePublishedInCycle
   )
-  const normalCandidates = shuffled(allowedDrafts.filter((draft) => !draft.suggestedYoutubeVideoId))
+  const priorityDomesticCandidates = shuffled(
+    allowedDrafts.filter(
+      (draft) => !draft.suggestedYoutubeVideoId && draft.editorialPriority === "domestic_brand_new_arrival"
+    )
+  )
+  const normalCandidates = shuffled(
+    allowedDrafts.filter(
+      (draft) => !draft.suggestedYoutubeVideoId && draft.editorialPriority !== "domestic_brand_new_arrival"
+    )
+  )
   const youtubeCandidates = shuffled(allowedDrafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId)))
   return youtubeQuotaRemaining > 0
-    ? [...youtubeCandidates, ...normalCandidates]
-    : normalCandidates
+    ? [...youtubeCandidates, ...priorityDomesticCandidates, ...normalCandidates]
+    : [...priorityDomesticCandidates, ...normalCandidates]
 }
 
 async function saveArticleImage(imageUrl: string, draft: Draft, name: string): Promise<string> {

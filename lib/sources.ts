@@ -17,6 +17,38 @@ export type BrandSource = {
   imageUsePermitted?: boolean
 }
 
+export type OfficialBrandListingSource = {
+  name: string
+  brand: string
+  /** 常に最新商品が先頭に出る、ブランド自身の一覧ページ */
+  listingUrl: string
+  /** 商品URLのpathnameに必ず含まれる文字列。ナビゲーション等を除外するために使う。 */
+  productPathMarker: string
+  /** 1回の収集上限。過去商品の初回大量流入を防ぐ。 */
+  maxItems: number
+}
+
+/**
+ * 国内ブランドの公式新着。媒体RSSとは別に、ブランド自身の一覧から最新商品のみを拾う。
+ * 一覧URL・robots.txt・商品リンクは2026-09-23に実アクセスで確認済み。
+ */
+export const OFFICIAL_BRAND_LISTING_SOURCES: OfficialBrandListingSource[] = [
+  {
+    name: "MARKAWARE公式",
+    brand: "MARKAWARE",
+    listingUrl: "https://markaware.jp/",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
+  {
+    name: "NICENESS公式",
+    brand: "NICENESS",
+    listingUrl: "https://www.niceness.jp/ja",
+    productPathMarker: "/ja/products/",
+    maxItems: 6,
+  },
+]
+
 /**
  * 手動で記事化する際に参照するブランド公式サイト一覧。RSS収集(SOURCES)とは別枠。
  * 掲載画像がブランド自身の著作物（＝自社サイト上の自社製品画像）であることが自明なため、
