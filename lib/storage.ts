@@ -246,13 +246,31 @@ export function relatedScore(base: Article, candidate: Article): number {
  */
 export async function getRelatedArticles(article: Article, limit = 4): Promise<Article[]> {
   const all = await getAllArticles()
-  return all
+  return rankRelatedArticles(all, article, limit)
+}
+
+/**
+ * 関連度の高い記事を優先し、枠が余る場合だけ新着記事で補う。
+ *
+ * ブランドやタグが未整備の新旧記事でも内部リンクを0件にしないためのフォールバック。
+ * 関連度がある記事の順位は変えず、記事数・公開頻度にも影響しない。
+ */
+export function rankRelatedArticles(all: Article[], article: Article, limit = 4): Article[] {
+  const ranked = all
     .map((a) => ({ a, score: relatedScore(article, a) }))
     .filter((x) => x.score > 0)
     // 同点は新しい記事を優先する（getAllArticlesが日付降順なので安定ソートで足りる）
     .sort((x, y) => y.score - x.score)
-    .slice(0, limit)
     .map((x) => x.a)
+
+  if (ranked.length >= limit) return ranked.slice(0, limit)
+
+  const selected = new Set([article.id, ...ranked.map((a) => a.id)])
+  const recentFallback = all
+    .filter((a) => !selected.has(a.id))
+    .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt))
+
+  return [...ranked, ...recentFallback].slice(0, limit)
 }
 
 export async function getAllBrands(): Promise<{ name: string; count: number }[]> {

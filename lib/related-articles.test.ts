@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { relatedScore } from "./storage"
+import { rankRelatedArticles, relatedScore } from "./storage"
 import type { Article } from "./types"
 
 function article(over: Partial<Article>): Article {
@@ -47,4 +47,25 @@ test("何も共通しなければ0（関連記事に出さない）", () => {
   const base = article({ id: "base", brands: ["REGAL"], tags: ["ローファー"], category: "boots" })
   const other = article({ id: "o", brands: ["NIKE"], tags: ["スニーカー"], category: "sneaker" })
   assert.equal(relatedScore(base, other), 0)
+})
+
+test("関連度のある記事を優先し、余りを新着記事で補う", () => {
+  const base = article({ id: "base", brands: ["REGAL"], category: "boots" })
+  const related = article({ id: "related", brands: ["REGAL"], publishedAt: "2026-08-01T00:00:00Z" })
+  const newest = article({ id: "newest", brands: ["NIKE"], publishedAt: "2026-09-03T00:00:00Z" })
+  const older = article({ id: "older", brands: ["adidas"], publishedAt: "2026-09-01T00:00:00Z" })
+
+  assert.deepEqual(
+    rankRelatedArticles([newest, older, related, base], base, 3).map((a) => a.id),
+    ["related", "newest", "older"]
+  )
+})
+
+test("関連記事が十分なら無関係な新着を混ぜない", () => {
+  const base = article({ id: "base", brands: ["REGAL"], category: "boots" })
+  const relatedA = article({ id: "a", brands: ["REGAL"] })
+  const relatedB = article({ id: "b", category: "boots" })
+  const unrelated = article({ id: "new", brands: ["NIKE"], publishedAt: "2026-09-03T00:00:00Z" })
+
+  assert.deepEqual(rankRelatedArticles([unrelated, relatedA, relatedB, base], base, 2).map((a) => a.id), ["a", "b"])
 })
