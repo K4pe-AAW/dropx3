@@ -1,6 +1,15 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { detectUnconfirmedStatus, ensureUnconfirmedTitle, isInformationStatus, isUnconfirmedStatus, unconfirmedNotice } from "./information-status"
+import {
+  applyRakutenProductEvidence,
+  detectUnconfirmedStatus,
+  ensureUnconfirmedTitle,
+  isDirectRakutenProductUrl,
+  isInformationStatus,
+  isUnconfirmedStatus,
+  removeGosspTitlePrefix,
+  unconfirmedNotice,
+} from "./information-status"
 
 test("情報ステータスは許可値だけを受け付ける", () => {
   assert.equal(isInformationStatus("leak"), true)
@@ -26,4 +35,23 @@ test("Goss!pとリークだけを未確認情報として扱う", () => {
   assert.equal(isUnconfirmedStatus("leak"), true)
   assert.equal(isUnconfirmedStatus("report"), false)
   assert.match(unconfirmedNotice("leak"), /情報解禁を待ちましょう/)
+})
+
+test("楽天の商品詳細ページだけを販売実在の根拠として扱う", () => {
+  assert.equal(isDirectRakutenProductUrl("https://item.rakuten.co.jp/shop-name/item-123/"), true)
+  assert.equal(isDirectRakutenProductUrl("https://product.rakuten.co.jp/product/-/abc123/"), true)
+  assert.equal(isDirectRakutenProductUrl("https://brandavenue.rakuten.co.jp/item/AB1234/"), true)
+  assert.equal(isDirectRakutenProductUrl("https://search.rakuten.co.jp/search/mall/XT-WHISPER/"), false)
+  assert.equal(isDirectRakutenProductUrl("https://www.rakuten.co.jp/shop-name/"), false)
+})
+
+test("楽天の商品詳細がある噂はREPORTへ上げ、リークは維持する", () => {
+  const productUrl = "https://item.rakuten.co.jp/shop-name/item-123/"
+  assert.equal(applyRakutenProductEvidence("rumor", [productUrl]), "report")
+  assert.equal(applyRakutenProductEvidence("leak", [productUrl]), "leak")
+  assert.equal(
+    applyRakutenProductEvidence("rumor", ["https://search.rakuten.co.jp/search/mall/item-123/"]),
+    "rumor"
+  )
+  assert.equal(removeGosspTitlePrefix("Goss!p｜新作スニーカーが登場"), "新作スニーカーが登場")
 })

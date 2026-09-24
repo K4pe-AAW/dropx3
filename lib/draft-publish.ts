@@ -14,7 +14,7 @@ import type {
   SourceRef,
 } from "@/lib/types"
 import { inferContentType, isContentType } from "@/lib/content-type"
-import { isInformationStatus } from "@/lib/information-status"
+import { applyRakutenProductEvidence, isInformationStatus, removeGosspTitlePrefix } from "@/lib/information-status"
 import { sanitizeSnapProfile, validateSnapProfile } from "@/lib/snap"
 
 /** ローカルパス(/images/xxx.jpg)か、http(s)の絶対URLのみ許可する（//host/pathのprotocol-relativeは除外） */
@@ -117,7 +117,7 @@ export type BuildArticleResult =
  * それだけで公開をブロックしないようにするため、draftはundefinedを許容する。
  */
 export function buildArticleFromDraft(draft: Draft | undefined, id: string, body: Record<string, unknown>): BuildArticleResult {
-  const title: string = typeof body.title === "string" && body.title.trim() ? body.title : (draft?.title ?? "")
+  let title: string = typeof body.title === "string" && body.title.trim() ? body.title : (draft?.title ?? "")
   const excerpt: string = typeof body.excerpt === "string" ? body.excerpt : (draft?.excerpt ?? "")
   const bodyParagraphs: string[] =
     Array.isArray(body.bodyParagraphs) && body.bodyParagraphs.length > 0
@@ -131,7 +131,7 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
   )
   const tags: string[] = Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : (draft?.tags ?? [])
   const coverImageInput: string = typeof body.coverImage === "string" ? body.coverImage.trim() : ""
-  const coverImageAlt: string = typeof body.coverImageAlt === "string" && body.coverImageAlt.trim() ? body.coverImageAlt : title
+  const coverImageAltInput: string = typeof body.coverImageAlt === "string" ? body.coverImageAlt.trim() : ""
   const coverImageCredit: string | undefined =
     typeof body.coverImageCredit === "string" && body.coverImageCredit.trim() ? body.coverImageCredit.trim() : undefined
   const affiliateLinks: AffiliateLink[] = sanitizeAffiliateLinks(
@@ -140,7 +140,7 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
   const contentType = isContentType(body.contentType)
     ? body.contentType
     : (draft?.contentType ?? inferContentType(category, affiliateLinks.length > 0))
-  const informationStatus = isInformationStatus(body.informationStatus)
+  const requestedInformationStatus = isInformationStatus(body.informationStatus)
     ? body.informationStatus
     : draft?.informationStatus
   const editorialAuthor =
@@ -160,6 +160,15 @@ export function buildArticleFromDraft(draft: Draft | undefined, id: string, body
   // 出典編集欄が送られてこなかった場合(未対応クライアント等)はdraft生成時の値を保つ
   const sourceRefsInput = sanitizeSourceRefs(body.sourceRefs)
   const sourceRefs: SourceRef[] = sourceRefsInput.length > 0 ? sourceRefsInput : (draft?.sourceRefs ?? [])
+  const informationStatus = applyRakutenProductEvidence(requestedInformationStatus, [
+    ...sourceRefs.map((ref) => ref.url),
+    ...officialLinks.map((link) => link.url),
+    ...purchaseChannels.map((channel) => channel.url),
+  ])
+  if (requestedInformationStatus === "rumor" && informationStatus === "report") {
+    title = removeGosspTitlePrefix(title)
+  }
+  const coverImageAlt = coverImageAltInput || title
 
   if (!title.trim()) {
     return { ok: false, error: "タイトルが空です", status: 400 }

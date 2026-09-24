@@ -3,7 +3,12 @@ import { generateId } from "./storage"
 import { siteConfig } from "./site-config"
 import { getOpenAIClient } from "./openai-client"
 import { resolveKnownAffiliateBuilder, isSafeExternalUrl } from "./affiliate"
-import { detectUnconfirmedStatus, ensureUnconfirmedTitle } from "./information-status"
+import {
+  applyRakutenProductEvidence,
+  detectUnconfirmedStatus,
+  ensureUnconfirmedTitle,
+  removeGosspTitlePrefix,
+} from "./information-status"
 import { STANDARD_ARTICLE_BODY_GUIDELINE } from "./article-writing-guidelines"
 
 const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
@@ -177,7 +182,7 @@ function buildUserPrompt(item: RawItem): string {
     : "(候補なし)"
   const sourceContext = item.officialBrand
     ? `この情報源は${item.officialBrand}自身の公式商品ページです。informationStatusはofficialとし、ブランド名は${item.officialBrand}を必ず含めてください。`
-    : "この情報源の確度を本文から判定してください。"
+    : "この情報源の確度を本文から判定してください。楽天市場の個別商品詳細ページで同一商品を確認できる場合は、商品の実在を確認済みとしてinformationStatusをreport以上にし、Goss!p表記を付けないでください。楽天の検索結果・店舗トップ・類似商品一覧だけでは確認済みにしないでください。"
   return `以下のニュースの要点をもとに、${siteConfig.name}向けの記事下書きを作成してください。
 
 本日の日付: ${today}(西暦の年はこれを基準にすること。あなたの学習データにある年を使わない)
@@ -327,12 +332,20 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
   // YouTube動画は公式CDNのサムネイルを優先するため、それ以外の場合のみページから拾った画像候補を使う
   const pageImages = !youtubeVideoId ? (item.imageCandidates ?? []) : []
   const sourceDetectedStatus = detectUnconfirmedStatus(`${item.title}\n${item.snippet ?? ""}`)
-  const informationStatus: InformationStatus = item.officialBrand ? "official" : sourceDetectedStatus ?? (
+  const detectedInformationStatus: InformationStatus = item.officialBrand ? "official" : sourceDetectedStatus ?? (
     ["official", "report", "rumor", "leak"].includes(result.informationStatus ?? "")
       ? result.informationStatus!
       : "report"
   )
-  const draftTitle = ensureUnconfirmedTitle(result.title || item.title, informationStatus)
+  const informationStatus = applyRakutenProductEvidence(detectedInformationStatus, [
+    item.sourceUrl,
+    ...(item.commerceLinkCandidates ?? []).map((link) => link.url),
+    ...suggestedPurchaseChannels.map((channel) => channel.url),
+  ]) ?? detectedInformationStatus
+  const rawTitle = result.title || item.title
+  const draftTitle = informationStatus === "rumor"
+    ? ensureUnconfirmedTitle(rawTitle, informationStatus)
+    : removeGosspTitlePrefix(rawTitle)
 
   return {
     id: generateId(`${item.sourceUrl}-draft`),

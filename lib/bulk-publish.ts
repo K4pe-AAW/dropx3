@@ -1,6 +1,7 @@
 import { QUICK_AFFILIATE_RETAILERS } from "./affiliate"
 import { canonicalBrandNames } from "./brands"
 import { inferContentType } from "./content-type"
+import { applyRakutenProductEvidence, removeGosspTitlePrefix } from "./information-status"
 import { generateId, generateSlug } from "./storage"
 import type { AffiliateLink, Article, Draft } from "./types"
 
@@ -31,21 +32,29 @@ export function bulkArticleId(draftId: string): string {
 export function draftToBulkArticleShape(draft: Draft): Omit<Article, "publishedAt"> {
   const id = bulkArticleId(draft.id)
   const affiliateLinks = buildAutoAffiliateLinks(draft.suggestedAffiliateSearch)
+  const informationStatus = applyRakutenProductEvidence(draft.informationStatus, [
+    ...draft.sourceRefs.map((ref) => ref.url),
+    ...(draft.suggestedOfficialLinks ?? []).map((link) => link.url),
+    ...(draft.suggestedPurchaseChannels ?? []).map((channel) => channel.url),
+  ])
+  const title = draft.informationStatus === "rumor" && informationStatus === "report"
+    ? removeGosspTitlePrefix(draft.title)
+    : draft.title
   return {
     id,
-    slug: generateSlug(draft.title, id),
-    title: draft.title,
+    slug: generateSlug(title, id),
+    title,
     excerpt: draft.excerpt,
     bodyParagraphs: draft.bodyParagraphs,
     coverImage: draft.suggestedCoverImage!,
-    coverImageAlt: draft.title,
+    coverImageAlt: title,
     galleryImages: draft.suggestedGalleryImages ?? [],
     category: draft.category,
     contentType: draft.contentType ?? inferContentType(draft.category, affiliateLinks.length > 0),
     brands: canonicalBrandNames(draft.brands),
     tags: draft.tags,
     featured: false,
-    ...(draft.informationStatus ? { informationStatus: draft.informationStatus } : {}),
+    ...(informationStatus ? { informationStatus } : {}),
     ...(draft.editorialAuthor ? { editorialAuthor: draft.editorialAuthor } : {}),
     ...(draft.seriesName ? { seriesName: draft.seriesName } : {}),
     ...(draft.isSponsored !== undefined ? { isSponsored: draft.isSponsored } : {}),

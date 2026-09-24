@@ -35,3 +35,31 @@ test("同じ下書きの一括公開を再実行しても記事IDとslugが変�
   assert.equal(first.id, retry.id)
   assert.equal(first.slug, retry.slug)
 })
+
+test("楽天の商品詳細ページがある噂記事はGoss!pを外してREPORTにする", () => {
+  const article = draftToBulkArticleShape({
+    ...youtubeDraft,
+    id: "rakuten-confirmed",
+    title: "Goss!p｜確認できたスニーカー",
+    informationStatus: "rumor",
+    sourceRefs: [
+      { name: "楽天市場", url: "https://item.rakuten.co.jp/shop-name/item-123/" },
+    ],
+  })
+  assert.equal(article.title, "確認できたスニーカー")
+  assert.equal(article.informationStatus, "report")
+})
+
+test("楽天検索リンクだけではGoss!pを外さない", () => {
+  const article = draftToBulkArticleShape({
+    ...youtubeDraft,
+    id: "rakuten-search-only",
+    title: "Goss!p｜未確認スニーカー",
+    informationStatus: "rumor",
+    sourceRefs: [
+      { name: "楽天市場", url: "https://search.rakuten.co.jp/search/mall/item-123/" },
+    ],
+  })
+  assert.equal(article.title, "Goss!p｜未確認スニーカー")
+  assert.equal(article.informationStatus, "rumor")
+})

@@ -29,6 +29,41 @@ export function ensureUnconfirmedTitle(title: string, status: InformationStatus)
   return title
 }
 
+/**
+ * 楽天の検索結果や店舗トップではなく、個別の商品詳細ページだけを販売実在の根拠にする。
+ * 自動生成する楽天アフィリエイト検索リンクはこの判定へ渡さない。
+ */
+export function isDirectRakutenProductUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    const host = url.hostname.toLowerCase().replace(/^www\./, "")
+    const path = url.pathname.toLowerCase()
+    if (host === "item.rakuten.co.jp") return path.split("/").filter(Boolean).length >= 2
+    if (host === "product.rakuten.co.jp") return /^\/product\//.test(path)
+    if (host === "brandavenue.rakuten.co.jp") return /\/item\//.test(path)
+    if (host === "fashion.rakuten.co.jp") return /\/item\//.test(path)
+    return false
+  } catch {
+    return false
+  }
+}
+
+export function hasDirectRakutenProductEvidence(urls: Array<string | undefined>): boolean {
+  return urls.some((url) => Boolean(url && isDirectRakutenProductUrl(url)))
+}
+
+/** 楽天の商品詳細ページで実売を確認できる噂記事はREPORTへ上げる。リーク資料は別扱いのため維持する。 */
+export function applyRakutenProductEvidence(
+  status: InformationStatus | undefined,
+  urls: Array<string | undefined>
+): InformationStatus | undefined {
+  return status === "rumor" && hasDirectRakutenProductEvidence(urls) ? "report" : status
+}
+
+export function removeGosspTitlePrefix(title: string): string {
+  return title.replace(/^\s*(?:Goss!p|Gossp!|RUMOR|噂)\s*[｜|:]\s*/i, "").trim()
+}
+
 export function unconfirmedNotice(status: "rumor" | "leak"): string {
   return status === "leak"
     ? "本記事の内容は、現時点ではリーク・未確認情報です。価格、発売日、仕様、国内展開などは変更される可能性があります。今後のブランド公式発表と情報解禁を待ちましょう。"

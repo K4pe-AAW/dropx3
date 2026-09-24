@@ -14,7 +14,7 @@ import { canonicalBrandNames } from "./brands"
 import { MAX_ARTICLE_GALLERY_IMAGES, canonicalImageKey, isSameProductAssetFamily } from "./image-candidates"
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
-import { ensureUnconfirmedTitle } from "./information-status"
+import { applyRakutenProductEvidence, ensureUnconfirmedTitle, removeGosspTitlePrefix } from "./information-status"
 import { isDraftAllowedByYoutubeCollectionPolicy } from "./youtube-collection-policy"
 
 // 既存の公開数を引き継ぎつつ、2時間枠ごとに3件、4時間（6件）ごとに
@@ -205,6 +205,11 @@ async function prepareArticle(draft: Draft): Promise<Article> {
   if (!query) throw new Error("アフィリエイト検索語がありません")
   // 設定不足ならOpenAIや公式サイト取得を始める前に止め、無駄なAPI利用を避ける。
   const affiliateLinks = buildRequiredAffiliateLinks(query)
+  const informationStatus = applyRakutenProductEvidence(draft.informationStatus ?? "report", [
+    ...draft.sourceRefs.map((ref) => ref.url),
+    ...(draft.suggestedOfficialLinks ?? []).map((link) => link.url),
+    ...(draft.suggestedPurchaseChannels ?? []).map((channel) => channel.url),
+  ]) ?? "report"
 
   const brushed = await brushUpDraftWithUrl(
     {
@@ -212,7 +217,7 @@ async function prepareArticle(draft: Draft): Promise<Article> {
       excerpt: draft.excerpt,
       bodyParagraphs: draft.bodyParagraphs,
       colorways: draft.suggestedColorways ?? [],
-      informationStatus: draft.informationStatus,
+      informationStatus,
     },
     sourceUrl
   )
@@ -230,8 +235,9 @@ async function prepareArticle(draft: Draft): Promise<Article> {
         sourceCoverImage,
         galleryCandidatesForPublish(draft, sourceUrl, brushed.imageCandidates)
       )
-  const informationStatus = draft.informationStatus ?? "report"
-  const title = ensureUnconfirmedTitle(brushed.title, informationStatus)
+  const title = informationStatus === "rumor"
+    ? ensureUnconfirmedTitle(brushed.title, informationStatus)
+    : removeGosspTitlePrefix(brushed.title)
 
   // 同じ下書きを再試行しても記事IDを増殖させない。
   const id = generateId(`${draft.id}-${AUTO_PUBLISH_POLICY_VERSION}`)
@@ -255,6 +261,7 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     publishedAt: now,
     featured: false,
     ...(brushed.colorways.length > 0 ? { colorways: brushed.colorways } : {}),
+    ...(draft.suggestedPurchaseChannels?.length ? { purchaseChannels: draft.suggestedPurchaseChannels } : {}),
     affiliateLinks,
     officialLinks: draft.suggestedOfficialLinks ?? [],
     sourceRefs: draft.sourceRefs.some((ref) => ref.url === sourceUrl)
