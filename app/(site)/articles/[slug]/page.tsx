@@ -18,6 +18,7 @@ import { CONTENT_TYPE_LABELS, isEditorialContentType } from "@/lib/content-type"
 import { SnapProfileCard } from "@/components/SnapProfileCard"
 import { buildArticleStructuredData } from "@/lib/article-structured-data"
 import { ArticleViewTracker } from "@/components/ArticleViewTracker"
+import { serializeJsonLd } from "@/lib/json-ld"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -37,6 +38,11 @@ export async function generateMetadata({
     // 検索結果で重要語が切れやすい。記事ページだけは完全なタイトルをそのまま使う。
     title: { absolute: article.title },
     description: article.excerpt,
+    authors: [{
+      name: article.editorialAuthor ?? `${siteConfig.name}編集部`,
+      url: article.editorialAuthor ? undefined : absoluteUrl("/authors/editorial"),
+    }],
+    keywords: [...new Set([...article.brands, ...article.tags])],
     alternates: { canonical: url },
     robots: { index: true, follow: true, "max-image-preview": "large" },
     openGraph: {
@@ -45,6 +51,8 @@ export async function generateMetadata({
       images: [article.coverImage],
       type: "article",
       publishedTime: article.publishedAt,
+      modifiedTime: article.updatedAt ?? article.publishedAt,
+      authors: [article.editorialAuthor ?? `${siteConfig.name}編集部`],
       url,
     },
   }
@@ -80,7 +88,7 @@ export default async function ArticleDetailPage({
         brand={article.brands[0]}
         contentType={article.contentType}
       />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <nav className="text-xs text-muted-foreground mb-4 flex flex-wrap gap-1.5 items-center">
         <Link href="/" className="hover:text-foreground">
           TOP
@@ -111,9 +119,11 @@ export default async function ArticleDetailPage({
       )}
 
       <h1 className="text-2xl sm:text-3xl font-black leading-tight mb-3 text-balance text-wrap-phrase">{article.title}</h1>
+      <p className="mb-4 text-base font-medium leading-relaxed text-foreground/80">{article.excerpt}</p>
       <p className={`text-sm text-muted-foreground ${article.affiliateLinks.length > 0 || article.isSponsored ? "mb-1" : "mb-6"}`}>
-        {formatDate(article.publishedAt)}
-        {article.editorialAuthor && <span> ・ By {article.editorialAuthor}</span>}
+        公開：{formatDate(article.publishedAt)}
+        {article.updatedAt && article.updatedAt !== article.publishedAt && <span> ・ 更新：{formatDate(article.updatedAt)}</span>}
+        <span> ・ By {article.editorialAuthor ?? <Link href="/authors/editorial" className="underline underline-offset-2">{siteConfig.name}編集部</Link>}</span>
       </p>
       {(article.affiliateLinks.length > 0 || article.isSponsored) && (
         <p className="text-xs text-muted-foreground/70 mb-6">本ページはプロモーションが含まれています</p>

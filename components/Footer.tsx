@@ -23,6 +23,12 @@ export function Footer() {
           <Link href="/privacy" className="hover:text-primary-foreground transition-colors">
             プライバシーポリシー
           </Link>
+          <Link href="/editorial-policy" className="hover:text-primary-foreground transition-colors">
+            編集・訂正ポリシー
+          </Link>
+          <Link href="/authors/editorial" className="hover:text-primary-foreground transition-colors">
+            編集部
+          </Link>
           <Link href="/disclaimer" className="hover:text-primary-foreground transition-colors">
             アフィリエイト表記・免責事項
           </Link>

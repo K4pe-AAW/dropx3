@@ -31,7 +31,8 @@ export async function GET() {
   const recentList = recent
     .map((a) => {
       const date = (a.publishedAt ?? "").slice(0, 10)
-      return `- [${a.title}](${url(`/articles/${a.slug}`)}): ${categoryLabel(a.category)}${date ? ` / ${date}` : ""}`
+      const updated = (a.updatedAt ?? "").slice(0, 10)
+      return `- [${a.title}](${url(`/articles/${a.slug}`)}): ${a.excerpt} / ${categoryLabel(a.category)}${date ? ` / 公開 ${date}` : ""}${updated && updated !== date ? ` / 更新 ${updated}` : ""}`
     })
     .join("\n")
 
@@ -46,6 +47,10 @@ ${siteConfig.name}は、スニーカー・ストリートファッションの�
 ## Primary pages
 
 - [トップ](${url("/")}): 最新記事の一覧
+- [発売日カレンダー](${url("/calendar")}): 記事から抽出した発売予定一覧
+- [編集・訂正ポリシー](${url("/editorial-policy")}): 情報確認、AI利用、画像、広告、訂正の方針
+- [編集部プロフィール](${url("/authors/editorial")}): 記事制作チームの担当領域
+- [RSS](${url("/rss.xml")}): 最新記事フィード
 ${categories}
 
 ## Recent articles
@@ -63,6 +68,8 @@ ${recentList}
   記事内からリンクしている公式ページで最新の情報を確認してください。
 - 記事には広告（アフィリエイトリンク）を含む場合があり、該当箇所にはPR表記があります。
 - 在庫や当選を保証するものではありません。
+- 記事末尾の「情報元・参考」は、内容確認に使用した一次情報または参考資料です。
+- 未確認情報にはGoss!pまたはリークの表示があり、公式確認後に更新します。
 `
 
   return new Response(body, {

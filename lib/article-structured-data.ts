@@ -15,13 +15,14 @@ export function buildArticleStructuredData(
   const organizationId = `${absoluteUrl("/", siteUrl)}#organization`
   const websiteId = `${absoluteUrl("/", siteUrl)}#website`
   const articleId = `${articleUrl}#article`
+  const editorialTeamUrl = absoluteUrl("/authors/editorial", siteUrl)
   const images = [article.coverImage, ...article.galleryImages.map((image) => image.url)]
     .filter(Boolean)
     .map((image) => absoluteUrl(image, siteUrl))
     .filter((image, index, all) => all.indexOf(image) === index)
 
   const articleNode: JsonLdNode = {
-    "@type": "Article",
+    "@type": !article.contentType || article.contentType === "NEWS" ? "NewsArticle" : "Article",
     "@id": articleId,
     url: articleUrl,
     headline: article.title,
@@ -32,10 +33,20 @@ export function buildArticleStructuredData(
     dateModified: article.updatedAt || article.publishedAt,
     inLanguage: "ja-JP",
     articleSection: categoryName,
+    articleBody: article.bodyParagraphs.join("\n\n"),
     keywords: [...new Set([...article.brands, ...article.tags])].join(", "),
+    about: article.brands.map((name) => ({ "@type": "Brand", name })),
+    mentions: article.tags.map((name) => ({ "@type": "Thing", name })),
+    citation: article.sourceRefs.map((source) => source.url),
+    isAccessibleForFree: true,
     author: article.editorialAuthor
       ? { "@type": "Person", name: article.editorialAuthor }
-      : { "@id": organizationId },
+      : {
+          "@type": "Organization",
+          "@id": `${organizationId}-editorial-team`,
+          name: `${siteName}編集部`,
+          url: editorialTeamUrl,
+        },
     publisher: { "@id": organizationId },
     isPartOf: { "@id": websiteId },
     mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
@@ -55,6 +66,7 @@ export function buildArticleStructuredData(
           width: 180,
           height: 180,
         },
+        publishingPrinciples: absoluteUrl("/editorial-policy", siteUrl),
       },
       {
         "@type": "WebSite",

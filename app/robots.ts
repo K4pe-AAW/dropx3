@@ -26,6 +26,7 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "*", allow: "/", disallow: DISALLOW },
       ...AI_SEARCH_AGENTS.map((userAgent) => ({ userAgent, allow: "/", disallow: DISALLOW })),
     ],
-    sitemap: `${siteConfig.url}/sitemap.xml`,
+    sitemap: [`${siteConfig.url}/sitemap.xml`, `${siteConfig.url}/news-sitemap.xml`],
+    host: siteConfig.url,
   }
 }

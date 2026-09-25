@@ -6,6 +6,7 @@ import { HorizontalAffiliateBanner } from "@/components/HorizontalAffiliateBanne
 import { siteConfig } from "@/lib/site-config"
 import Link from "next/link"
 import type { Metadata } from "next"
+import { serializeJsonLd } from "@/lib/json-ld"
 
 const PAGE_SIZE = 12
 
@@ -83,7 +84,7 @@ export default async function HomePage({
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       {/*
         トップにh1が無く、機械から見て「何のページか」が分からない状態だった。
         見た目はヘッダのロゴが担っているので、視覚的には出さずに見出しだけ置く。

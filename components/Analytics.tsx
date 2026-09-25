@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import Script from "next/script"
 import { usePathname } from "next/navigation"
+import { classifyAiReferral, trackEvent } from "@/lib/analytics"
 
 /**
  * GA4計測タグ。NEXT_PUBLIC_GA_MEASUREMENT_ID未設定なら何も描画しない
@@ -24,6 +25,15 @@ export function Analytics() {
     if (!measurementId || typeof window.gtag !== "function" || !pathname) return
     if (pathname.startsWith("/admin")) return
     window.gtag("event", "page_view", { page_path: pathname })
+    const source = classifyAiReferral(
+      document.referrer,
+      new URLSearchParams(window.location.search).get("utm_source") ?? ""
+    )
+    const storageKey = "dropx3_ai_referral_recorded"
+    if (source && sessionStorage.getItem(storageKey) !== "1") {
+      trackEvent("ai_referral", { ai_source: source, landing_path: pathname })
+      sessionStorage.setItem(storageKey, "1")
+    }
   }, [pathname, measurementId])
 
   if (!measurementId) return null

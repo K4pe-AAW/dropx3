@@ -19,6 +19,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteConfig.url}/picks`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${siteConfig.url}/snap`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${siteConfig.url}/calendar`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteConfig.url}/editorial-policy`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${siteConfig.url}/authors/editorial`, changeFrequency: "monthly", priority: 0.5 },
     ...siteConfig.categories.map((c) => ({
       url: `${siteConfig.url}/category/${c.slug}`,
       changeFrequency: "hourly" as const,
@@ -32,7 +34,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "weekly",
     priority: 0.6,
     // カバー画像を画像検索にも明示する。外部画像も絶対URLならsitemap仕様上有効。
-    images: [new URL(a.coverImage, siteConfig.url).toString()],
+    images: [a.coverImage, ...a.galleryImages.map((image) => image.url)]
+      .filter(Boolean)
+      .map((image) => new URL(image, siteConfig.url).toString())
+      .filter((image, index, all) => all.indexOf(image) === index),
   }))
 
   const brandPages: MetadataRoute.Sitemap = brands.map((b) => ({

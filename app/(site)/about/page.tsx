@@ -1,7 +1,12 @@
 import type { Metadata } from "next"
 import { siteConfig } from "@/lib/site-config"
+import Link from "next/link"
 
-export const metadata: Metadata = { title: "サイトについて" }
+export const metadata: Metadata = {
+  title: "サイトについて",
+  description: `${siteConfig.name}の運営情報と編集方針。`,
+  alternates: { canonical: new URL("/about", siteConfig.url).toString() },
+}
 
 export default function AboutPage() {
   return (
@@ -25,6 +30,7 @@ export default function AboutPage() {
           <p>
             記事は公式リリースや一次情報をもとに編集部が独自に執筆しています。価格・発売日・在庫状況は記事公開時点の情報であり、その後変更される場合があります。最新情報は各ブランド・販売店の公式サイトでご確認ください。
           </p>
+          <p className="mt-2"><Link href="/editorial-policy" className="font-bold underline underline-offset-2">編集・訂正ポリシーの詳細</Link></p>
         </section>
       </div>
     </div>

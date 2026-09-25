@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { trackEvent, classifyAffiliateNetwork, linkDomain } from "./analytics"
+import { trackEvent, classifyAffiliateNetwork, classifyAiReferral, linkDomain } from "./analytics"
 
 function withMockGtag(run: (calls: unknown[][]) => void) {
   const calls: unknown[][] = []
@@ -89,4 +89,10 @@ test("linkDomain: URLからホスト名を取り出す", () => {
 
 test("linkDomain: 不正なURLは空文字", () => {
   assert.equal(linkDomain("not a url"), "")
+})
+
+test("AI検索のreferrerとChatGPTのUTMを分類する", () => {
+  assert.equal(classifyAiReferral("https://www.perplexity.ai/search/test"), "perplexity")
+  assert.equal(classifyAiReferral("", "chatgpt.com"), "chatgpt")
+  assert.equal(classifyAiReferral("https://example.com"), null)
 })

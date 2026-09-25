@@ -27,15 +27,15 @@ function article(overrides: Partial<Article> = {}): Article {
   }
 }
 
-test("Article、組織、サイト、パンくずを関連付けて出力する", () => {
+test("NewsArticle、組織、サイト、パンくずを関連付けて出力する", () => {
   const data = buildArticleStructuredData(article(), {
     siteUrl: "https://dropx3.com",
     siteName: "DROP DROP DROP",
     categoryName: "スニーカー",
   })
   const types = data["@graph"].map((node) => node["@type"])
-  assert.deepEqual(types, ["Organization", "WebSite", "Article", "BreadcrumbList"])
-  const articleNode = data["@graph"].find((node) => node["@type"] === "Article")
+  assert.deepEqual(types, ["Organization", "WebSite", "NewsArticle", "BreadcrumbList"])
+  const articleNode = data["@graph"].find((node) => node["@type"] === "NewsArticle")
   assert.deepEqual(articleNode?.image, [
     "https://dropx3.com/images/sample.webp",
     "https://dropx3.com/images/sample-detail.webp",
@@ -43,6 +43,9 @@ test("Article、組織、サイト、パンくずを関連付けて出力する"
   assert.equal(articleNode?.inLanguage, "ja-JP")
   assert.equal(articleNode?.articleSection, "スニーカー")
   assert.equal(articleNode?.keywords, "Sample Brand, 新作, スニーカー")
+  assert.equal(articleNode?.articleBody, "本文")
+  assert.deepEqual(articleNode?.citation, [])
+  assert.equal((articleNode?.author as { url?: string }).url, "https://dropx3.com/authors/editorial")
 })
 
 test("BUY/PICKSでも販売者リスティングを誘発するProduct/Offerを出さない", () => {

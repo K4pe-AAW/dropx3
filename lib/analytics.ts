@@ -5,12 +5,20 @@ declare global {
 }
 
 export type AffiliateNetwork = "amazon" | "rakuten" | "a8" | "other"
+export type AiReferralSource = "chatgpt" | "perplexity" | "claude" | "copilot" | "gemini"
 
 /**
  * 計測するカスタムイベントの一覧。イベント名とパラメータの組み合わせをここで型として縛り、
  * 呼び出し側(各コンポーネント)がtrackEvent()経由で送るパラメータを間違えられないようにする。
  */
 export type AnalyticsEvent =
+  | {
+      name: "ai_referral"
+      params: {
+        ai_source: AiReferralSource
+        landing_path: string
+      }
+    }
   | {
       name: "article_view"
       params: {
@@ -187,4 +195,15 @@ export function linkDomain(url: string): string {
   } catch {
     return ""
   }
+}
+
+/** AI検索・回答サービスからの流入元を、UTMとreferrerの両方から判定する。 */
+export function classifyAiReferral(referrer: string, utmSource = ""): AiReferralSource | null {
+  const value = `${utmSource} ${referrer}`.toLowerCase()
+  if (/(chatgpt\.com|openai\.com)/.test(value)) return "chatgpt"
+  if (/perplexity\.ai/.test(value)) return "perplexity"
+  if (/claude\.ai/.test(value)) return "claude"
+  if (/(copilot\.microsoft\.com|bing\.com\/chat)/.test(value)) return "copilot"
+  if (/gemini\.google\.com/.test(value)) return "gemini"
+  return null
 }
