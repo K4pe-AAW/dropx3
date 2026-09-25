@@ -18,6 +18,7 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  alternates: { types: { "application/rss+xml": "/rss.xml" } },
   openGraph: {
     type: "website",
     locale: "ja_JP",

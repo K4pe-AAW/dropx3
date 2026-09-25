@@ -12,6 +12,16 @@ export type AffiliateNetwork = "amazon" | "rakuten" | "a8" | "other"
  */
 export type AnalyticsEvent =
   | {
+      name: "article_view"
+      params: {
+        article_id: string
+        article_title: string
+        category: string
+        brand?: string
+        content_type?: string
+      }
+    }
+  | {
       name: "affiliate_click"
       params: {
         affiliate_network: AffiliateNetwork
@@ -22,6 +32,14 @@ export type AnalyticsEvent =
         article_title: string
         content_type?: string
         link_url: string
+      }
+    }
+  | {
+      name: "internal_article_click"
+      params: {
+        article_id: string
+        placement: "latest" | "popular" | "related" | "editorial_related" | "calendar"
+        position?: number
       }
     }
   | {
@@ -117,10 +135,27 @@ function sanitizeParams(params: Record<string, unknown>): Record<string, unknown
  * 開発環境ではdebug_modeを自動付与し、GA4のDebugViewでそのまま確認できるようにする。
  */
 export function trackEvent<N extends AnalyticsEventName>(name: N, params: AnalyticsEventParams<N>): void {
-  if (typeof window === "undefined" || typeof window.gtag !== "function") return
+  if (typeof window === "undefined") return
 
   const debugParams = process.env.NODE_ENV !== "production" ? { debug_mode: true } : {}
-  window.gtag("event", name, sanitizeParams({ ...params, ...debugParams }))
+  window.gtag?.("event", name, sanitizeParams({ ...params, ...debugParams }))
+
+  if (name === "article_view" || name === "article_read_complete" || name === "affiliate_click") {
+    const articleId = (params as { article_id?: string }).article_id
+    if (articleId) {
+      const payload = JSON.stringify({ articleId, event: name })
+      if (typeof navigator.sendBeacon === "function") {
+        navigator.sendBeacon("/api/engagement", new Blob([payload], { type: "application/json" }))
+      } else {
+        void fetch("/api/engagement", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: payload,
+          keepalive: true,
+        })
+      }
+    }
+  }
 }
 
 const NETWORK_KEYWORDS: [string, AffiliateNetwork][] = [

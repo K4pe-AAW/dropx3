@@ -17,6 +17,7 @@ import { INFORMATION_STATUS_LABELS, isUnconfirmedStatus, unconfirmedNotice } fro
 import { CONTENT_TYPE_LABELS, isEditorialContentType } from "@/lib/content-type"
 import { SnapProfileCard } from "@/components/SnapProfileCard"
 import { buildArticleStructuredData } from "@/lib/article-structured-data"
+import { ArticleViewTracker } from "@/components/ArticleViewTracker"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -72,6 +73,13 @@ export default async function ArticleDetailPage({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 sm:py-8">
+      <ArticleViewTracker
+        articleId={article.id}
+        articleTitle={article.title}
+        category={article.category}
+        brand={article.brands[0]}
+        contentType={article.contentType}
+      />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <nav className="text-xs text-muted-foreground mb-4 flex flex-wrap gap-1.5 items-center">
         <Link href="/" className="hover:text-foreground">
@@ -126,7 +134,7 @@ export default async function ArticleDetailPage({
         <div className="mb-5 sm:mb-8">
           <div className="overflow-hidden rounded-xl bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を横長枠にcropせず、実際の縦横比のまま表示する */}
-            <img src={article.coverImage} alt={article.coverImageAlt} className="w-full h-auto" />
+            <img src={article.coverImage} alt={article.coverImageAlt} decoding="async" fetchPriority="high" className="w-full h-auto" />
           </div>
           {article.coverImageCredit && (
             <p className="mt-1 text-[10px] text-muted-foreground/60">{article.coverImageCredit}</p>
@@ -166,7 +174,7 @@ export default async function ArticleDetailPage({
             <div key={i}>
               <div className="overflow-hidden rounded-xl bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を正方形枠にcropせず、実際の縦横比のまま表示する */}
-                <img src={img.url} alt={img.alt} loading="lazy" className="w-full h-auto" />
+                <img src={img.url} alt={img.alt} loading="lazy" decoding="async" className="w-full h-auto" />
               </div>
               {img.credit && <p className="mt-1 text-[10px] text-muted-foreground/60">{img.credit}</p>}
             </div>
@@ -236,8 +244,8 @@ export default async function ArticleDetailPage({
         <div className="mt-8 sm:mt-14">
           <h2 className="mb-3 text-lg font-bold sm:mb-5">関連記事</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
-            {related.map((a) => (
-              <ArticleCard key={a.id} article={a} />
+            {related.map((a, index) => (
+              <ArticleCard key={a.id} article={a} placement="related" position={index + 1} />
             ))}
           </div>
         </div>

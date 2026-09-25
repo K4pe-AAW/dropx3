@@ -1,4 +1,4 @@
-import { getAllArticles, getFeaturedArticles, getAllBrands, getArchiveMonths } from "@/lib/storage"
+import { getAllArticles, getPopularArticles, getAllBrands, getArchiveMonths } from "@/lib/storage"
 import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
@@ -44,7 +44,7 @@ export default async function HomePage({
 
   const brands = await getAllBrands()
   const archive = await getArchiveMonths()
-  const popular = await getFeaturedArticles(6)
+  const popular = await getPopularArticles(6)
   const columns = all.filter((article) => article.contentType === "COLUMN").slice(0, 3)
   const picks = all.filter((article) => article.contentType === "PICKS").slice(0, 3)
   const snaps = all.filter((article) => article.contentType === "SNAP").slice(0, 3)
@@ -118,7 +118,7 @@ export default async function HomePage({
             <>
               <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 sm:gap-y-8 xl:grid-cols-3">
                 {list.map((a, i) => (
-                  <ArticleCard key={a.id} article={a} priority={i < 3} />
+                  <ArticleCard key={a.id} article={a} priority={i < 3} placement="latest" position={i + 1} />
                 ))}
               </div>
               <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/" />

@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { RelatedArticleLink } from "@/lib/types"
+import { TrackedLink } from "@/components/TrackedLink"
 
 /**
  * BUY/GUIDE型記事など、本文中で触れた既存記事へ内部リンクするための編集者キュレーション枠。
@@ -14,9 +15,11 @@ export function RelatedArticleLinks({ links }: { links: RelatedArticleLink[] }) 
       <ul className="space-y-2.5">
         {links.map((l, i) => (
           <li key={i}>
-            <Link href={`/articles/${l.slug}`} className="text-sm font-semibold hover:underline">
-              → {l.title}
-            </Link>
+            <TrackedLink event="internal_article_click" params={{ article_id: l.slug, placement: "editorial_related", position: i + 1 }}>
+              <Link href={`/articles/${l.slug}`} className="text-sm font-semibold hover:underline">
+                → {l.title}
+              </Link>
+            </TrackedLink>
             {l.note && <p className="text-xs text-muted-foreground mt-0.5">{l.note}</p>}
           </li>
         ))}

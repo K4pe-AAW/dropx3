@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { getArticlesByCategory, getAllBrands, getArchiveMonths, getFeaturedArticles } from "@/lib/storage"
+import { getArticlesByCategory, getAllBrands, getArchiveMonths, getPopularArticles } from "@/lib/storage"
 import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
@@ -41,7 +41,7 @@ export default async function CategoryPage({
 
   const brands = await getAllBrands()
   const archive = await getArchiveMonths()
-  const popular = await getFeaturedArticles(6)
+  const popular = await getPopularArticles(6)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">

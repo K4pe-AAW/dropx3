@@ -4,6 +4,12 @@
  * 関連記事の絞り込みやブランド別ページの一覧が分裂しないよう、保存前に正規化して使う。
  */
 const BRAND_ALIASES: Record<string, string> = {
+  "47": "’47",
+  "'47": "’47",
+  "’47": "’47",
+  "a bathing ape": "A BATHING APE",
+  "a bathing ape®": "A BATHING APE",
+  bape: "A BATHING APE",
   nike: "Nike",
   ナイキ: "Nike",
   jordan: "Jordan Brand",
@@ -25,8 +31,9 @@ const BRAND_ALIASES: Record<string, string> = {
 }
 
 export function canonicalBrandName(raw: string): string {
-  const key = raw.trim().toLowerCase()
-  return BRAND_ALIASES[key] ?? raw.trim()
+  const cleaned = raw.trim().replace(/\s+/g, " ")
+  const key = cleaned.toLowerCase().replace(/[®™]$/g, "").trim()
+  return BRAND_ALIASES[key] ?? cleaned.replace(/[®™]$/g, "").trim()
 }
 
 export function canonicalBrandNames(raw: string[]): string[] {

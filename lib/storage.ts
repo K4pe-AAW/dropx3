@@ -14,6 +14,7 @@ import {
 import { clearDismissedUrls, dismissDraftsInData } from "./draft-dismissal"
 import { canonicalImageKey, isImageNoiseUrl } from "./image-candidates"
 import { readBlobJsonWithEtag } from "./blob-json"
+import { canonicalBrandName, canonicalBrandNames } from "./brands"
 
 export const ARTICLES_PATH = "data/articles.json"
 export const DRAFTS_PATH = "data/drafts.json"
@@ -161,7 +162,9 @@ export async function mutateArticles(mutate: (data: ArticlesData) => ArticlesDat
 export async function getAllArticles(): Promise<Article[]> {
   // publishedAtはUTC('Z')とJST('+09:00')が混在しうるため、文字列比較ではなく実時刻で比較する
   const { articles } = await readArticles()
-  return articles.slice().sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+  return articles
+    .map((article) => ({ ...article, brands: canonicalBrandNames(article.brands) }))
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | undefined> {
@@ -173,12 +176,14 @@ export async function getArticleBySlug(slug: string): Promise<Article | undefine
     // 不正なエンコーディングなら元の文字列のまま照合を試みる
   }
   const { articles } = await readArticles()
-  return articles.find((a) => a.slug === decoded)
+  const article = articles.find((a) => a.slug === decoded)
+  return article ? { ...article, brands: canonicalBrandNames(article.brands) } : undefined
 }
 
 export async function getArticleById(id: string): Promise<Article | undefined> {
   const { articles } = await readArticles()
-  return articles.find((a) => a.id === id)
+  const article = articles.find((a) => a.id === id)
+  return article ? { ...article, brands: canonicalBrandNames(article.brands) } : undefined
 }
 
 /** 公開済み記事を編集する。slugは変更しない(公開URL・外部からのリンクを壊さないため) */
@@ -206,15 +211,34 @@ export async function getArticlesByContentType(contentType: Article["contentType
 }
 
 export async function getArticlesByBrand(brand: string): Promise<Article[]> {
-  const target = decodeURIComponent(brand).toLowerCase()
+  const target = canonicalBrandName(decodeURIComponent(brand)).toLowerCase()
   const all = await getAllArticles()
-  return all.filter((a) => a.brands.some((b) => b.toLowerCase() === target))
+  return all.filter((a) => a.brands.some((b) => canonicalBrandName(b).toLowerCase() === target))
 }
 
 export async function getFeaturedArticles(limit = 6): Promise<Article[]> {
   const all = await getAllArticles()
   const featured = all.filter((a) => a.featured)
   return (featured.length > 0 ? featured : all).slice(0, limit)
+}
+
+export async function getPopularArticles(limit = 6): Promise<Article[]> {
+  const all = await getAllArticles()
+  let scores = new Map<string, number>()
+  try {
+    const { getEngagementScores } = await import("./engagement")
+    scores = await getEngagementScores(7)
+  } catch {
+    // 集計ストレージの一時障害で公開ページまで落とさず、従来の注目・新着順へ戻す。
+  }
+  const ranked = all
+    .filter((article) => (scores.get(article.id) ?? 0) > 0)
+    .sort((a, b) => (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0))
+  if (ranked.length >= limit) return ranked.slice(0, limit)
+  const used = new Set(ranked.map((article) => article.id))
+  const fallback = (all.some((article) => article.featured) ? all.filter((article) => article.featured) : all)
+    .filter((article) => !used.has(article.id))
+  return [...ranked, ...fallback].slice(0, limit)
 }
 
 /**
@@ -277,7 +301,10 @@ export async function getAllBrands(): Promise<{ name: string; count: number }[]>
   const counts = new Map<string, number>()
   const all = await getAllArticles()
   for (const a of all) {
-    for (const b of a.brands) counts.set(b, (counts.get(b) ?? 0) + 1)
+    for (const b of a.brands) {
+      const canonical = canonicalBrandName(b)
+      counts.set(canonical, (counts.get(canonical) ?? 0) + 1)
+    }
   }
   return Array.from(counts.entries())
     .map(([name, count]) => ({ name, count }))

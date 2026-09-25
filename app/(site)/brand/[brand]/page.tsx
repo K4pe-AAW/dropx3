@@ -1,10 +1,11 @@
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 import type { Metadata } from "next"
-import { getArticlesByBrand, getAllBrands, getArchiveMonths, getFeaturedArticles } from "@/lib/storage"
+import { getArticlesByBrand, getAllBrands, getArchiveMonths, getPopularArticles } from "@/lib/storage"
 import { ArticleCard } from "@/components/ArticleCard"
 import { Sidebar } from "@/components/Sidebar"
 import { Pagination } from "@/components/Pagination"
 import { siteConfig } from "@/lib/site-config"
+import { canonicalBrandName } from "@/lib/brands"
 
 const PAGE_SIZE = 12
 
@@ -14,9 +15,10 @@ export async function generateMetadata({
   params: Promise<{ brand: string }>
 }): Promise<Metadata> {
   const { brand } = await params
+  const canonicalName = canonicalBrandName(decodeURIComponent(brand))
   return {
-    title: `${decodeURIComponent(brand)}の記事一覧`,
-    alternates: { canonical: new URL(`/brand/${brand}`, siteConfig.url).toString() },
+    title: `${canonicalName}の記事一覧`,
+    alternates: { canonical: new URL(`/brand/${encodeURIComponent(canonicalName)}`, siteConfig.url).toString() },
   }
 }
 
@@ -30,6 +32,11 @@ export default async function BrandPage({
   const { brand } = await params
   const { page } = await searchParams
   const name = decodeURIComponent(brand)
+  const canonicalName = canonicalBrandName(name)
+  if (name !== canonicalName) {
+    const suffix = Number(page) > 1 ? `?page=${Number(page)}` : ""
+    permanentRedirect(`/brand/${encodeURIComponent(canonicalName)}${suffix}`)
+  }
   const articles = await getArticlesByBrand(brand)
   if (articles.length === 0) notFound()
 
@@ -39,7 +46,7 @@ export default async function BrandPage({
 
   const brands = await getAllBrands()
   const archive = await getArchiveMonths()
-  const popular = await getFeaturedArticles(6)
+  const popular = await getPopularArticles(6)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">

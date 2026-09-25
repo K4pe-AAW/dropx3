@@ -29,6 +29,12 @@ export function Footer() {
           <Link href="/search" className="hover:text-primary-foreground transition-colors">
             記事を探す
           </Link>
+          <Link href="/calendar" className="hover:text-primary-foreground transition-colors">
+            発売日カレンダー
+          </Link>
+          <a href="/rss.xml" className="hover:text-primary-foreground transition-colors">
+            RSS
+          </a>
         </nav>
         <p className="text-xs text-primary-foreground/50">
           © {new Date().getFullYear()} {siteConfig.name}

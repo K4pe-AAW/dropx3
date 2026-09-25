@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge"
 import { PlayIcon } from "@/components/icons"
 import { INFORMATION_STATUS_LABELS, isUnconfirmedStatus } from "@/lib/information-status"
 import { CONTENT_TYPE_LABELS, isEditorialContentType } from "@/lib/content-type"
+import { TrackedLink } from "@/components/TrackedLink"
+import Image from "next/image"
 
 function isNew(publishedAt: string) {
   const hours = (Date.now() - new Date(publishedAt).getTime()) / 36e5
@@ -21,20 +23,45 @@ function formatDate(iso: string) {
  * sm以上では従来通り画像が上に大きく載るカード型に切り替える。1つのマークアップをTailwindの
  * レスポンシブクラスだけで出し分け、ページ側(グリッドを組んでいる6箇所)は変更不要にしている。
  */
-export function ArticleCard({ article, priority = false }: { article: Article; priority?: boolean }) {
-  return (
+export function ArticleCard({
+  article,
+  priority = false,
+  placement,
+  position,
+}: {
+  article: Article
+  priority?: boolean
+  placement?: "latest" | "related"
+  position?: number
+}) {
+  const card = (
     <Link
       href={`/articles/${article.slug}`}
       className="group flex items-center gap-3 border-b border-border pb-3 sm:block sm:border-0 sm:pb-0"
     >
       <div className="relative size-24 shrink-0 overflow-hidden rounded-lg border-2 border-accent bg-muted sm:mb-3 sm:aspect-[4/3] sm:size-auto sm:rounded-xl">
-        {/* eslint-disable-next-line @next/next/no-img-element -- 提携先ごとに画像ドメインが変わるためnext/imageのremotePatternsを固定できない */}
-        <img
-          src={article.youtubeVideoId ? `https://img.youtube.com/vi/${article.youtubeVideoId}/hqdefault.jpg` : article.coverImage}
-          alt={article.coverImageAlt}
-          loading={priority ? "eager" : "lazy"}
-          className="h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-105"
-        />
+        {article.coverImage.startsWith("/") && !article.youtubeVideoId ? (
+          <Image
+            src={article.coverImage}
+            alt={article.coverImageAlt}
+            fill
+            priority={priority}
+            sizes="(max-width: 639px) 96px, (max-width: 1199px) 50vw, 260px"
+            className="object-cover transition-transform duration-300 sm:group-hover:scale-105"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element -- 外部提供画像は許可ホストが記事ごとに変わるため、そのまま安全に遅延読込する
+          <img
+            src={article.youtubeVideoId ? `https://img.youtube.com/vi/${article.youtubeVideoId}/hqdefault.jpg` : article.coverImage}
+            alt={article.coverImageAlt}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+            fetchPriority={priority ? "high" : "auto"}
+            width="640"
+            height="480"
+            className="h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-105"
+          />
+        )}
         {article.youtubeVideoId && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="flex size-7 items-center justify-center rounded-full bg-black/60 sm:size-12">
@@ -69,4 +96,9 @@ export function ArticleCard({ article, priority = false }: { article: Article; p
       </div>
     </Link>
   )
+  return placement ? (
+    <TrackedLink event="internal_article_click" params={{ article_id: article.id, placement, position }}>
+      {card}
+    </TrackedLink>
+  ) : card
 }
