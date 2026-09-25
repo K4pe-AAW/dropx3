@@ -6,6 +6,7 @@ import {
   MIN_ARTICLES_PER_TWO_HOUR_SLOT,
   TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE,
   MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE,
+  MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE,
   buildRequiredAffiliateLinks,
   galleryCandidatesForPublish,
   jstSlotKey,
@@ -28,6 +29,10 @@ test("6記事につきYouTube記事1件を目安にする", () => {
 
 test("6記事周期の女性向け単独記事は最大1件にする", () => {
   assert.equal(MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE, 1)
+})
+
+test("6記事周期のFASHIONSNAP由来記事は最大1件にする", () => {
+  assert.equal(MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE, 1)
 })
 
 test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する", () => {
@@ -126,6 +131,39 @@ test("周期内に女性向けが1件公開済みなら女性向け候補を除�
   assert.deepEqual(
     orderAutoPublishCandidates([women, general], 1, 1).map((draft) => draft.id),
     ["general"]
+  )
+})
+
+test("FASHIONSNAPが未掲載の周期は1件を優先し、掲載済みなら候補から除外する", () => {
+  const fashionsnap1 = {
+    id: "fashionsnap-1",
+    title: "新作スニーカー1",
+    excerpt: "新作",
+    bodyParagraphs: ["新作を紹介"],
+    tags: [],
+    sourceRefs: [{ name: "FASHIONSNAP", url: "https://www.fashionsnap.com/article/one/" }],
+  } as unknown as Draft
+  const fashionsnap2 = {
+    ...fashionsnap1,
+    id: "fashionsnap-2",
+    sourceRefs: [{ name: "別名", url: "https://www.fashionsnap.com/article/two/" }],
+  } as unknown as Draft
+  const other = {
+    id: "other",
+    title: "別媒体の新作スニーカー",
+    excerpt: "新作",
+    bodyParagraphs: ["新作を紹介"],
+    tags: [],
+    sourceRefs: [{ name: "公式", url: "https://brand.example.com/news" }],
+  } as unknown as Draft
+
+  const beforeQuota = orderAutoPublishCandidates([other, fashionsnap1, fashionsnap2], 1, 0, 0)
+  assert.equal(beforeQuota[0].id.startsWith("fashionsnap-"), true)
+  assert.equal(beforeQuota.includes(other), true)
+
+  assert.deepEqual(
+    orderAutoPublishCandidates([other, fashionsnap1, fashionsnap2], 1, 0, 1).map((draft) => draft.id),
+    ["other"]
   )
 })
 

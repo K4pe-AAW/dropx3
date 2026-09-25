@@ -8,6 +8,7 @@ import {
   mutateDrafts,
   mutateJson,
   putBlobFile,
+  readArticles,
   readDrafts,
 } from "./storage"
 import { canonicalBrandNames } from "./brands"
@@ -17,6 +18,7 @@ import { inferContentType } from "./content-type"
 import { applyRakutenProductEvidence, ensureUnconfirmedTitle, removeGosspTitlePrefix } from "./information-status"
 import { isDraftAllowedByYoutubeCollectionPolicy } from "./youtube-collection-policy"
 import { isWomenFocusedDraft } from "./article-audience"
+import { isFashionsnapSourced } from "./article-source"
 
 // 既存の公開数を引き継ぎつつ、2時間枠ごとに3件、4時間（6件）ごとに
 // YouTube 1件を目安として再試行する。
@@ -28,6 +30,7 @@ export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 3
 export const ARTICLES_PER_YOUTUBE_MIX_CYCLE = 6
 export const TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE = 1
 export const MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE = 1
+export const MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE = 1
 
 type RunRecord = {
   startedAt: string
@@ -36,6 +39,7 @@ type RunRecord = {
   publishedArticleIds?: string[]
   publishedYoutubeArticleIds?: string[]
   publishedWomenFocusedArticleIds?: string[]
+  publishedFashionsnapArticleIds?: string[]
   titles?: string[]
 }
 type AutoPublishState = { runs: Record<string, RunRecord> }
@@ -103,7 +107,8 @@ function shuffled<T>(items: T[]): T[] {
 export function orderAutoPublishCandidates(
   drafts: Draft[],
   youtubePublishedInCycle: number,
-  womenFocusedPublishedInCycle = 0
+  womenFocusedPublishedInCycle = 0,
+  fashionsnapPublishedInCycle = 0
 ): Draft[] {
   const allowedDrafts = drafts.filter(isDraftAllowedByYoutubeCollectionPolicy)
   const youtubeQuotaRemaining = Math.max(
@@ -125,6 +130,10 @@ export function orderAutoPublishCandidates(
     0,
     MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE - womenFocusedPublishedInCycle
   )
+  const fashionsnapQuotaRemaining = Math.max(
+    0,
+    MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE - fashionsnapPublishedInCycle
+  )
   const splitAudience = (items: Draft[]) => ({
     general: items.filter((draft) => !isWomenFocusedDraft(draft)),
     women: items.filter(isWomenFocusedDraft),
@@ -140,20 +149,31 @@ export function orderAutoPublishCandidates(
     ? [...priorityDomestic.women, ...normal.women]
     : []
 
-  if (youtubeQuotaRemaining > 0) {
-    // 既存のYouTube比率を優先しつつ、女性向け枠は4時間6記事で最大1件に抑える。
+  const prioritizeFashionsnap = (items: Draft[]) => {
+    if (fashionsnapQuotaRemaining === 0) return items.filter((draft) => !isFashionsnapSourced(draft))
     return [
-      ...youtube.general,
-      ...(womenQuotaRemaining > 0 ? youtube.women : []),
-      ...regularWomenCandidates,
-      ...generalCandidates,
+      ...items.filter(isFashionsnapSourced),
+      ...items.filter((draft) => !isFashionsnapSourced(draft)),
     ]
   }
 
-  return [
+  const regularCandidates = prioritizeFashionsnap([
     ...regularWomenCandidates,
     ...generalCandidates,
-  ]
+  ])
+
+  if (youtubeQuotaRemaining > 0) {
+    // 既存のYouTube比率を優先しつつ、女性向け枠は4時間6記事で最大1件に抑える。
+    return [
+      ...prioritizeFashionsnap([
+        ...youtube.general,
+        ...(womenQuotaRemaining > 0 ? youtube.women : []),
+      ]),
+      ...regularCandidates,
+    ]
+  }
+
+  return regularCandidates
 }
 
 async function saveArticleImage(imageUrl: string, draft: Draft, name: string): Promise<string> {
@@ -320,7 +340,10 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   let alreadyPublishedArticleIds: string[] = []
   let alreadyPublishedYoutubeArticleIds: string[] = []
   let alreadyPublishedWomenFocusedArticleIds: string[] = []
+  let alreadyPublishedFashionsnapArticleIds: string[] = []
   let alreadyPublishedTitles: string[] = []
+  const existingArticles = await readArticles()
+  const existingArticlesById = new Map(existingArticles.articles.map((article) => [article.id, article]))
   await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
     const existing = state.runs[slot]
     alreadyPublishedArticleIds = existing?.publishedArticleIds ?? []
@@ -334,6 +357,16 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
         .filter((run) => run.mixCycle === mixCycle)
         .flatMap((run) => run.publishedWomenFocusedArticleIds ?? [])
     )]
+    const cycleRuns = Object.values(state.runs).filter((run) => run.mixCycle === mixCycle)
+    alreadyPublishedFashionsnapArticleIds = [...new Set([
+      ...cycleRuns.flatMap((run) => run.publishedFashionsnapArticleIds ?? []),
+      ...cycleRuns
+        .flatMap((run) => run.publishedArticleIds ?? [])
+        .filter((articleId) => {
+          const article = existingArticlesById.get(articleId)
+          return article ? isFashionsnapSourced(article) : false
+        }),
+    ])]
     alreadyPublishedTitles = existing?.titles ?? []
     state.runs[slot] = {
       startedAt: existing?.startedAt ?? now.toISOString(),
@@ -342,6 +375,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       publishedArticleIds: alreadyPublishedArticleIds,
       publishedYoutubeArticleIds: existing?.publishedYoutubeArticleIds ?? [],
       publishedWomenFocusedArticleIds: existing?.publishedWomenFocusedArticleIds ?? [],
+      publishedFashionsnapArticleIds: existing?.publishedFashionsnapArticleIds ?? [],
       titles: alreadyPublishedTitles,
     }
     return state
@@ -364,10 +398,12 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   const candidates = orderAutoPublishCandidates(
     drafts,
     alreadyPublishedYoutubeArticleIds.length,
-    alreadyPublishedWomenFocusedArticleIds.length
+    alreadyPublishedWomenFocusedArticleIds.length,
+    alreadyPublishedFashionsnapArticleIds.length
   )
   let youtubePublished = 0
   let womenFocusedPublished = 0
+  let fashionsnapPublished = 0
   for (const draft of candidates) {
     if (publishedArticles.length >= Math.min(ARTICLES_PER_AUTO_PUBLISH_RUN, remainingTarget)) break
     if (draft.suggestedYoutubeVideoId && youtubePublished >= youtubeQuotaRemaining) continue
@@ -375,6 +411,11 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       isWomenFocusedDraft(draft)
       && alreadyPublishedWomenFocusedArticleIds.length + womenFocusedPublished
         >= MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE
+    ) continue
+    if (
+      isFashionsnapSourced(draft)
+      && alreadyPublishedFashionsnapArticleIds.length + fashionsnapPublished
+        >= MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE
     ) continue
     try {
       const article = await prepareArticle(draft)
@@ -390,6 +431,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       publishedArticles.push(article)
       if (draft.suggestedYoutubeVideoId) youtubePublished++
       if (isWomenFocusedDraft(draft)) womenFocusedPublished++
+      if (isFashionsnapSourced(draft)) fashionsnapPublished++
     } catch (err) {
       errors.push(`${draft.title}: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -417,6 +459,12 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
         ...(existing?.publishedWomenFocusedArticleIds ?? []),
         ...publishedArticles
           .filter(isWomenFocusedDraft)
+          .map((article) => article.id),
+      ])],
+      publishedFashionsnapArticleIds: [...new Set([
+        ...(existing?.publishedFashionsnapArticleIds ?? []),
+        ...publishedArticles
+          .filter(isFashionsnapSourced)
           .map((article) => article.id),
       ])],
       titles,
