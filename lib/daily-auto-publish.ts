@@ -25,17 +25,20 @@ import { isFashionsnapSourced } from "./article-source"
 const STATE_PATH = "data/daily-auto-publish-state-throughput-v4.json"
 const AUTO_PUBLISH_POLICY_VERSION = "throughput-v4"
 const YOUTUBE_MIX_POLICY_VERSION = "youtube-mix-v1"
+const FASHIONSNAP_MIX_POLICY_VERSION = "fashionsnap-mix-v1"
 export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
 export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 3
 export const ARTICLES_PER_YOUTUBE_MIX_CYCLE = 6
 export const TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE = 1
 export const MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE = 1
+export const ARTICLES_PER_FASHIONSNAP_MIX_CYCLE = 12
 export const MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE = 1
 
 type RunRecord = {
   startedAt: string
   lastAttemptAt?: string
   mixCycle?: string
+  fashionsnapMixCycle?: string
   publishedArticleIds?: string[]
   publishedYoutubeArticleIds?: string[]
   publishedWomenFocusedArticleIds?: string[]
@@ -70,6 +73,20 @@ export function jstYoutubeMixCycleKey(now = new Date()): string {
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
   const fourHourBucket = Math.floor(Number(get("hour")) / 4) * 4
   return `${get("year")}-${get("month")}-${get("day")}-${String(fourHourBucket).padStart(2, "0")}-${YOUTUBE_MIX_POLICY_VERSION}`
+}
+
+export function jstFashionsnapMixCycleKey(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now)
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
+  const eightHourBucket = Math.floor(Number(get("hour")) / 8) * 8
+  return `${get("year")}-${get("month")}-${get("day")}-${String(eightHourBucket).padStart(2, "0")}-${FASHIONSNAP_MIX_POLICY_VERSION}`
 }
 
 export function buildRequiredAffiliateLinks(query: string): AffiliateLink[] {
@@ -336,6 +353,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
 }> {
   const slot = jstSlotKey(now)
   const mixCycle = jstYoutubeMixCycleKey(now)
+  const fashionsnapMixCycle = jstFashionsnapMixCycleKey(now)
 
   let alreadyPublishedArticleIds: string[] = []
   let alreadyPublishedYoutubeArticleIds: string[] = []
@@ -357,10 +375,13 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
         .filter((run) => run.mixCycle === mixCycle)
         .flatMap((run) => run.publishedWomenFocusedArticleIds ?? [])
     )]
-    const cycleRuns = Object.values(state.runs).filter((run) => run.mixCycle === mixCycle)
+    const fashionsnapCycleRuns = Object.values(state.runs).filter((run) => {
+      if (run.fashionsnapMixCycle) return run.fashionsnapMixCycle === fashionsnapMixCycle
+      return jstFashionsnapMixCycleKey(new Date(run.startedAt)) === fashionsnapMixCycle
+    })
     alreadyPublishedFashionsnapArticleIds = [...new Set([
-      ...cycleRuns.flatMap((run) => run.publishedFashionsnapArticleIds ?? []),
-      ...cycleRuns
+      ...fashionsnapCycleRuns.flatMap((run) => run.publishedFashionsnapArticleIds ?? []),
+      ...fashionsnapCycleRuns
         .flatMap((run) => run.publishedArticleIds ?? [])
         .filter((articleId) => {
           const article = existingArticlesById.get(articleId)
@@ -372,6 +393,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       startedAt: existing?.startedAt ?? now.toISOString(),
       lastAttemptAt: now.toISOString(),
       mixCycle,
+      fashionsnapMixCycle,
       publishedArticleIds: alreadyPublishedArticleIds,
       publishedYoutubeArticleIds: existing?.publishedYoutubeArticleIds ?? [],
       publishedWomenFocusedArticleIds: existing?.publishedWomenFocusedArticleIds ?? [],
@@ -450,6 +472,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       startedAt: existing?.startedAt ?? now.toISOString(),
       lastAttemptAt: now.toISOString(),
       mixCycle,
+      fashionsnapMixCycle,
       publishedArticleIds,
       publishedYoutubeArticleIds: [...new Set([
         ...(existing?.publishedYoutubeArticleIds ?? []),

@@ -6,10 +6,12 @@ import {
   MIN_ARTICLES_PER_TWO_HOUR_SLOT,
   TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE,
   MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE,
+  ARTICLES_PER_FASHIONSNAP_MIX_CYCLE,
   MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE,
   buildRequiredAffiliateLinks,
   galleryCandidatesForPublish,
   jstSlotKey,
+  jstFashionsnapMixCycleKey,
   jstYoutubeMixCycleKey,
   isSameProductAssetFamily,
   orderAutoPublishCandidates,
@@ -31,7 +33,8 @@ test("6記事周期の女性向け単独記事は最大1件にする", () => {
   assert.equal(MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE, 1)
 })
 
-test("6記事周期のFASHIONSNAP由来記事は最大1件にする", () => {
+test("12記事周期のFASHIONSNAP由来記事は最大1件にする", () => {
+  assert.equal(ARTICLES_PER_FASHIONSNAP_MIX_CYCLE, 12)
   assert.equal(MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE, 1)
 })
 
@@ -63,6 +66,12 @@ test("JSTの連続する2枠をYouTube混在用の6記事周期として扱う",
   assert.equal(jstYoutubeMixCycleKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-youtube-mix-v1")
   assert.equal(jstYoutubeMixCycleKey(new Date("2026-08-29T01:59:59Z")), "2026-08-29-08-youtube-mix-v1")
   assert.equal(jstYoutubeMixCycleKey(new Date("2026-08-29T03:00:00Z")), "2026-08-29-12-youtube-mix-v1")
+})
+
+test("JSTの連続する4枠をFASHIONSNAP配分用の12記事周期として扱う", () => {
+  assert.equal(jstFashionsnapMixCycleKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-fashionsnap-mix-v1")
+  assert.equal(jstFashionsnapMixCycleKey(new Date("2026-08-29T06:59:59Z")), "2026-08-29-08-fashionsnap-mix-v1")
+  assert.equal(jstFashionsnapMixCycleKey(new Date("2026-08-29T07:00:00Z")), "2026-08-29-16-fashionsnap-mix-v1")
 })
 
 test("6記事周期にYouTubeが無ければYouTube候補を先にし、1件公開済みなら通常候補だけにする", () => {
@@ -134,7 +143,7 @@ test("周期内に女性向けが1件公開済みなら女性向け候補を除�
   )
 })
 
-test("FASHIONSNAPが未掲載の周期は1件を優先し、掲載済みなら候補から除外する", () => {
+test("FASHIONSNAPが未掲載の12記事周期は1件を優先し、掲載済みなら候補から除外する", () => {
   const fashionsnap1 = {
     id: "fashionsnap-1",
     title: "新作スニーカー1",
