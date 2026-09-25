@@ -40,6 +40,9 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
 - Generated standard/YouTube article prose should target 2–3 explanatory paragraphs and roughly
   400–600 Japanese characters, excluding the item-information block. Preserve verified price,
   release date, retailer, model number, size, and material facts.
+- Automatic publishing is mens/unisex-led. Across each four-hour six-article cycle, publish no more
+  than one explicitly women-focused article. Detect women-focused items only from explicit wording
+  such as ウィメンズ/レディース/Women's; never infer gender from a brand or visual impression.
 - Public article pages always keep visible price/release/purchase information, but never emit
   `Product` or `Offer` JSON-LD, including BUY/PICKS. DROP DROP DROP is an editorial affiliate medium,
   not the seller, and Product+Offer causes Google to inspect article pages as merchant listings.

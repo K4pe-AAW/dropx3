@@ -5,6 +5,7 @@ import {
   ARTICLES_PER_YOUTUBE_MIX_CYCLE,
   MIN_ARTICLES_PER_TWO_HOUR_SLOT,
   TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE,
+  MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE,
   buildRequiredAffiliateLinks,
   galleryCandidatesForPublish,
   jstSlotKey,
@@ -23,6 +24,10 @@ test("各2時間枠の最低公開目標は3記事", () => {
 test("6記事につきYouTube記事1件を目安にする", () => {
   assert.equal(ARTICLES_PER_YOUTUBE_MIX_CYCLE, 6)
   assert.equal(TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE, 1)
+})
+
+test("6記事周期の女性向け単独記事は最大1件にする", () => {
+  assert.equal(MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE, 1)
 })
 
 test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する", () => {
@@ -68,9 +73,60 @@ test("国内ブランド公式の新着は通常記事の中で優先する", ()
     id: "domestic",
     suggestedYoutubeVideoId: undefined,
     editorialPriority: "domestic_brand_new_arrival",
-  } as Draft
+  } as unknown as Draft
   const ordered = orderAutoPublishCandidates([ordinary, domestic], 1)
   assert.deepEqual(ordered.map((draft) => draft.id), ["domestic", "ordinary"])
+})
+
+test("女性向けが未掲載の周期は明示的な女性向け候補を最大1件だけ混ぜる", () => {
+  const women1 = {
+    id: "women-1",
+    title: "ウィメンズ新作バッグ",
+    excerpt: "女性向けの新作",
+    bodyParagraphs: ["新作を紹介"],
+    tags: [],
+  } as unknown as Draft
+  const women2 = {
+    id: "women-2",
+    title: "レディース新作シューズ",
+    excerpt: "新作",
+    bodyParagraphs: ["新作を紹介"],
+    tags: [],
+  } as unknown as Draft
+  const general = {
+    id: "general",
+    title: "ユニセックス新作スニーカー",
+    excerpt: "新作",
+    bodyParagraphs: ["新作を紹介"],
+    tags: [],
+  } as unknown as Draft
+
+  const ordered = orderAutoPublishCandidates([general, women1, women2], 1, 0)
+  assert.equal(ordered.filter((draft) => draft.id.startsWith("women-")).length, 2)
+  assert.equal(ordered.findIndex((draft) => draft.id.startsWith("women-")) < ordered.indexOf(general), true)
+  assert.equal(ordered.some((draft) => draft.id === "general"), true)
+})
+
+test("周期内に女性向けが1件公開済みなら女性向け候補を除外する", () => {
+  const women = {
+    id: "women",
+    title: "Women's collection",
+    excerpt: "新作",
+    bodyParagraphs: ["新作を紹介"],
+    tags: [],
+  } as unknown as Draft
+  const general = {
+    id: "general",
+    title: "新作スニーカー",
+    excerpt: "新作",
+    bodyParagraphs: ["新作を紹介"],
+    tags: [],
+  } as unknown as Draft
+
+  assert.deepEqual(
+    orderAutoPublishCandidates([women, general], 1, 1).map((draft) => draft.id),
+    ["general"]
+  )
 })
 
 test("髭ミルクのラジオ下書きは自動公開候補から除外する", () => {

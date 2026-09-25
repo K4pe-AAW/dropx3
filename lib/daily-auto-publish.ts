@@ -16,6 +16,7 @@ import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 import { applyRakutenProductEvidence, ensureUnconfirmedTitle, removeGosspTitlePrefix } from "./information-status"
 import { isDraftAllowedByYoutubeCollectionPolicy } from "./youtube-collection-policy"
+import { isWomenFocusedDraft } from "./article-audience"
 
 // 既存の公開数を引き継ぎつつ、2時間枠ごとに3件、4時間（6件）ごとに
 // YouTube 1件を目安として再試行する。
@@ -26,6 +27,7 @@ export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
 export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 3
 export const ARTICLES_PER_YOUTUBE_MIX_CYCLE = 6
 export const TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE = 1
+export const MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE = 1
 
 type RunRecord = {
   startedAt: string
@@ -33,6 +35,7 @@ type RunRecord = {
   mixCycle?: string
   publishedArticleIds?: string[]
   publishedYoutubeArticleIds?: string[]
+  publishedWomenFocusedArticleIds?: string[]
   titles?: string[]
 }
 type AutoPublishState = { runs: Record<string, RunRecord> }
@@ -97,7 +100,11 @@ function shuffled<T>(items: T[]): T[] {
   return copy
 }
 
-export function orderAutoPublishCandidates(drafts: Draft[], youtubePublishedInCycle: number): Draft[] {
+export function orderAutoPublishCandidates(
+  drafts: Draft[],
+  youtubePublishedInCycle: number,
+  womenFocusedPublishedInCycle = 0
+): Draft[] {
   const allowedDrafts = drafts.filter(isDraftAllowedByYoutubeCollectionPolicy)
   const youtubeQuotaRemaining = Math.max(
     0,
@@ -114,9 +121,39 @@ export function orderAutoPublishCandidates(drafts: Draft[], youtubePublishedInCy
     )
   )
   const youtubeCandidates = shuffled(allowedDrafts.filter((draft) => Boolean(draft.suggestedYoutubeVideoId)))
-  return youtubeQuotaRemaining > 0
-    ? [...youtubeCandidates, ...priorityDomesticCandidates, ...normalCandidates]
-    : [...priorityDomesticCandidates, ...normalCandidates]
+  const womenQuotaRemaining = Math.max(
+    0,
+    MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE - womenFocusedPublishedInCycle
+  )
+  const splitAudience = (items: Draft[]) => ({
+    general: items.filter((draft) => !isWomenFocusedDraft(draft)),
+    women: items.filter(isWomenFocusedDraft),
+  })
+  const youtube = splitAudience(youtubeCandidates)
+  const priorityDomestic = splitAudience(priorityDomesticCandidates)
+  const normal = splitAudience(normalCandidates)
+  const generalCandidates = [
+    ...priorityDomestic.general,
+    ...normal.general,
+  ]
+  const regularWomenCandidates = womenQuotaRemaining > 0
+    ? [...priorityDomestic.women, ...normal.women]
+    : []
+
+  if (youtubeQuotaRemaining > 0) {
+    // 既存のYouTube比率を優先しつつ、女性向け枠は4時間6記事で最大1件に抑える。
+    return [
+      ...youtube.general,
+      ...(womenQuotaRemaining > 0 ? youtube.women : []),
+      ...regularWomenCandidates,
+      ...generalCandidates,
+    ]
+  }
+
+  return [
+    ...regularWomenCandidates,
+    ...generalCandidates,
+  ]
 }
 
 async function saveArticleImage(imageUrl: string, draft: Draft, name: string): Promise<string> {
@@ -282,6 +319,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
 
   let alreadyPublishedArticleIds: string[] = []
   let alreadyPublishedYoutubeArticleIds: string[] = []
+  let alreadyPublishedWomenFocusedArticleIds: string[] = []
   let alreadyPublishedTitles: string[] = []
   await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
     const existing = state.runs[slot]
@@ -291,6 +329,11 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
         .filter((run) => run.mixCycle === mixCycle)
         .flatMap((run) => run.publishedYoutubeArticleIds ?? [])
     )]
+    alreadyPublishedWomenFocusedArticleIds = [...new Set(
+      Object.values(state.runs)
+        .filter((run) => run.mixCycle === mixCycle)
+        .flatMap((run) => run.publishedWomenFocusedArticleIds ?? [])
+    )]
     alreadyPublishedTitles = existing?.titles ?? []
     state.runs[slot] = {
       startedAt: existing?.startedAt ?? now.toISOString(),
@@ -298,6 +341,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       mixCycle,
       publishedArticleIds: alreadyPublishedArticleIds,
       publishedYoutubeArticleIds: existing?.publishedYoutubeArticleIds ?? [],
+      publishedWomenFocusedArticleIds: existing?.publishedWomenFocusedArticleIds ?? [],
       titles: alreadyPublishedTitles,
     }
     return state
@@ -317,11 +361,21 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     0,
     TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE - alreadyPublishedYoutubeArticleIds.length
   )
-  const candidates = orderAutoPublishCandidates(drafts, alreadyPublishedYoutubeArticleIds.length)
+  const candidates = orderAutoPublishCandidates(
+    drafts,
+    alreadyPublishedYoutubeArticleIds.length,
+    alreadyPublishedWomenFocusedArticleIds.length
+  )
   let youtubePublished = 0
+  let womenFocusedPublished = 0
   for (const draft of candidates) {
     if (publishedArticles.length >= Math.min(ARTICLES_PER_AUTO_PUBLISH_RUN, remainingTarget)) break
     if (draft.suggestedYoutubeVideoId && youtubePublished >= youtubeQuotaRemaining) continue
+    if (
+      isWomenFocusedDraft(draft)
+      && alreadyPublishedWomenFocusedArticleIds.length + womenFocusedPublished
+        >= MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE
+    ) continue
     try {
       const article = await prepareArticle(draft)
       await mutateArticles((data) => {
@@ -335,6 +389,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       })
       publishedArticles.push(article)
       if (draft.suggestedYoutubeVideoId) youtubePublished++
+      if (isWomenFocusedDraft(draft)) womenFocusedPublished++
     } catch (err) {
       errors.push(`${draft.title}: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -357,6 +412,12 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       publishedYoutubeArticleIds: [...new Set([
         ...(existing?.publishedYoutubeArticleIds ?? []),
         ...publishedArticles.filter((article) => Boolean(article.youtubeVideoId)).map((article) => article.id),
+      ])],
+      publishedWomenFocusedArticleIds: [...new Set([
+        ...(existing?.publishedWomenFocusedArticleIds ?? []),
+        ...publishedArticles
+          .filter(isWomenFocusedDraft)
+          .map((article) => article.id),
       ])],
       titles,
     }
