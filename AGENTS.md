@@ -43,6 +43,8 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
 - Automatic publishing is mens/unisex-led. Across each four-hour six-article cycle, publish no more
   than one explicitly women-focused article. Detect women-focused items only from explicit wording
   such as ウィメンズ/レディース/Women's; never infer gender from a brand or visual impression.
+- Mix up to two eligible YouTube articles into each four-hour six-article cycle. Do not force a
+  video that fails normal publication requirements; fill the remaining slots with standard articles.
 - Across each eight-hour twelve-article cycle, publish no more than one FASHIONSNAP-sourced article.
   Prefer other official/primary sources for the remaining slots; do not force a FASHIONSNAP article
   when no candidate passes the normal publication requirements.

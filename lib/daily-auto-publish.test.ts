@@ -26,9 +26,9 @@ test("各2時間枠は最低2記事・最大5記事", () => {
   assert.equal(MAX_ARTICLES_PER_TWO_HOUR_SLOT, 5)
 })
 
-test("6記事につきYouTube記事1件を目安にする", () => {
+test("6記事につきYouTube記事を最大2件まで混ぜる", () => {
   assert.equal(ARTICLES_PER_YOUTUBE_MIX_CYCLE, 6)
-  assert.equal(TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE, 1)
+  assert.equal(TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE, 2)
 })
 
 test("6記事周期の女性向け単独記事は最大1件にする", () => {
@@ -76,11 +76,19 @@ test("JSTの連続する4枠をFASHIONSNAP配分用の12記事周期として扱
   assert.equal(jstFashionsnapMixCycleKey(new Date("2026-08-29T07:00:00Z")), "2026-08-29-16-fashionsnap-mix-v1")
 })
 
-test("6記事周期にYouTubeが無ければYouTube候補を先にし、1件公開済みなら通常候補だけにする", () => {
+test("6記事周期はYouTubeを2件まで優先し、2件公開済みなら通常候補だけにする", () => {
   const normal = { id: "normal", suggestedYoutubeVideoId: undefined } as Draft
-  const youtube = { id: "youtube", suggestedYoutubeVideoId: "abcdefghijk" } as Draft
-  assert.deepEqual(orderAutoPublishCandidates([normal, youtube], 0).map((draft) => draft.id), ["youtube", "normal"])
-  assert.deepEqual(orderAutoPublishCandidates([normal, youtube], 1).map((draft) => draft.id), ["normal"])
+  const youtube1 = { id: "youtube-1", suggestedYoutubeVideoId: "abcdefghijk" } as Draft
+  const youtube2 = { id: "youtube-2", suggestedYoutubeVideoId: "lmnopqrstuv" } as Draft
+  assert.deepEqual(
+    orderAutoPublishCandidates([normal, youtube1, youtube2], 0).map((draft) => draft.id).slice(0, 2).sort(),
+    ["youtube-1", "youtube-2"]
+  )
+  assert.deepEqual(
+    orderAutoPublishCandidates([normal, youtube1], 1).map((draft) => draft.id),
+    ["youtube-1", "normal"]
+  )
+  assert.deepEqual(orderAutoPublishCandidates([normal, youtube1], 2).map((draft) => draft.id), ["normal"])
 })
 
 test("国内ブランド公式の新着は通常記事の中で優先する", () => {

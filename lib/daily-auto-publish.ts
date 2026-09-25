@@ -30,7 +30,7 @@ export const ARTICLES_PER_AUTO_PUBLISH_RUN = 5
 export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 2
 export const MAX_ARTICLES_PER_TWO_HOUR_SLOT = 5
 export const ARTICLES_PER_YOUTUBE_MIX_CYCLE = 6
-export const TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE = 1
+export const TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE = 2
 export const MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE = 1
 export const ARTICLES_PER_FASHIONSNAP_MIX_CYCLE = 12
 export const MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE = 1
@@ -181,7 +181,7 @@ export function orderAutoPublishCandidates(
   ])
 
   if (youtubeQuotaRemaining > 0) {
-    // 既存のYouTube比率を優先しつつ、女性向け枠は4時間6記事で最大1件に抑える。
+    // YouTubeは6記事につき最大2件まで優先し、女性向け枠は4時間6記事で最大1件に抑える。
     return [
       ...prioritizeFashionsnap([
         ...youtube.general,
@@ -412,7 +412,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   const publishedArticles: Article[] = []
   const remainingCapacity = MAX_ARTICLES_PER_TWO_HOUR_SLOT - alreadyPublishedArticleIds.length
   // 9/4までの運用と同じく、下書きを一律ゲートで除外せず公開処理を試す。
-  // 4時間（6件）の中でYouTubeがまだ0件なら先に1件を試し、残りは通常記事にする。
+  // 4時間（6件）の中でYouTubeが2件未満なら先に候補を試し、最大2件まで混ぜる。
   // YouTubeが公開条件を満たさない場合は通常記事へ進み、公開本数そのものは止めない。
   const youtubeQuotaRemaining = Math.max(
     0,
