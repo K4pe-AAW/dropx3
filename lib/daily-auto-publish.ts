@@ -22,7 +22,7 @@ import { isFashionsnapSourced } from "./article-source"
 
 // 既存の公開数を引き継ぎつつ、2時間枠ごとに最低2件・最大5件を公開する。
 // 最低件数に届かない場合は、同じ枠内の後続cronで再試行する。
-const STATE_PATH = "data/daily-auto-publish-state-throughput-v4.json"
+export const AUTO_PUBLISH_STATE_PATH = "data/daily-auto-publish-state-throughput-v4.json"
 const AUTO_PUBLISH_POLICY_VERSION = "throughput-v4"
 const YOUTUBE_MIX_POLICY_VERSION = "youtube-mix-v1"
 const FASHIONSNAP_MIX_POLICY_VERSION = "fashionsnap-mix-v1"
@@ -35,9 +35,12 @@ export const MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE = 1
 export const ARTICLES_PER_FASHIONSNAP_MIX_CYCLE = 12
 export const MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE = 1
 
-type RunRecord = {
+export type AutoPublishRunRecord = {
   startedAt: string
   lastAttemptAt?: string
+  attempts?: number
+  lastPublishedCount?: number
+  lastErrors?: string[]
   mixCycle?: string
   fashionsnapMixCycle?: string
   publishedArticleIds?: string[]
@@ -46,7 +49,7 @@ type RunRecord = {
   publishedFashionsnapArticleIds?: string[]
   titles?: string[]
 }
-type AutoPublishState = { runs: Record<string, RunRecord> }
+export type AutoPublishState = { runs: Record<string, AutoPublishRunRecord> }
 
 export function jstSlotKey(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -363,7 +366,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   let alreadyPublishedTitles: string[] = []
   const existingArticles = await readArticles()
   const existingArticlesById = new Map(existingArticles.articles.map((article) => [article.id, article]))
-  await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
+  await mutateJson<AutoPublishState>(AUTO_PUBLISH_STATE_PATH, { runs: {} }, (state) => {
     const existing = state.runs[slot]
     alreadyPublishedArticleIds = existing?.publishedArticleIds ?? []
     alreadyPublishedYoutubeArticleIds = [...new Set(
@@ -393,6 +396,9 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     state.runs[slot] = {
       startedAt: existing?.startedAt ?? now.toISOString(),
       lastAttemptAt: now.toISOString(),
+      attempts: (existing?.attempts ?? 0) + 1,
+      lastPublishedCount: existing?.lastPublishedCount ?? 0,
+      lastErrors: existing?.lastErrors ?? [],
       mixCycle,
       fashionsnapMixCycle,
       publishedArticleIds: alreadyPublishedArticleIds,
@@ -459,7 +465,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       errors.push(`${draft.title}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
-  await mutateJson<AutoPublishState>(STATE_PATH, { runs: {} }, (state) => {
+  await mutateJson<AutoPublishState>(AUTO_PUBLISH_STATE_PATH, { runs: {} }, (state) => {
     const existing = state.runs[slot]
     const publishedArticleIds = [...new Set([
       ...(existing?.publishedArticleIds ?? alreadyPublishedArticleIds),
@@ -472,6 +478,9 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     state.runs[slot] = {
       startedAt: existing?.startedAt ?? now.toISOString(),
       lastAttemptAt: now.toISOString(),
+      attempts: existing?.attempts ?? 1,
+      lastPublishedCount: publishedArticles.length,
+      lastErrors: errors.slice(0, 20),
       mixCycle,
       fashionsnapMixCycle,
       publishedArticleIds,

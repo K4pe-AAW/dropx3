@@ -122,6 +122,9 @@ export default async function AdminPage({
         <Link href="/admin/monetization" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
           収益改善
         </Link>
+        <Link href="/admin/operations" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
+          公開運用
+        </Link>
       </div>
 
       {activeView === "drafts" ? (

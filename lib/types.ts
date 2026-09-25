@@ -147,6 +147,8 @@ export type Article = {
   tags: string[]
   publishedAt: string // ISO 8601
   updatedAt?: string
+  /** 確認済み販売ページを自動再巡回した最終日時。本文更新が無い確認も含む。 */
+  lastVerifiedAt?: string
   featured: boolean
   /** カラー展開ごとの型番・価格・サイズ・発売日。複数色を扱う記事のみ設定(任意) */
   colorways?: ColorwayInfo[]
