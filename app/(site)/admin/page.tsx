@@ -119,6 +119,9 @@ export default async function AdminPage({
         <Link href="/admin/crawl-sources" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
           収集元の管理
         </Link>
+        <Link href="/admin/monetization" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
+          収益改善
+        </Link>
       </div>
 
       {activeView === "drafts" ? (

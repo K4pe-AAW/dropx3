@@ -192,3 +192,17 @@ A8.net等のASP審査でもこれらのページの実在が求められるこ�
 - **画像**: シード記事のカバー画像は `placehold.co` のプレースホルダー。実運用では提携ASP/ブランドが
   提供する商品画像、または自分で用意した画像に差し替える。
 - **ページネーション未実装**: 一覧系ページは直近の記事のみ表示（最大24件）。記事数が増えたら追加が必要。
+# Obsidian収益運用
+
+管理画面の `/admin/monetization` では、公開数・古い下書き・購入導線カバー率と、優先改善候補を確認できる。
+
+```bash
+npm run obsidian:sync
+```
+
+上記で `koh_Knowledge/03_Projects/DROP DROP DROP/` に次を同期する。
+
+- `DROP DROP DROP Monetization Dashboard.md`: KPIと改善候補（実行ごとに更新）
+- `DROP DROP DROP Monetization Experiments.md`: バナー比較・判断ログ（初回だけ作成し、その後は上書きしない）
+
+`.env.local` に `BLOB_READ_WRITE_TOKEN` がある場合は本番Blobを使用し、無い場合はリポジトリ内JSONを参考値として使う。秘密情報をObsidianへ書き出さない。

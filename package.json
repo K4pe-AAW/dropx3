@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "tsx --test \"lib/**/*.test.ts\" \"components/**/*.test.tsx\"",
     "collect": "tsx scripts/collect.ts",
-    "seed-blob": "tsx scripts/seed-blob.ts"
+    "seed-blob": "tsx scripts/seed-blob.ts",
+    "obsidian:sync": "tsx scripts/sync-obsidian-monetization.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.7.0",
