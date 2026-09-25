@@ -20,14 +20,15 @@ import { isDraftAllowedByYoutubeCollectionPolicy } from "./youtube-collection-po
 import { isWomenFocusedDraft } from "./article-audience"
 import { isFashionsnapSourced } from "./article-source"
 
-// 既存の公開数を引き継ぎつつ、2時間枠ごとに3件、4時間（6件）ごとに
-// YouTube 1件を目安として再試行する。
+// 既存の公開数を引き継ぎつつ、2時間枠ごとに最低2件・最大5件を公開する。
+// 最低件数に届かない場合は、同じ枠内の後続cronで再試行する。
 const STATE_PATH = "data/daily-auto-publish-state-throughput-v4.json"
 const AUTO_PUBLISH_POLICY_VERSION = "throughput-v4"
 const YOUTUBE_MIX_POLICY_VERSION = "youtube-mix-v1"
 const FASHIONSNAP_MIX_POLICY_VERSION = "fashionsnap-mix-v1"
-export const ARTICLES_PER_AUTO_PUBLISH_RUN = 3
-export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 3
+export const ARTICLES_PER_AUTO_PUBLISH_RUN = 5
+export const MIN_ARTICLES_PER_TWO_HOUR_SLOT = 2
+export const MAX_ARTICLES_PER_TWO_HOUR_SLOT = 5
 export const ARTICLES_PER_YOUTUBE_MIX_CYCLE = 6
 export const TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE = 1
 export const MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE = 1
@@ -402,14 +403,14 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     }
     return state
   })
-  if (alreadyPublishedArticleIds.length >= MIN_ARTICLES_PER_TWO_HOUR_SLOT) {
-    return { published: false, publishedCount: 0, slot, skipped: ["この2時間枠は3件公開済みです"] }
+  if (alreadyPublishedArticleIds.length >= MAX_ARTICLES_PER_TWO_HOUR_SLOT) {
+    return { published: false, publishedCount: 0, slot, skipped: ["この2時間枠は最大5件公開済みです"] }
   }
 
   const { drafts } = await readDrafts()
   const errors: string[] = []
   const publishedArticles: Article[] = []
-  const remainingTarget = MIN_ARTICLES_PER_TWO_HOUR_SLOT - alreadyPublishedArticleIds.length
+  const remainingCapacity = MAX_ARTICLES_PER_TWO_HOUR_SLOT - alreadyPublishedArticleIds.length
   // 9/4までの運用と同じく、下書きを一律ゲートで除外せず公開処理を試す。
   // 4時間（6件）の中でYouTubeがまだ0件なら先に1件を試し、残りは通常記事にする。
   // YouTubeが公開条件を満たさない場合は通常記事へ進み、公開本数そのものは止めない。
@@ -427,7 +428,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   let womenFocusedPublished = 0
   let fashionsnapPublished = 0
   for (const draft of candidates) {
-    if (publishedArticles.length >= Math.min(ARTICLES_PER_AUTO_PUBLISH_RUN, remainingTarget)) break
+    if (publishedArticles.length >= Math.min(ARTICLES_PER_AUTO_PUBLISH_RUN, remainingCapacity)) break
     if (draft.suggestedYoutubeVideoId && youtubePublished >= youtubeQuotaRemaining) continue
     if (
       isWomenFocusedDraft(draft)
@@ -503,7 +504,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     skipped: errors.length > 0
       ? errors
       : totalPublishedInSlot < MIN_ARTICLES_PER_TWO_HOUR_SLOT
-        ? [`この2時間枠は${totalPublishedInSlot}/3件です。次の30分実行で再試行します`]
+        ? [`この2時間枠は最低目標に未達です（${totalPublishedInSlot}/2件）。次の30分実行で再試行します`]
         : [],
   }
 }

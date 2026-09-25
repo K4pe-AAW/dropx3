@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import {
   ARTICLES_PER_AUTO_PUBLISH_RUN,
   ARTICLES_PER_YOUTUBE_MIX_CYCLE,
+  MAX_ARTICLES_PER_TWO_HOUR_SLOT,
   MIN_ARTICLES_PER_TWO_HOUR_SLOT,
   TARGET_YOUTUBE_ARTICLES_PER_MIX_CYCLE,
   MAX_WOMEN_FOCUSED_ARTICLES_PER_MIX_CYCLE,
@@ -19,9 +20,10 @@ import {
 } from "./daily-auto-publish"
 import type { Draft } from "./types"
 
-test("各2時間枠の最低公開目標は3記事", () => {
-  assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 3)
-  assert.equal(MIN_ARTICLES_PER_TWO_HOUR_SLOT, 3)
+test("各2時間枠は最低2記事・最大5記事", () => {
+  assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 5)
+  assert.equal(MIN_ARTICLES_PER_TWO_HOUR_SLOT, 2)
+  assert.equal(MAX_ARTICLES_PER_TWO_HOUR_SLOT, 5)
 })
 
 test("6記事につきYouTube記事1件を目安にする", () => {
