@@ -17,6 +17,13 @@ export const SEO_TOPICS: readonly SeoTopic[] = [
     intro: "ストリートからデザイナーズ、古着まで、いま押さえておきたいファッション情報を編集部が整理。価格や発売日、公式販売先も確認できます。",
   },
   {
+    slug: "30s-style",
+    label: "30代おしゃれ",
+    title: "30代のおしゃれ・大人ファッション",
+    description: "30代の仕事着や休日コーデに取り入れやすい、きれいめファッション、スニーカー、長く使える定番品の情報をまとめます。",
+    intro: "仕事と休日のどちらにもなじむ、きれいめな服や上質な定番を中心に紹介。30代の普段着へ取り入れやすい新作、スニーカー、小物を探せます。",
+  },
+  {
     slug: "40s-style",
     label: "40代おしゃれ",
     title: "40代のおしゃれ・大人ファッション",
@@ -35,6 +42,7 @@ export const SEO_TOPICS: readonly SeoTopic[] = [
 const FASHION_CATEGORIES = new Set<Category>(["tops", "pants", "jacket", "apparel", "boots", "sneaker", "accessory", "vintage", "brand"])
 const MENS_PATTERN = /(?:メンズ|men(?:'s|s)?|紳士|男性向け|ユニセックス)/i
 const WOMENS_ONLY_PATTERN = /(?:ウィメンズ|レディース|women(?:'s|s)?|女性向け)/i
+const THIRTIES_PATTERN = /(?:30代|アラサー|30歳代|仕事(?:着|服|コーデ)|通勤(?:着|服|コーデ)|オンオフ兼用|オンにもオフにも|きれいめ(?:カジュアル|コーデ|スタイル)|休日(?:服|コーデ)|都会的(?:な|に)?(?:着こなし|スタイル)|上質な普段着)/i
 const FORTIES_PATTERN = /(?:40代|アラフォー|ミドル世代|大人(?:の|向け)?(?:服|ファッション|コーデ|スタイル|着こなし)|上品(?:な|に)?(?:着こなし|スタイル)|定番として|長く使える|タイムレス|クラシック)/i
 
 type TopicCandidate = Pick<Article, "title" | "excerpt" | "bodyParagraphs" | "category" | "tags"> | Pick<Draft, "title" | "excerpt" | "bodyParagraphs" | "category" | "tags">
@@ -50,6 +58,7 @@ export function seoTopicBySlug(slug: string): SeoTopic | undefined {
 export function matchesSeoTopic(item: TopicCandidate, slug: string): boolean {
   const text = searchableText(item)
   if (slug === "fashion") return FASHION_CATEGORIES.has(item.category)
+  if (slug === "30s-style") return THIRTIES_PATTERN.test(text)
   if (slug === "40s-style") return FORTIES_PATTERN.test(text)
   if (slug === "mens-fashion") return MENS_PATTERN.test(text) && !WOMENS_ONLY_PATTERN.test(text)
   return false

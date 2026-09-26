@@ -53,7 +53,7 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   not the seller, and Product+Offer causes Google to inspect article pages as merchant listings.
   Use Article + Breadcrumb structured data only. Never invent reviews, ratings, shipping, returns,
   availability, or seller data to silence Search Console warnings.
-- SEO topic labels are derived by `lib/seo-topics.ts`. Add `ファッション`, `40代おしゃれ`, or
+- SEO topic labels are derived by `lib/seo-topics.ts`. Add `ファッション`, `30代おしゃれ`, `40代おしゃれ`, or
   `メンズファッション` only when the article text/category satisfies that topic's rules. Never attach
   age/style keywords to every article or repeat them unnaturally in prose; use the topic landing pages and
   crawlable internal links instead.
