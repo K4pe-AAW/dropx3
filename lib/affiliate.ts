@@ -212,6 +212,23 @@ export function buildRakutenSearchLink(query: string): AffiliateLink {
   }
 }
 
+/**
+ * 食事・宅食カテゴリーの独立サイドバー枠。
+ * 現在は提携済みの楽天市場検索リンクを使い、特定サービスの価格・効果を断定しない。
+ * nosh等の専用ASP案件と提携した後は、この設定だけを公式リンク・素材へ差し替える。
+ */
+export const SIDEBAR_MEAL_AFFILIATE_PROMO = {
+  href: buildRakutenSearchLink("冷凍弁当 宅配ごはん").url,
+  network: "rakuten" as const,
+  itemName: "冷凍弁当・宅配ごはん",
+  brand: "楽天市場",
+  placementId: "sidebar-meal-delivery",
+  eyebrow: "MEAL & LIFESTYLE",
+  title: "忙しい日の宅配ごはん",
+  description: "冷凍弁当・惣菜のラインナップをまとめてチェック",
+  cta: "楽天市場で探す →",
+} as const
+
 /** Amazonアソシエイトの商品検索リンク。タグは公開URLに露出する識別子なのでNEXT_PUBLICで共有する。 */
 export function buildAmazonSearchLink(query: string): AffiliateLink {
   const trimmed = query.trim()
