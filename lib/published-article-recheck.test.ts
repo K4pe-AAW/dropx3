@@ -15,6 +15,28 @@ test("確認済み公式商品ページがある記事を再確認候補にす�
   assert.equal(recheckSourceUrl({ ...article, officialLinks: [{ label: "検索", url: "https://www.google.com/search?q=shoe" }] }), null)
 })
 
+test("正規販売店の商品ページも再確認候補にし、二次流通は根拠にしない", () => {
+  const withoutOfficialLink = { ...article, officialLinks: [] }
+  assert.equal(recheckSourceUrl({
+    ...withoutOfficialLink,
+    purchaseChannels: [{
+      retailerName: "正規販売店",
+      channelType: "official",
+      saleMethod: "regular",
+      url: "https://retailer.example/items/shoe",
+    }],
+  }), "https://retailer.example/items/shoe")
+  assert.equal(recheckSourceUrl({
+    ...withoutOfficialLink,
+    purchaseChannels: [{
+      retailerName: "二次流通",
+      channelType: "secondary",
+      saleMethod: "regular",
+      url: "https://secondary.example/items/shoe",
+    }],
+  }), null)
+})
+
 test("公式商品ページで再確認できた噂記事はREPORTへ上げ、画像はpatchへ含めない", () => {
   const result = buildRecheckResult(article, {
     title: "新作スニーカー",

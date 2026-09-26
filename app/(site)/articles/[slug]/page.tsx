@@ -44,7 +44,18 @@ export async function generateMetadata({
     }],
     keywords: [...new Set([...article.brands, ...article.tags])],
     alternates: { canonical: url },
-    robots: { index: true, follow: true, "max-image-preview": "large" },
+    robots: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
     openGraph: {
       title: article.title,
       description: article.excerpt,
@@ -54,6 +65,12 @@ export async function generateMetadata({
       modifiedTime: article.updatedAt ?? article.publishedAt,
       authors: [article.editorialAuthor ?? `${siteConfig.name}編集部`],
       url,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.title,
+      description: article.excerpt,
+      images: [article.coverImage],
     },
   }
 }

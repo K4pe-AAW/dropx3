@@ -39,6 +39,10 @@ function isRecheckableOfficialUrl(value: string): boolean {
 export function recheckSourceUrl(article: Article): string | null {
   const official = article.officialLinks.find((link) => isRecheckableOfficialUrl(link.url))?.url
   if (official) return official
+  const officialPurchaseChannel = (article.purchaseChannels ?? [])
+    .find((channel) => channel.channelType === "official" && channel.url && isRecheckableOfficialUrl(channel.url))
+    ?.url
+  if (officialPurchaseChannel) return officialPurchaseChannel
   return [
     ...article.sourceRefs.map((ref) => ref.url),
     ...(article.purchaseChannels ?? []).map((channel) => channel.url).filter((url): url is string => Boolean(url)),
