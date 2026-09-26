@@ -38,6 +38,9 @@ export function Footer() {
           <Link href="/calendar" className="hover:text-primary-foreground transition-colors">
             発売日カレンダー
           </Link>
+          <Link href="/style-by-age" className="hover:text-primary-foreground transition-colors">
+            年代から探す
+          </Link>
           <a href="/rss.xml" className="hover:text-primary-foreground transition-colors">
             RSS
           </a>

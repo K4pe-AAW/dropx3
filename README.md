@@ -185,7 +185,8 @@ A8.net等のASP審査でもこれらのページの実在が求められるこ�
 | `/picks` | 編集部おすすめ品（EDITOR’S PICKS）一覧 |
 | `/category/[sneaker\|fashion]` | カテゴリー別一覧 |
 | `/brand/[brand]` | ブランド別一覧 |
-| `/tag/fashion` `/tag/30s-style` `/tag/40s-style` `/tag/mens-fashion` | 内容に基づくSEOテーマ別一覧 |
+| `/style-by-age` | 20代後半〜60代の年代別スタイル入口 |
+| `/tag/fashion` `/tag/late-20s-style` `/tag/30s-style` `/tag/40s-style` `/tag/50s-style` `/tag/60s-style` `/tag/mens-fashion` | 内容に基づくSEOテーマ別一覧 |
 | `/archive/[YYYY-MM]` | 月別アーカイブ |
 | `/articles/[slug]` | 記事詳細 |
 | `/search?q=` | キーワード検索 |
@@ -207,7 +208,7 @@ A8.net等のASP審査でもこれらのページの実在が求められるこ�
 ## SEOテーマと自動改善
 
 `lib/seo-topics.ts` が記事本文・カテゴリー・既存タグから関連テーマを機械判定する。全記事へ一律に
-検索語を追加せず、内容に根拠がある場合だけ「ファッション」「30代おしゃれ」「40代おしゃれ」「メンズファッション」を
+検索語を追加せず、内容に根拠がある場合だけ「ファッション」「20代後半おしゃれ」「30代おしゃれ」「40代おしゃれ」「50代おしゃれ」「60代おしゃれ」「メンズファッション」を
 補い、専用一覧・記事内リンク・JSON-LD・サイトマップへ反映する。Googleのmeta keywordsは使用しない。
 
 毎日9:20 JSTのOpenClaw automation `drop-growth-obsidian-sync` がGrowth OSのGA4／Search Consoleを

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
+import Link from "next/link"
 import { ArticleCard } from "@/components/ArticleCard"
 import { Pagination } from "@/components/Pagination"
 import { Sidebar } from "@/components/Sidebar"
@@ -50,6 +51,11 @@ export default async function SeoTopicPage({
         <p className="text-xs font-black tracking-[0.2em] text-muted-foreground">TOPIC</p>
         <h1 className="mt-2 text-2xl font-black sm:text-3xl">{topic.title}</h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{topic.intro}</p>
+        {topic.slug.endsWith("s-style") && (
+          <Link href="/style-by-age" className="mt-4 inline-flex text-sm font-bold underline underline-offset-4">
+            ほかの年代のスタイルも見る
+          </Link>
+        )}
       </header>
       <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[1fr_300px] lg:gap-10">
         <div>
