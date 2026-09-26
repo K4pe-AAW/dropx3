@@ -7,6 +7,7 @@ import {
   type PublishedRecheckState,
 } from "@/lib/published-article-recheck"
 import { getAllArticles, getPendingDrafts, readJson } from "@/lib/storage"
+import { backupAgeHours, readBackupHealth } from "@/lib/backup-health"
 
 export const metadata: Metadata = { title: "公開運用" }
 export const dynamic = "force-dynamic"
@@ -22,11 +23,12 @@ function jst(value?: string): string {
 
 export default async function OperationsPage() {
   const now = new Date()
-  const [articles, drafts, state, recheck] = await Promise.all([
+  const [articles, drafts, state, recheck, backup] = await Promise.all([
     getAllArticles(),
     getPendingDrafts(),
     readJson<AutoPublishState>(AUTO_PUBLISH_STATE_PATH, { runs: {} }),
     readJson<PublishedRecheckState>(PUBLISHED_RECHECK_STATE_PATH, {}),
+    readBackupHealth(),
   ])
   const report = buildOperationsReport(articles, drafts, state, jstSlotKey(now), now)
   const cards = [
@@ -101,6 +103,18 @@ export default async function OperationsPage() {
             {recheck.errors?.map((error) => <li key={error} className="rounded-lg bg-secondary p-3">{error}</li>)}
           </ul>
         )}
+      </section>
+
+      <section className="mt-8 rounded-xl border border-border bg-card p-6">
+        <h2 className="text-lg font-black">データ保全</h2>
+        <p className="mt-2 text-sm text-muted-foreground">記事・下書き・予約・収集元を毎日バックアップし、容量と失敗を監視します。</p>
+        <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-3">
+          <div><dt className="text-muted-foreground">最終バックアップ</dt><dd className="mt-1 font-black">{jst(backup.completedAt)}</dd></div>
+          <div><dt className="text-muted-foreground">経過</dt><dd className="mt-1 font-black">{backupAgeHours(backup) === null ? "未実行" : `${backupAgeHours(backup)}時間`}</dd></div>
+          <div><dt className="text-muted-foreground">対象容量</dt><dd className="mt-1 font-black">{backup.totalBytes ? `${(backup.totalBytes / 1024 / 1024).toFixed(2)} MB` : "未計測"}</dd></div>
+        </dl>
+        {backup.error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-xs font-bold text-red-700">{backup.error}</p>}
+        {backupAgeHours(backup) !== null && (backupAgeHours(backup) ?? 0) > 36 && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs font-bold text-amber-800">バックアップが36時間以上更新されていません。</p>}
       </section>
     </main>
   )

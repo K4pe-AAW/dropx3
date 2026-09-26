@@ -185,6 +185,7 @@ A8.net等のASP審査でもこれらのページの実在が求められるこ�
 | `/picks` | 編集部おすすめ品（EDITOR’S PICKS）一覧 |
 | `/category/[sneaker\|fashion]` | カテゴリー別一覧 |
 | `/brand/[brand]` | ブランド別一覧 |
+| `/tag/fashion` `/tag/40s-style` `/tag/mens-fashion` | 内容に基づくSEOテーマ別一覧 |
 | `/archive/[YYYY-MM]` | 月別アーカイブ |
 | `/articles/[slug]` | 記事詳細 |
 | `/search?q=` | キーワード検索 |
@@ -202,6 +203,19 @@ A8.net等のASP審査でもこれらのページの実在が求められるこ�
 - **画像**: シード記事のカバー画像は `placehold.co` のプレースホルダー。実運用では提携ASP/ブランドが
   提供する商品画像、または自分で用意した画像に差し替える。
 - **ページネーション**: 一覧・管理画面とも実装済み。記事数を減らさず、表示単位を分割している。
+
+## SEOテーマと自動改善
+
+`lib/seo-topics.ts` が記事本文・カテゴリー・既存タグから関連テーマを機械判定する。全記事へ一律に
+検索語を追加せず、内容に根拠がある場合だけ「ファッション」「40代おしゃれ」「メンズファッション」を
+補い、専用一覧・記事内リンク・JSON-LD・サイトマップへ反映する。Googleのmeta keywordsは使用しない。
+
+毎日9:20 JSTのOpenClaw automation `drop-growth-obsidian-sync` がGrowth OSのGA4／Search Consoleを
+読み取り専用で取得し、Obsidianの収益ダッシュボードとSEO改善キューを更新する。順位4〜20位、低CTR、
+表示があるのにクリック0の記事を候補化するが、記事本文やタイトルは自動で書き換えない。
+
+日次バックアップは `data/backup-health.json` へ完了時刻・対象容量・失敗を記録し、
+`/admin/operations` で36時間以上停止した場合に警告する。
 # Obsidian収益運用
 
 管理画面の `/admin/monetization` では、公開数・古い下書き・購入導線カバー率と、優先改善候補を確認できる。

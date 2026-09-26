@@ -15,6 +15,7 @@ import { canonicalBrandNames } from "./brands"
 import { MAX_ARTICLE_GALLERY_IMAGES, canonicalImageKey, isSameProductAssetFamily } from "./image-candidates"
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
+import { withSeoTopicTags } from "./seo-topics"
 import { applyRakutenProductEvidence, ensureUnconfirmedTitle, removeGosspTitlePrefix } from "./information-status"
 import { isDraftAllowedByYoutubeCollectionPolicy } from "./youtube-collection-policy"
 import { isWomenFocusedDraft } from "./article-audience"
@@ -335,7 +336,7 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     contentType: inferContentType(draft.category, affiliateLinks.length > 0),
     informationStatus,
     brands: canonicalBrandNames(draft.brands),
-    tags: draft.tags,
+    tags: withSeoTopicTags(draft),
     publishedAt: now,
     featured: false,
     ...(brushed.colorways.length > 0 ? { colorways: brushed.colorways } : {}),

@@ -10,6 +10,7 @@ import {
   removeGosspTitlePrefix,
 } from "./information-status"
 import { STANDARD_ARTICLE_BODY_GUIDELINE } from "./article-writing-guidelines"
+import { withSeoTopicTags } from "./seo-topics"
 
 const CATEGORY_SLUGS = siteConfig.categories.map((c) => c.slug)
 const DEFAULT_CATEGORY: Category = "sneaker"
@@ -368,7 +369,17 @@ export async function draftFromRawItem(item: RawItem): Promise<Draft> {
       ...(item.officialBrand ? [item.officialBrand] : []),
       ...(Array.isArray(result.brands) ? result.brands : []),
     ])],
-    tags: Array.isArray(result.tags) ? result.tags : [],
+    tags: withSeoTopicTags({
+      title: draftTitle,
+      excerpt: result.excerpt || "",
+      bodyParagraphs: Array.isArray(result.bodyParagraphs) ? result.bodyParagraphs : [],
+      category: youtubeVideoId
+        ? "youtube"
+        : CATEGORY_SLUGS.includes(result.category) && result.category !== "youtube"
+          ? result.category
+          : DEFAULT_CATEGORY,
+      tags: Array.isArray(result.tags) ? result.tags : [],
+    }),
     suggestedAffiliateSearch: Array.isArray(result.suggestedAffiliateSearch)
       ? result.suggestedAffiliateSearch
       : [],

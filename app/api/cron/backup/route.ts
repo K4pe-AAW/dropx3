@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { put } from "@vercel/blob"
-import { readJson, ARTICLES_PATH, DRAFTS_PATH, SCHEDULED_PATH, CRAWL_SOURCES_PATH } from "@/lib/storage"
+import { readJson, writeJson, ARTICLES_PATH, DRAFTS_PATH, SCHEDULED_PATH, CRAWL_SOURCES_PATH } from "@/lib/storage"
+import { BACKUP_HEALTH_PATH, type BackupHealth } from "@/lib/backup-health"
 
 export const dynamic = "force-dynamic"
 
@@ -23,11 +24,13 @@ export async function GET(req: NextRequest) {
 
   const dateKey = new Date().toISOString().slice(0, 10)
   const backedUp: string[] = []
+  const sourceBytes: Record<string, number> = {}
 
   try {
     for (const sourcePath of BACKUP_TARGETS) {
       const data = await readJson<unknown>(sourcePath, null)
       if (data === null) continue
+      sourceBytes[sourcePath] = Buffer.byteLength(JSON.stringify(data), "utf8")
       const backupPath = `backups/${dateKey}/${sourcePath.replace(/^data\//, "")}`
       await put(backupPath, JSON.stringify(data, null, 2), {
         access: "public",
@@ -37,10 +40,20 @@ export async function GET(req: NextRequest) {
       })
       backedUp.push(backupPath)
     }
-    return NextResponse.json({ ok: true, date: dateKey, backedUp })
+    const health: BackupHealth = {
+      completedAt: new Date().toISOString(),
+      date: dateKey,
+      backedUp,
+      sourceBytes,
+      totalBytes: Object.values(sourceBytes).reduce((sum, bytes) => sum + bytes, 0),
+    }
+    await writeJson(BACKUP_HEALTH_PATH, health)
+    return NextResponse.json({ ok: true, ...health })
   } catch (err) {
+    const message = err instanceof Error ? err.message : "バックアップに失敗しました"
+    await writeJson(BACKUP_HEALTH_PATH, { completedAt: new Date().toISOString(), date: dateKey, backedUp, sourceBytes, error: message }).catch(() => {})
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "バックアップに失敗しました" },
+      { error: message },
       { status: 500 }
     )
   }

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 import { getAllArticles, getAllBrands } from "@/lib/storage"
 import { siteConfig } from "@/lib/site-config"
+import { SEO_TOPICS } from "@/lib/seo-topics"
 
 // Article and brand data live in Vercel Blob. Resolve them at request time so
 // local/CI builds never require a production Blob credential.
@@ -25,6 +26,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${siteConfig.url}/category/${c.slug}`,
       changeFrequency: "hourly" as const,
       priority: 0.8,
+    })),
+    ...SEO_TOPICS.map((topic) => ({
+      url: `${siteConfig.url}/tag/${topic.slug}`,
+      changeFrequency: "daily" as const,
+      priority: 0.7,
     })),
   ]
 

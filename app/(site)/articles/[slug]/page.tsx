@@ -19,6 +19,7 @@ import { SnapProfileCard } from "@/components/SnapProfileCard"
 import { buildArticleStructuredData } from "@/lib/article-structured-data"
 import { ArticleViewTracker } from "@/components/ArticleViewTracker"
 import { serializeJsonLd } from "@/lib/json-ld"
+import { seoTopicsForArticle, withSeoTopicTags } from "@/lib/seo-topics"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -33,6 +34,7 @@ export async function generateMetadata({
   const article = await getArticleBySlug(slug)
   if (!article) return {}
   const url = absoluteUrl(`/articles/${article.slug}`)
+  const tags = withSeoTopicTags(article)
   return {
     // 記事タイトルは商品名・ブランド名・発売情報を含むため、サイト名を後置すると
     // 検索結果で重要語が切れやすい。記事ページだけは完全なタイトルをそのまま使う。
@@ -42,7 +44,7 @@ export async function generateMetadata({
       name: article.editorialAuthor ?? `${siteConfig.name}編集部`,
       url: article.editorialAuthor ? undefined : absoluteUrl("/authors/editorial"),
     }],
-    keywords: [...new Set([...article.brands, ...article.tags])],
+    keywords: [...new Set([...article.brands, ...tags])],
     alternates: { canonical: url },
     robots: {
       index: true,
@@ -90,6 +92,8 @@ export default async function ArticleDetailPage({
   if (!article) notFound()
 
   const related = await getRelatedArticles(article, 4)
+  const displayTags = withSeoTopicTags(article)
+  const topicLinks = seoTopicsForArticle(article)
   const jsonLd = buildArticleStructuredData(article, {
     siteUrl: siteConfig.url,
     siteName: siteConfig.name,
@@ -257,13 +261,18 @@ export default async function ArticleDetailPage({
         </div>
       )}
 
-      {article.tags.length > 0 && (
+      {displayTags.length > 0 && (
         <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4 sm:mt-8 sm:pt-6">
-          {article.tags.map((t) => (
-            <span key={t} className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
-              #{t}
-            </span>
-          ))}
+          {displayTags.map((tag) => {
+            const topic = topicLinks.find((item) => item.label === tag)
+            return topic ? (
+              <TrackedLink key={tag} event="internal_article_click" params={{ article_id: article.id, placement: "topic_tag" }}>
+                <Link href={`/tag/${topic.slug}`} className="rounded-full bg-secondary px-2.5 py-1 text-xs font-bold text-foreground hover:bg-accent hover:text-accent-foreground">#{tag}</Link>
+              </TrackedLink>
+            ) : (
+              <span key={tag} className="rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">#{tag}</span>
+            )
+          })}
         </div>
       )}
 

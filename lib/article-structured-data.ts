@@ -1,4 +1,5 @@
 import type { Article } from "./types"
+import { withSeoTopicTags } from "./seo-topics"
 
 type JsonLdNode = Record<string, unknown>
 
@@ -20,6 +21,7 @@ export function buildArticleStructuredData(
     .filter(Boolean)
     .map((image) => absoluteUrl(image, siteUrl))
     .filter((image, index, all) => all.indexOf(image) === index)
+  const tags = withSeoTopicTags(article)
 
   const articleNode: JsonLdNode = {
     "@type": !article.contentType || article.contentType === "NEWS" ? "NewsArticle" : "Article",
@@ -34,9 +36,9 @@ export function buildArticleStructuredData(
     inLanguage: "ja-JP",
     articleSection: categoryName,
     articleBody: article.bodyParagraphs.join("\n\n"),
-    keywords: [...new Set([...article.brands, ...article.tags])].join(", "),
+    keywords: [...new Set([...article.brands, ...tags])].join(", "),
     about: article.brands.map((name) => ({ "@type": "Brand", name })),
-    mentions: article.tags.map((name) => ({ "@type": "Thing", name })),
+    mentions: tags.map((name) => ({ "@type": "Thing", name })),
     citation: article.sourceRefs.map((source) => source.url),
     isAccessibleForFree: true,
     author: article.editorialAuthor

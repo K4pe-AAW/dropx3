@@ -46,7 +46,7 @@ export type AnalyticsEvent =
       name: "internal_article_click"
       params: {
         article_id: string
-        placement: "latest" | "popular" | "related" | "editorial_related" | "calendar"
+        placement: "latest" | "popular" | "related" | "editorial_related" | "calendar" | "topic_tag"
         position?: number
       }
     }

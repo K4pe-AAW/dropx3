@@ -42,7 +42,7 @@ test("NewsArticle、組織、サイト、パンくずを関連付けて出力す
   ])
   assert.equal(articleNode?.inLanguage, "ja-JP")
   assert.equal(articleNode?.articleSection, "スニーカー")
-  assert.equal(articleNode?.keywords, "Sample Brand, 新作, スニーカー")
+  assert.equal(articleNode?.keywords, "Sample Brand, 新作, スニーカー, ファッション")
   assert.equal(articleNode?.articleBody, "本文")
   assert.deepEqual(articleNode?.citation, [])
   assert.equal((articleNode?.author as { url?: string }).url, "https://dropx3.com/authors/editorial")

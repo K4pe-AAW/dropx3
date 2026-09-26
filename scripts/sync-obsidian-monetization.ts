@@ -7,6 +7,19 @@ async function readLocalJson<T>(relativePath: string): Promise<T> {
   return JSON.parse(await fs.readFile(path.join(process.cwd(), relativePath), "utf8")) as T
 }
 
+async function latestGrowthSnapshot(): Promise<{ path: string; data: import("../lib/seo-performance").SearchPerformanceSnapshot } | null> {
+  const folder = process.env.GROWTH_OS_DROP_METRICS_PATH ?? "/Users/koh/Desktop/claude01/growth-os/data/metrics/dropx3"
+  try {
+    const files = (await fs.readdir(folder)).filter((name) => name.endsWith(".json")).sort()
+    const latest = files.at(-1)
+    if (!latest) return null
+    const file = path.join(folder, latest)
+    return { path: file, data: JSON.parse(await fs.readFile(file, "utf8")) }
+  } catch {
+    return null
+  }
+}
+
 async function main() {
   loadEnvLocal()
   const [{ getAllArticles, getPendingDrafts }, { getEngagementScores }, { buildMonetizationReport, renderMonetizationMarkdown }] =
@@ -20,6 +33,7 @@ async function main() {
   const folder = path.join(vaultPath, "03_Projects", "DROP DROP DROP")
   const dashboardPath = path.join(folder, "DROP DROP DROP Monetization Dashboard.md")
   const experimentsPath = path.join(folder, "DROP DROP DROP Monetization Experiments.md")
+  const seoQueuePath = path.join(folder, "DROP DROP DROP SEO Improvement Queue.md")
   let articles: Article[]
   let drafts: Draft[]
   let scores = new Map<string, number>()
@@ -40,6 +54,11 @@ async function main() {
 
   await fs.mkdir(folder, { recursive: true })
   await fs.writeFile(dashboardPath, renderMonetizationMarkdown(report, sourceLabel), "utf8")
+  const growth = await latestGrowthSnapshot()
+  if (growth) {
+    const { renderSeoPerformanceMarkdown } = await import("../lib/seo-performance")
+    await fs.writeFile(seoQueuePath, renderSeoPerformanceMarkdown(growth.data, growth.path), "utf8")
+  }
 
   try {
     await fs.access(experimentsPath)
@@ -78,6 +97,7 @@ async function main() {
   }
 
   console.log(`Obsidian同期完了: ${dashboardPath}`)
+  console.log(growth ? `SEOキュー同期完了: ${seoQueuePath}` : "SEOキュー: Growth OSデータ未検出")
   console.log(`公開 ${report.publishedTotal} / 下書き ${report.draftsTotal} / 改善候補 ${report.opportunities.length}`)
 }
 
