@@ -19,6 +19,7 @@ export default function EditorialAuthorPage() {
       name: `${siteConfig.name}編集部`,
       url,
       description: "スニーカー、ストリートファッション、ブランド新作、発売・再販情報を扱う編集チーム。",
+      sameAs: [siteConfig.xUrl],
       parentOrganization: { "@type": "Organization", name: siteConfig.name, url: siteConfig.url },
     },
   }
@@ -31,6 +32,7 @@ export default function EditorialAuthorPage() {
       <div className="mt-6 space-y-5 text-sm leading-7">
         <p>スニーカー、ストリートファッション、ブランド新作、発売・再販、正規販売店情報を中心に取材・編集しています。</p>
         <p>公式発表と一次情報を優先し、価格・発売日・型番・販売先を確認できる形で整理します。未確認情報は確定情報と区別し、公式確認後に更新します。</p>
+        <p><a href={siteConfig.xUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline underline-offset-2">X {siteConfig.xHandle}</a></p>
         <p><Link href="/editorial-policy" className="font-bold underline underline-offset-2">編集・訂正ポリシーを見る</Link></p>
       </div>
     </main>

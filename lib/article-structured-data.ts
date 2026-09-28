@@ -1,5 +1,6 @@
 import type { Article } from "./types"
 import { withSeoTopicTags } from "./seo-topics"
+import { siteConfig } from "./site-config"
 
 type JsonLdNode = Record<string, unknown>
 
@@ -62,6 +63,7 @@ export function buildArticleStructuredData(
         "@id": organizationId,
         name: siteName,
         url: absoluteUrl("/", siteUrl),
+        sameAs: [siteConfig.xUrl],
         logo: {
           "@type": "ImageObject",
           url: absoluteUrl("/apple-icon", siteUrl),

@@ -9,6 +9,8 @@ export const siteConfig = {
   description:
     "DROP DROP DROPは、20代後半から60代まで楽しめるスニーカーとファッションの発売・再販・コラボ情報を毎日更新するニュースメディアです。",
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://dropdropdrop.example.com",
+  xHandle: "@dropx3tokyo",
+  xUrl: "https://x.com/dropx3tokyo",
   operatorName: "DROP DROP DROP運営部", // 特定商取引法/プライバシーポリシー表記用。実運用前に要編集
   /** 未設定時にexample.comのような偽アドレスを表示しないよう、環境変数がなければnullにする */
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL || null,

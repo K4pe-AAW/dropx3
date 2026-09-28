@@ -41,6 +41,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    creator: siteConfig.xHandle,
   },
   ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
     ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }

@@ -60,7 +60,7 @@ export default async function HomePage({
         name: siteConfig.name,
         description: siteConfig.description,
         url: absoluteUrl("/"),
-        publisher: { "@type": "Organization", name: siteConfig.name, url: absoluteUrl("/") },
+        publisher: { "@type": "Organization", name: siteConfig.name, url: absoluteUrl("/"), sameAs: [siteConfig.xUrl] },
       },
       {
         "@type": "CollectionPage",

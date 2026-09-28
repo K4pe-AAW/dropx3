@@ -47,6 +47,9 @@ export function Footer() {
           <a href="/rss.xml" className="hover:text-primary-foreground transition-colors">
             RSS
           </a>
+          <a href={siteConfig.xUrl} target="_blank" rel="noopener noreferrer" className="hover:text-primary-foreground transition-colors">
+            X {siteConfig.xHandle}
+          </a>
         </nav>
         <p className="text-xs text-primary-foreground/50">
           © {new Date().getFullYear()} {siteConfig.name}
