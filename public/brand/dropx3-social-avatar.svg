@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">DROP DROP DROP social avatar</title>
+  <desc id="desc">Black square with a lime D and multiplication sign three</desc>
+  <rect width="1024" height="1024" fill="#0A0A0A"/>
+  <rect x="58" y="58" width="908" height="908" rx="210" fill="none" stroke="#AFF03C" stroke-width="28"/>
+  <text x="128" y="744" fill="#AFF03C" font-family="Arial Black, Helvetica, Arial, sans-serif" font-size="650" font-weight="900" letter-spacing="-48">D</text>
+  <text x="558" y="460" fill="#AFF03C" font-family="Arial Black, Helvetica, Arial, sans-serif" font-size="220" font-weight="900" letter-spacing="-10">×3</text>
+  <rect x="570" y="640" width="280" height="34" rx="17" fill="#AFF03C"/>
+</svg>

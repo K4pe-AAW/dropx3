@@ -13,13 +13,17 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          position: "relative",
           background: "#0a0a0a",
           color: "#AFF03C",
-          fontSize: 120,
-          fontWeight: 900,
+          border: "8px solid #AFF03C",
+          borderRadius: 38,
         }}
       >
-        D
+        <div style={{ display: "flex", alignItems: "flex-start", fontWeight: 900 }}>
+          <span style={{ fontSize: 112, lineHeight: 1, letterSpacing: -10 }}>D</span>
+          <span style={{ fontSize: 38, lineHeight: 1, marginTop: 18, marginLeft: 4 }}>×3</span>
+        </div>
       </div>
     ),
     { ...size }
