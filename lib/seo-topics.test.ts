@@ -36,16 +36,11 @@ test("20代後半の明示がある記事だけ20代後半テーマへ分類す�
   assert.equal(matchesSeoTopic(base, "late-20s-style"), false)
 })
 
-test("50代向けの根拠がある記事を50代テーマへ分類する", () => {
-  const item = { ...base, title: "50代の大人カジュアル", excerpt: "落ち着いた配色と上質素材を選ぶ。" }
-  assert.equal(matchesSeoTopic(item, "50s-style"), true)
-  assert.equal(matchesSeoTopic(base, "50s-style"), false)
-})
-
-test("60代向けの根拠がある記事を60代テーマへ分類する", () => {
-  const item = { ...base, title: "60代も楽しめる軽量スニーカー", excerpt: "軽量で歩きやすい一足。" }
-  assert.equal(matchesSeoTopic(item, "60s-style"), true)
-  assert.equal(matchesSeoTopic(base, "60s-style"), false)
+test("廃止した50代・60代SEOタグを保存済み記事から除外する", () => {
+  const item = { ...base, tags: ["ジャケット", "50代おしゃれ", "60代おしゃれ"] }
+  assert.equal(matchesSeoTopic(item, "50s-style"), false)
+  assert.equal(matchesSeoTopic(item, "60s-style"), false)
+  assert.deepEqual(withSeoTopicTags(item), ["ジャケット", "ファッション", "40代おしゃれ"])
 })
 
 test("無関係なスニーカー速報へ40代タグを付けない", () => {
