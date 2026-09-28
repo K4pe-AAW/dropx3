@@ -42,12 +42,14 @@ test("楽天の商品詳細ページがある噂記事はGoss!pを外してREPOR
     id: "rakuten-confirmed",
     title: "Goss!p｜確認できたスニーカー",
     informationStatus: "rumor",
+    suggestedAffiliateSearch: ["確認できたスニーカー"],
     sourceRefs: [
       { name: "楽天市場", url: "https://item.rakuten.co.jp/shop-name/item-123/" },
     ],
   })
   assert.equal(article.title, "確認できたスニーカー")
   assert.equal(article.informationStatus, "report")
+  assert.equal(article.affiliateLinks.find((link) => link.retailer === "楽天市場")?.label, "楽天市場で商品を見る")
 })
 
 test("楽天検索リンクだけではGoss!pを外さない", () => {

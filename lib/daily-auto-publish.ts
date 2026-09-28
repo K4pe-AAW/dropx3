@@ -1,5 +1,5 @@
 import crypto from "node:crypto"
-import { QUICK_AFFILIATE_RETAILERS, isSafeExternalUrl } from "./affiliate"
+import { buildRakutenProductLink, QUICK_AFFILIATE_RETAILERS, isSafeExternalUrl } from "./affiliate"
 import { brushUpDraftWithUrl } from "./draft-brushup"
 import {
   generateId,
@@ -16,7 +16,7 @@ import { MAX_ARTICLE_GALLERY_IMAGES, canonicalImageKey, isSameProductAssetFamily
 import type { AffiliateLink, Article, Draft, GalleryImage } from "./types"
 import { inferContentType } from "./content-type"
 import { withSeoTopicTags } from "./seo-topics"
-import { applyRakutenProductEvidence, ensureUnconfirmedTitle, removeGosspTitlePrefix } from "./information-status"
+import { applyRakutenProductEvidence, ensureUnconfirmedTitle, isDirectRakutenProductUrl, removeGosspTitlePrefix } from "./information-status"
 import { isDraftAllowedByYoutubeCollectionPolicy } from "./youtube-collection-policy"
 import { isWomenFocusedDraft } from "./article-audience"
 import { isFashionsnapSourced } from "./article-source"
@@ -94,9 +94,11 @@ export function jstFashionsnapMixCycleKey(now = new Date()): string {
   return `${get("year")}-${get("month")}-${get("day")}-${String(eightHourBucket).padStart(2, "0")}-${FASHIONSNAP_MIX_POLICY_VERSION}`
 }
 
-export function buildRequiredAffiliateLinks(query: string): AffiliateLink[] {
+export function buildRequiredAffiliateLinks(query: string, evidenceUrls: Array<string | undefined> = []): AffiliateLink[] {
+  const directRakuten = evidenceUrls.find((url): url is string => Boolean(url && isDirectRakutenProductUrl(url)))
   return QUICK_AFFILIATE_RETAILERS.map((item) => {
     if (!item.build) throw new Error(`${item.retailer}の自動リンク生成が未設定です`)
+    if (item.retailer === "楽天市場" && directRakuten) return buildRakutenProductLink(directRakuten)
     return item.build(query)
   })
 }
@@ -283,12 +285,13 @@ async function prepareArticle(draft: Draft): Promise<Article> {
   const query = draft.suggestedAffiliateSearch[0]?.trim()
   if (!query) throw new Error("アフィリエイト検索語がありません")
   // 設定不足ならOpenAIや公式サイト取得を始める前に止め、無駄なAPI利用を避ける。
-  const affiliateLinks = buildRequiredAffiliateLinks(query)
-  const informationStatus = applyRakutenProductEvidence(draft.informationStatus ?? "report", [
+  const evidenceUrls = [
     ...draft.sourceRefs.map((ref) => ref.url),
     ...(draft.suggestedOfficialLinks ?? []).map((link) => link.url),
     ...(draft.suggestedPurchaseChannels ?? []).map((channel) => channel.url),
-  ]) ?? "report"
+  ]
+  const affiliateLinks = buildRequiredAffiliateLinks(query, evidenceUrls)
+  const informationStatus = applyRakutenProductEvidence(draft.informationStatus ?? "report", evidenceUrls) ?? "report"
 
   const brushed = await brushUpDraftWithUrl(
     {

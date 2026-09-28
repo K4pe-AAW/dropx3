@@ -63,3 +63,16 @@ test("リーク記事は販売ページを確認してもLEAKを維持する", (
   assert.equal(result.patch.informationStatus, "leak")
   assert.equal(result.upgraded, false)
 })
+
+test("楽天商品ページの再確認時に検索リンクを商品ディープリンクへ更新する", () => {
+  const withRakutenSearch = {
+    ...article,
+    affiliateLinks: [{ label: "楽天市場で探す", retailer: "楽天市場", url: "https://example.com/search" }],
+  }
+  const result = buildRecheckResult(withRakutenSearch, {
+    title: "新作スニーカー", excerpt: "新要約", bodyParagraphs: ["新本文"], colorways: [],
+    sourceRef: { name: "楽天市場", url: "https://item.rakuten.co.jp/example/item-123/" }, imageCandidates: [], commerceLinkCandidates: [],
+  }, "https://item.rakuten.co.jp/example/item-123/", "2026-09-25T00:00:00.000Z")
+  assert.equal(result.patch.affiliateLinks?.[0]?.label, "楽天市場で商品を見る")
+  assert.equal(result.materiallyUpdated, true)
+})

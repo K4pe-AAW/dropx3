@@ -1,4 +1,5 @@
 import { AffiliateLink } from "./types"
+import { isDirectRakutenProductUrl } from "./information-status"
 
 /**
  * アフィリエイトリンクに必須のrel属性。
@@ -207,6 +208,23 @@ export function buildRakutenSearchLink(query: string): AffiliateLink {
   const rakutenRedirect = `http://hb.afl.rakuten.co.jp/hgc/0ea62065.34400275.0ea62066.204f04c0/a26080942703_4BA1PA_CFPZOY_2HOM_BW8O1?pc=${encodeURIComponent(target)}&m=${encodeURIComponent(target)}`
   return {
     label: "楽天市場で探す",
+    retailer: "楽天市場",
+    url: `https://rpx.a8.net/svt/ejp?a8mat=4BA1PA+CFPZOY+2HOM+BW8O1&rakuten=y&a8ejpredirect=${encodeURIComponent(rakutenRedirect)}`,
+  }
+}
+
+/**
+ * 確認済みの楽天商品詳細ページを、同じA8楽天プログラムのディープリンクへ変換する。
+ * 検索結果・店舗トップ・類似商品URLは受け付けず、information-status.tsの厳格判定を共有する。
+ */
+export function buildRakutenProductLink(productUrl: string): AffiliateLink {
+  if (!isDirectRakutenProductUrl(productUrl)) {
+    throw new Error(`buildRakutenProductLink: direct Rakuten product URL required: ${JSON.stringify(productUrl)}`)
+  }
+  const target = new URL(productUrl).toString()
+  const rakutenRedirect = `http://hb.afl.rakuten.co.jp/hgc/0ea62065.34400275.0ea62066.204f04c0/a26080942703_4BA1PA_CFPZOY_2HOM_BW8O1?pc=${encodeURIComponent(target)}&m=${encodeURIComponent(target)}`
+  return {
+    label: "楽天市場で商品を見る",
     retailer: "楽天市場",
     url: `https://rpx.a8.net/svt/ejp?a8mat=4BA1PA+CFPZOY+2HOM+BW8O1&rakuten=y&a8ejpredirect=${encodeURIComponent(rakutenRedirect)}`,
   }

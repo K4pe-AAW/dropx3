@@ -29,6 +29,9 @@ export function Footer() {
           <Link href="/authors/editorial" className="hover:text-primary-foreground transition-colors">
             編集部
           </Link>
+          <Link href="/for-brands" className="hover:text-primary-foreground transition-colors">
+            ブランド・企業の皆さまへ
+          </Link>
           <Link href="/disclaimer" className="hover:text-primary-foreground transition-colors">
             アフィリエイト表記・免責事項
           </Link>

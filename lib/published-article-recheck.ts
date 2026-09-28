@@ -1,5 +1,5 @@
 import { brushUpDraftWithUrl, type BrushUpResult } from "./draft-brushup"
-import { isSafeExternalUrl } from "./affiliate"
+import { buildRakutenProductLink, isSafeExternalUrl, sanitizeAffiliateLinks } from "./affiliate"
 import { isDirectRakutenProductUrl, removeGosspTitlePrefix } from "./information-status"
 import { mutateArticles, mutateJson, readArticles } from "./storage"
 import type { Article, InformationStatus } from "./types"
@@ -64,12 +64,20 @@ export function buildRecheckResult(
     article.informationStatus === "rumor" && evidenceConfirmed ? "report" : article.informationStatus
   const nextTitle = nextStatus === "report" ? removeGosspTitlePrefix(refreshed.title) : refreshed.title
   const nextColorways = refreshed.colorways.length > 0 ? refreshed.colorways : article.colorways
+  const directRakuten = isDirectRakutenProductUrl(sourceUrl) ? buildRakutenProductLink(sourceUrl) : null
+  const nextAffiliateLinks = directRakuten
+    ? sanitizeAffiliateLinks([
+        ...article.affiliateLinks.filter((link) => !link.retailer.toLowerCase().includes("楽天")),
+        directRakuten,
+      ])
+    : article.affiliateLinks
   const materiallyUpdated =
     nextTitle !== article.title ||
     refreshed.excerpt !== article.excerpt ||
     !sameJson(refreshed.bodyParagraphs, article.bodyParagraphs) ||
     !sameJson(nextColorways, article.colorways) ||
-    nextStatus !== article.informationStatus
+    nextStatus !== article.informationStatus ||
+    !sameJson(nextAffiliateLinks, article.affiliateLinks)
   const upgraded = article.informationStatus === "rumor" && nextStatus === "report"
 
   return {
@@ -83,6 +91,7 @@ export function buildRecheckResult(
       bodyParagraphs: refreshed.bodyParagraphs,
       ...(nextColorways ? { colorways: nextColorways } : {}),
       ...(nextStatus ? { informationStatus: nextStatus } : {}),
+      affiliateLinks: nextAffiliateLinks,
       lastVerifiedAt: checkedAt,
       ...(materiallyUpdated ? { updatedAt: checkedAt } : {}),
     },

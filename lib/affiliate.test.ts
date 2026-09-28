@@ -6,6 +6,7 @@ import {
   buildYahooShoppingSearchLink,
   buildSnkrdunkSearchLink,
   buildRakutenSearchLink,
+  buildRakutenProductLink,
   buildAmazonSearchLink,
   QUICK_AFFILIATE_RETAILERS,
   sortAffiliateLinks,
@@ -103,4 +104,11 @@ test("buildRakutenSearchLink: 実際にA8.netで発行したリンクと完全�
 
 test("buildRakutenSearchLink: カテゴリ名のみは拒否する", () => {
   assert.throws(() => buildRakutenSearchLink("靴"))
+})
+
+test("buildRakutenProductLink: 商品詳細だけをディープリンク化する", () => {
+  const link = buildRakutenProductLink("https://item.rakuten.co.jp/example/item-123/")
+  assert.equal(link.label, "楽天市場で商品を見る")
+  assert.match(decodeURIComponent(link.url), /item\.rakuten\.co\.jp%2Fexample%2Fitem-123/)
+  assert.throws(() => buildRakutenProductLink("https://search.rakuten.co.jp/search/mall/item/"))
 })

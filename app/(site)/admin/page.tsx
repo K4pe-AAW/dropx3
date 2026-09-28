@@ -125,6 +125,9 @@ export default async function AdminPage({
         <Link href="/admin/operations" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
           公開運用
         </Link>
+        <Link href="/admin/social" className="px-4 py-3 text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap">
+          X配信
+        </Link>
       </div>
 
       {activeView === "drafts" ? (

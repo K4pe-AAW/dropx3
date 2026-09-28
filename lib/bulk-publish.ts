@@ -1,19 +1,20 @@
-import { QUICK_AFFILIATE_RETAILERS } from "./affiliate"
+import { buildRakutenProductLink, QUICK_AFFILIATE_RETAILERS } from "./affiliate"
 import { canonicalBrandNames } from "./brands"
 import { inferContentType } from "./content-type"
-import { applyRakutenProductEvidence, removeGosspTitlePrefix } from "./information-status"
+import { applyRakutenProductEvidence, isDirectRakutenProductUrl, removeGosspTitlePrefix } from "./information-status"
 import { generateId, generateSlug } from "./storage"
 import type { AffiliateLink, Article, Draft } from "./types"
 
 /** AI提案の検索語から、提携済み店舗の実在する検索リンクだけを組み立てる。 */
-export function buildAutoAffiliateLinks(queries: string[]): AffiliateLink[] {
+export function buildAutoAffiliateLinks(queries: string[], evidenceUrls: Array<string | undefined> = []): AffiliateLink[] {
   const query = queries[0]?.trim()
   if (!query) return []
   const links: AffiliateLink[] = []
   for (const item of QUICK_AFFILIATE_RETAILERS) {
     if (!item.build) continue
     try {
-      links.push(item.build(query))
+      const directRakuten = evidenceUrls.find((url): url is string => Boolean(url && isDirectRakutenProductUrl(url)))
+      links.push(item.retailer === "楽天市場" && directRakuten ? buildRakutenProductLink(directRakuten) : item.build(query))
     } catch {
       // 設定不足や一般的すぎる検索語の場合は、その店舗だけ追加しない。
     }
@@ -31,11 +32,14 @@ export function bulkArticleId(draftId: string): string {
 
 export function draftToBulkArticleShape(draft: Draft): Omit<Article, "publishedAt"> {
   const id = bulkArticleId(draft.id)
-  const affiliateLinks = buildAutoAffiliateLinks(draft.suggestedAffiliateSearch)
-  const informationStatus = applyRakutenProductEvidence(draft.informationStatus, [
+  const evidenceUrls = [
     ...draft.sourceRefs.map((ref) => ref.url),
     ...(draft.suggestedOfficialLinks ?? []).map((link) => link.url),
     ...(draft.suggestedPurchaseChannels ?? []).map((channel) => channel.url),
+  ]
+  const affiliateLinks = buildAutoAffiliateLinks(draft.suggestedAffiliateSearch, evidenceUrls)
+  const informationStatus = applyRakutenProductEvidence(draft.informationStatus, [
+    ...evidenceUrls,
   ])
   const title = draft.informationStatus === "rumor" && informationStatus === "report"
     ? removeGosspTitlePrefix(draft.title)

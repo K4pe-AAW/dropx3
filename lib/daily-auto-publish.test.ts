@@ -57,6 +57,19 @@ test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する",
   }
 })
 
+test("楽天の商品詳細が確認済みなら検索ではなく商品ディープリンクを生成する", () => {
+  const previous = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG
+  process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG = "dropx3-test-22"
+  try {
+    const [rakuten] = buildRequiredAffiliateLinks("Nike Air Max 90", ["https://item.rakuten.co.jp/example/item-123/"])
+    assert.equal(rakuten.label, "楽天市場で商品を見る")
+    assert.match(decodeURIComponent(rakuten.url), /item\.rakuten\.co\.jp%2Fexample%2Fitem-123/)
+  } finally {
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG
+    else process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG = previous
+  }
+})
+
 test("JSTの同じ2時間帯は再試行しても1つの公開枠として扱う", () => {
   assert.equal(jstSlotKey(new Date("2026-08-28T23:00:00Z")), "2026-08-29-08-throughput-v4")
   assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-throughput-v4")
