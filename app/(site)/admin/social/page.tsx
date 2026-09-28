@@ -14,20 +14,20 @@ function jst(value?: string): string {
 }
 
 export default async function SocialQueuePage() {
-  const queue = await readJson<SocialQueueState>(SOCIAL_QUEUE_PATH, { mode: "draft_only", drafts: [] })
+  const queue = await readJson<SocialQueueState>(SOCIAL_QUEUE_PATH, { mode: "typefully", drafts: [] })
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black tracking-[0.2em] text-muted-foreground">DISTRIBUTION</p>
           <h1 className="mt-2 text-2xl font-black">X配信キュー</h1>
-          <p className="mt-2 text-sm text-muted-foreground">公式・REPORT記事から、新着・発売当日・更新投稿を自動生成します。</p>
+          <p className="mt-2 text-sm text-muted-foreground">新着・発売当日・更新投稿をTypefully向けに自動生成します。</p>
         </div>
         <Link href="/admin" className="text-sm font-bold underline">管理画面へ戻る</Link>
       </div>
 
-      <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        X API未認証のため現在は下書き生成のみです。最終生成: {jst(queue.generatedAt)}。リンクにはGA4用UTMが付きます。
+      <div className="mb-6 rounded-xl border border-lime-300 bg-lime-50 p-4 text-sm text-lime-950">
+        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。同一日内の重複を避け、翌日以降の再投稿を許可します。リンクにはGA4用UTMが付きます。
       </div>
 
       <div className="space-y-5">

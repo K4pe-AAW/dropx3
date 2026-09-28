@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { buildSocialPostDrafts } from "./social-promotion"
+import { siteConfig } from "./site-config"
 import type { Article } from "./types"
 
 function article(patch: Partial<Article> = {}): Article {
@@ -35,9 +36,24 @@ test("発売当日は新着より発売日投稿を優先しUTMを付ける", ()
   assert.ok(draft.text.length <= 280)
 })
 
-test("Goss!pとリークは自動投稿候補にしない", () => {
-  assert.equal(buildSocialPostDrafts([article({ informationStatus: "rumor" })], new Date("2026-09-28T03:00:00.000Z")).length, 0)
-  assert.equal(buildSocialPostDrafts([article({ informationStatus: "leak" })], new Date("2026-09-28T03:00:00.000Z")).length, 0)
+test("Goss!pとリークは未確認表示を残して自動投稿候補にする", () => {
+  const [rumor] = buildSocialPostDrafts([article({ informationStatus: "rumor" })], new Date("2026-09-28T03:00:00.000Z"))
+  const [leak] = buildSocialPostDrafts([article({ informationStatus: "leak" })], new Date("2026-09-28T03:00:00.000Z"))
+  assert.match(rumor.text, /^Goss!p・未確認｜/)
+  assert.match(leak.text, /^リーク・未確認｜/)
+})
+
+test("同一記事は同じJST日では同じID、翌日は別IDになる", () => {
+  const [first] = buildSocialPostDrafts([article()], new Date("2026-09-27T03:00:00.000Z"))
+  const [sameDay] = buildSocialPostDrafts([article()], new Date("2026-09-27T12:00:00.000Z"))
+  const [nextDay] = buildSocialPostDrafts([article()], new Date("2026-09-28T03:00:00.000Z"))
+  assert.equal(first.id, sameDay.id)
+  assert.notEqual(first.id, nextDay.id)
+})
+
+test("画像URLはTypefullyから取得できる絶対URLにする", () => {
+  const [draft] = buildSocialPostDrafts([article()], new Date("2026-09-28T03:00:00.000Z"))
+  assert.equal(draft.imageUrl, new URL("/sample.jpg", siteConfig.url).toString())
 })
 
 test("具体情報のない新着は候補にしない", () => {

@@ -158,11 +158,15 @@ Goss!p・リークは未確認表示を必ず残し、断定情報としては�
 
 #### X配信キュー
 
-`/api/cron/social-queue` を毎時20分に実行し、公式・REPORT記事からX向け投稿候補を自動生成する。
+`/api/cron/social-queue` を毎時20分に実行し、公開記事からX向け投稿候補を自動生成する。
 優先順位は発売当日、24時間以内の販売情報更新、具体的な型番・発売日・公式リンクがある48時間以内の新着。
-Goss!p・リークは自動候補にせず、記事URLには `utm_source=x&utm_medium=social` を付ける。
-管理画面 `/admin/social` で投稿文・カバー画像・選定理由を確認できる。公式Xは `@dropx3tokyo`。X APIが未認証の間は
-`draft_only`で運用し、外部投稿は行わない。
+Goss!p・リークも候補に含めるが、投稿冒頭で「Goss!p・未確認」または「リーク・未確認」と必ず明示する。
+記事URLには `utm_source=x&utm_medium=social` を付ける。候補IDへJST日付を含めて同一日内の重複を防ぎ、
+翌日以降は発売リマインドや更新情報として同一記事の再投稿を許可する。
+
+読み取り専用の `/api/social-feed` をOpenClawのTypefully同期が取得し、公式X `@dropx3tokyo` の
+次の空き枠へカバー画像付きで予約する。Typefullyは毎日7:30〜22:00（JST）の10枠を使う。
+管理画面 `/admin/social` で投稿文・カバー画像・選定理由を確認できる。
 
 ### ローカルcronは使用しない
 

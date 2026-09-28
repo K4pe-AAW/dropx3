@@ -20,7 +20,7 @@ export type SocialPostDraft = {
 
 export type SocialQueueState = {
   generatedAt?: string
-  mode: "draft_only"
+  mode: "typefully"
   drafts: SocialPostDraft[]
 }
 
@@ -49,6 +49,12 @@ function compactTitle(title: string, max = 88): string {
   return clean.length <= max ? clean : `${clean.slice(0, max - 1)}…`
 }
 
+function informationPrefix(article: Article): string | null {
+  if (article.informationStatus === "rumor") return "Goss!p・未確認"
+  if (article.informationStatus === "leak") return "リーク・未確認"
+  return null
+}
+
 function hashtags(article: Article): string {
   const candidates = [article.brands[0], article.category === "sneaker" ? "スニーカー" : "ファッション"]
   return candidates
@@ -60,7 +66,9 @@ function hashtags(article: Article): string {
 
 function makeDraft(article: Article, kind: SocialPostKind, reason: string, generatedAt: string): SocialPostDraft {
   const title = compactTitle(article.title)
-  const prefix = kind === "release_day" ? "本日発売" : kind === "article_update" ? "販売情報を更新" : "NEW"
+  const eventPrefix = kind === "release_day" ? "本日発売" : kind === "article_update" ? "販売情報を更新" : "NEW"
+  const statusPrefix = informationPrefix(article)
+  const prefix = statusPrefix ? `${statusPrefix}｜${eventPrefix}` : eventPrefix
   const url = trackedArticleUrl(article, kind)
   const tagLine = hashtags(article)
   const excerpt = article.excerpt.replace(/\s+/g, " ").trim().slice(0, 72)
@@ -71,28 +79,28 @@ function makeDraft(article: Article, kind: SocialPostKind, reason: string, gener
     kind,
     text: text.length <= 280 ? text : `${prefix}｜${title}\n\n${url}\n${tagLine}`.trim(),
     url,
-    imageUrl: article.coverImage,
+    imageUrl: new URL(article.coverImage, siteConfig.url).toString(),
     reason,
     generatedAt,
   }
 }
 
 /**
- * Xへ出す価値が高い記事だけを選ぶ。未確認情報は自動候補にせず、公式/REPORT記事を優先する。
+ * Xへ出す価値が高い記事だけを選ぶ。Goss!p/リークは未確認表示を残したまま候補に含める。
  * 同一記事は発売当日 > 更新 > 新着の順で1候補にまとめ、タイムラインの重複を避ける。
+ * IDへJST日付を含めるため、同一日内は重複せず、翌日以降は再投稿候補になれる。
  */
 export function buildSocialPostDrafts(articles: Article[], now = new Date(), limit = 12): SocialPostDraft[] {
   const generatedAt = now.toISOString()
   const today = jstDate(now)
-  const confirmed = articles.filter((article) => !["rumor", "leak"].includes(article.informationStatus ?? "report"))
   const byArticle = new Map<string, SocialPostDraft>()
 
-  for (const item of buildReleaseCalendar(confirmed)) {
+  for (const item of buildReleaseCalendar(articles)) {
     if (item.date !== today) continue
     byArticle.set(item.article.id, makeDraft(item.article, "release_day", `発売日: ${item.date}`, generatedAt))
   }
 
-  for (const article of confirmed) {
+  for (const article of articles) {
     if (byArticle.has(article.id)) continue
     const published = Date.parse(article.publishedAt)
     const updated = Date.parse(article.updatedAt ?? "")
@@ -122,9 +130,9 @@ export async function refreshSocialQueue(now = new Date()): Promise<SocialQueueS
   const { articles } = await readArticles()
   const state: SocialQueueState = {
     generatedAt: now.toISOString(),
-    mode: "draft_only",
+    mode: "typefully",
     drafts: buildSocialPostDrafts(articles, now),
   }
-  await mutateJson<SocialQueueState>(SOCIAL_QUEUE_PATH, { mode: "draft_only", drafts: [] }, () => state)
+  await mutateJson<SocialQueueState>(SOCIAL_QUEUE_PATH, { mode: "typefully", drafts: [] }, () => state)
   return state
 }
