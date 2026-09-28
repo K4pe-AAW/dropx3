@@ -11,6 +11,7 @@
     "collect": "tsx scripts/collect.ts",
     "seed-blob": "tsx scripts/seed-blob.ts",
     "obsidian:sync": "tsx scripts/sync-obsidian-monetization.ts",
+    "x:sync": "tsx scripts/sync-typefully-x.ts",
     "growth:sync": "cd ../growth-os && npm run snapshot && cd ../drop-drop-drop && npm run obsidian:sync"
   },
   "dependencies": {
