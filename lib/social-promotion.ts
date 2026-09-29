@@ -43,6 +43,30 @@ const COMMERCE_EVENT_TERMS = [
   /(?:ポップアップ|POP[ -]?UP|期間限定ストア)/i,
 ]
 
+const NON_FASHION_PRODUCT_TERMS = [
+  /(?:冷蔵庫|冷凍庫|洗濯機|乾燥機|掃除機|炊飯器|電子レンジ|オーブン|エアコン|テレビ|家電)/i,
+  /(?:羊羹|ようかん|和菓子|洋菓子|菓子|スイーツ|チョコレート|アイスクリーム|パン|コーヒー|食品|飲料|ドリンク|メニュー)/i,
+  /(?:レストラン|カフェ|居酒屋|飲食店|グルメ)/i,
+]
+
+const FASHION_PRODUCT_TERMS = [
+  /(?:ファッション|アパレル|ウェア|コレクション|ルック|コーデ)/i,
+  /(?:スニーカー|シューズ|ブーツ|サンダル|ローファー|パンプス|靴)/i,
+  /(?:Tシャツ|ティーシャツ|シャツ|ジャケット|コート|ブルゾン|パーカ|フーディ|スウェット|ニット|パンツ|デニム|スカート|ドレス|ワンピース)/i,
+  /(?:バッグ|財布|キャップ|ハット|アクセサリー|ジュエリー|腕時計|サングラス)/i,
+]
+
+const FASHION_CATEGORIES = new Set<Article["category"]>([
+  "tops",
+  "pants",
+  "jacket",
+  "apparel",
+  "boots",
+  "sneaker",
+  "accessory",
+  "vintage",
+])
+
 function jstDate(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
@@ -114,6 +138,10 @@ export function isSocialPromotionEligible(article: Article): boolean {
     ...article.bodyParagraphs,
     ...(article.tags ?? []),
   ].join(" ")
+  const isNonFashionProduct = NON_FASHION_PRODUCT_TERMS.some((pattern) => pattern.test(text))
+  const hasFashionProduct = FASHION_PRODUCT_TERMS.some((pattern) => pattern.test(text))
+  if (isNonFashionProduct && !hasFashionProduct) return false
+  if (!FASHION_CATEGORIES.has(article.category) && !hasFashionProduct) return false
   const isNonCommerceEvent = NON_COMMERCE_EVENT_TERMS.some((pattern) => pattern.test(text))
   if (!isNonCommerceEvent) return true
   return COMMERCE_EVENT_TERMS.some((pattern) => pattern.test(text))

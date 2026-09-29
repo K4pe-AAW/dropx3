@@ -92,6 +92,60 @@ test("限定販売や新作発表を伴うファッションイベントはX候�
   assert.equal(buildSocialPostDrafts([salesEvent], new Date("2026-09-28T03:00:00.000Z")).length, 1)
 })
 
+test("冷蔵庫などファッションと無関係な家電記事はX候補にしない", () => {
+  const applianceArticle = article({
+    id: "haier-fridge",
+    slug: "haier-fridge",
+    title: "ハイアール A.M.U.冷凍冷蔵庫 月夜 JR-LFX50A 発売",
+    excerpt: "大容量の冷凍冷蔵庫とキャッシュバックキャンペーンを紹介します。",
+    bodyParagraphs: ["冷凍室や冷蔵室の機能を備えた新型家電です。"],
+    category: "news",
+  })
+
+  assert.equal(isSocialPromotionEligible(applianceArticle), false)
+  assert.equal(buildSocialPostDrafts([applianceArticle], new Date("2026-09-28T03:00:00.000Z")).length, 0)
+})
+
+test("羊羹など食品だけを販売するポップアップ記事はX候補にしない", () => {
+  const foodPopupArticle = article({
+    id: "yokan-popup",
+    slug: "yokan-popup",
+    title: "小城羊羹 POP UPをSAGA MADOで開催",
+    excerpt: "16軒の銘店が集まり、さまざまな羊羹を販売します。",
+    bodyParagraphs: ["佐賀の和菓子を楽しめる期間限定イベントです。"],
+    category: "news",
+  })
+
+  assert.equal(isSocialPromotionEligible(foodPopupArticle), false)
+  assert.equal(buildSocialPostDrafts([foodPopupArticle], new Date("2026-09-28T03:00:00.000Z")).length, 0)
+})
+
+test("食品ブランドとのコラボでもファッション商品が明示されればX候補に残す", () => {
+  const fashionCollaboration = article({
+    id: "food-fashion-collab",
+    slug: "food-fashion-collab",
+    title: "羊羹ブランドとのコラボTシャツを限定発売",
+    excerpt: "グラフィックTシャツとキャップをポップアップで販売します。",
+    category: "apparel",
+  })
+
+  assert.equal(isSocialPromotionEligible(fashionCollaboration), true)
+  assert.equal(buildSocialPostDrafts([fashionCollaboration], new Date("2026-09-28T03:00:00.000Z")).length, 1)
+})
+
+test("禁止語にない一般商材でもファッションとの関係がなければX候補にしない", () => {
+  const unrelatedProduct = article({
+    id: "hotel-plan",
+    slug: "hotel-plan",
+    title: "新しい宿泊プランを期間限定で販売",
+    excerpt: "客室と朝食を楽しめる新プランです。",
+    bodyParagraphs: ["全国から予約を受け付けます。"],
+    category: "news",
+  })
+
+  assert.equal(isSocialPromotionEligible(unrelatedProduct), false)
+})
+
 test("同じ種類では公開・更新時刻が新しい記事を優先する", () => {
   const older = article({ id: "older", slug: "older", publishedAt: "2026-09-27T00:00:00.000Z" })
   const newer = article({ id: "newer", slug: "newer", publishedAt: "2026-09-27T02:00:00.000Z" })
