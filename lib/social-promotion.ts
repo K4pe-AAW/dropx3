@@ -29,6 +29,20 @@ export type SocialQueueState = {
 const DAY = 86_400_000
 export const SOCIAL_MENS_SHARE = 0.9
 
+const NON_COMMERCE_EVENT_TERMS = [
+  /ワークショップ/i,
+  /市民参加/i,
+  /地域(?:振興|交流|活性化)/i,
+  /産業観光/i,
+  /(?:講演|講演会|セミナー|シンポジウム|サミット|工場見学)/i,
+]
+
+const COMMERCE_EVENT_TERMS = [
+  /(?:発売|販売|先行販売|再販|予約|受注|抽選|入荷)/i,
+  /(?:限定商品|限定アイテム|新作|コレクション)/i,
+  /(?:ポップアップ|POP[ -]?UP|期間限定ストア)/i,
+]
+
 function jstDate(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
@@ -90,6 +104,22 @@ function makeDraft(article: Article, kind: SocialPostKind, reason: string, gener
 }
 
 /**
+ * 地域振興や参加体験が主目的で、商品発売・販売へつながらない催事記事はXへ出さない。
+ * ブランドのポップアップ、限定販売、新作発表など読者が商品を探せるイベントは残す。
+ */
+export function isSocialPromotionEligible(article: Article): boolean {
+  const text = [
+    article.title,
+    article.excerpt,
+    ...article.bodyParagraphs,
+    ...(article.tags ?? []),
+  ].join(" ")
+  const isNonCommerceEvent = NON_COMMERCE_EVENT_TERMS.some((pattern) => pattern.test(text))
+  if (!isNonCommerceEvent) return true
+  return COMMERCE_EVENT_TERMS.some((pattern) => pattern.test(text))
+}
+
+/**
  * Xへ出す価値が高い記事だけを選ぶ。Goss!p/リークは未確認表示を残したまま候補に含める。
  * 同一記事は発売当日 > 更新 > 新着の順で1候補にまとめ、タイムラインの重複を避ける。
  * IDへJST日付を含めるため、同一日内は重複せず、翌日以降は再投稿候補になれる。
@@ -101,10 +131,12 @@ export function buildSocialPostDrafts(articles: Article[], now = new Date(), lim
 
   for (const item of buildReleaseCalendar(articles)) {
     if (item.date !== today) continue
+    if (!isSocialPromotionEligible(item.article)) continue
     byArticle.set(item.article.id, makeDraft(item.article, "release_day", `発売日: ${item.date}`, generatedAt))
   }
 
   for (const article of articles) {
+    if (!isSocialPromotionEligible(article)) continue
     if (byArticle.has(article.id)) continue
     const published = Date.parse(article.publishedAt)
     const updated = Date.parse(article.updatedAt ?? "")

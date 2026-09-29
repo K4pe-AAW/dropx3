@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildSocialPostDrafts } from "./social-promotion"
+import { buildSocialPostDrafts, isSocialPromotionEligible } from "./social-promotion"
 import { siteConfig } from "./site-config"
 import type { Article } from "./types"
 
@@ -59,6 +59,37 @@ test("画像URLはTypefullyから取得できる絶対URLにする", () => {
 test("具体情報のない新着は候補にしない", () => {
   const value = article({ colorways: undefined, purchaseChannels: undefined, officialLinks: [] })
   assert.equal(buildSocialPostDrafts([value], new Date("2026-09-27T03:00:00.000Z")).length, 0)
+})
+
+test("商品販売につながらない地域ワークショップ記事はX候補にしない", () => {
+  const eventArticle = article({
+    id: "local-workshop",
+    slug: "local-workshop",
+    title: "ひつじサミット尾州 初の市民参加型ワークショップ",
+    excerpt: "地域の魅力を再発見し、ものづくりを体験する産業観光イベントです。",
+    bodyParagraphs: ["参加者は工場見学を行い、地域の未来について考えました。"],
+    category: "news",
+    colorways: undefined,
+    purchaseChannels: undefined,
+    officialLinks: [{ label: "イベント公式", url: "https://example.com/event" }],
+    tags: ["ワークショップ", "尾州"],
+  })
+
+  assert.equal(isSocialPromotionEligible(eventArticle), false)
+  assert.equal(buildSocialPostDrafts([eventArticle], new Date("2026-09-28T03:00:00.000Z")).length, 0)
+})
+
+test("限定販売や新作発表を伴うファッションイベントはX候補に残す", () => {
+  const salesEvent = article({
+    id: "sales-popup",
+    slug: "sales-popup",
+    title: "ブランドワークショップ限定Tシャツを会場で発売",
+    excerpt: "ポップアップ会場で新作アイテムを先行販売します。",
+    category: "apparel",
+  })
+
+  assert.equal(isSocialPromotionEligible(salesEvent), true)
+  assert.equal(buildSocialPostDrafts([salesEvent], new Date("2026-09-28T03:00:00.000Z")).length, 1)
 })
 
 test("同じ種類では公開・更新時刻が新しい記事を優先する", () => {
