@@ -12,6 +12,7 @@ const candidate: SocialPostDraft = {
   imageUrl: "https://dropx3.com/image.jpg",
   reason: "test",
   generatedAt: "2026-09-29T00:00:00.000Z",
+  freshnessAt: "2026-09-29T00:00:00.000Z",
 }
 
 test("Typefully draft title preserves the dated candidate id", () => {

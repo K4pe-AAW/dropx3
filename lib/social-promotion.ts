@@ -16,6 +16,7 @@ export type SocialPostDraft = {
   imageUrl: string
   reason: string
   generatedAt: string
+  freshnessAt: string
 }
 
 export type SocialQueueState = {
@@ -82,6 +83,7 @@ function makeDraft(article: Article, kind: SocialPostKind, reason: string, gener
     imageUrl: new URL(article.coverImage, siteConfig.url).toString(),
     reason,
     generatedAt,
+    freshnessAt: article.updatedAt ?? article.publishedAt,
   }
 }
 
@@ -122,7 +124,7 @@ export function buildSocialPostDrafts(articles: Article[], now = new Date(), lim
 
   const priority: Record<SocialPostKind, number> = { release_day: 3, article_update: 2, new_article: 1 }
   return [...byArticle.values()]
-    .sort((a, b) => priority[b.kind] - priority[a.kind] || b.generatedAt.localeCompare(a.generatedAt))
+    .sort((a, b) => priority[b.kind] - priority[a.kind] || b.freshnessAt.localeCompare(a.freshnessAt))
     .slice(0, limit)
 }
 

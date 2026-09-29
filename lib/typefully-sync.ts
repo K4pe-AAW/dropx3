@@ -2,7 +2,7 @@ import type { SocialPostDraft, SocialQueueState } from "./social-promotion"
 
 export const TYPEFULLY_SOCIAL_SET_ID = 336958
 export const TYPEFULLY_X_USERNAME = "dropx3tokyo"
-export const TYPEFULLY_QUEUE_TARGET = 10
+export const TYPEFULLY_QUEUE_TARGET = 12
 
 type TypefullyDraft = {
   draft_title?: string | null

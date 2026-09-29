@@ -60,3 +60,27 @@ test("具体情報のない新着は候補にしない", () => {
   const value = article({ colorways: undefined, purchaseChannels: undefined, officialLinks: [] })
   assert.equal(buildSocialPostDrafts([value], new Date("2026-09-27T03:00:00.000Z")).length, 0)
 })
+
+test("同じ種類では公開・更新時刻が新しい記事を優先する", () => {
+  const older = article({ id: "older", slug: "older", publishedAt: "2026-09-27T00:00:00.000Z" })
+  const newer = article({ id: "newer", slug: "newer", publishedAt: "2026-09-27T02:00:00.000Z" })
+  const drafts = buildSocialPostDrafts([older, newer], new Date("2026-09-27T03:00:00.000Z"))
+  assert.deepEqual(drafts.map((draft) => draft.articleId), ["newer", "older"])
+})
+
+test("更新記事は更新時刻が新しい順に並べる", () => {
+  const older = article({
+    id: "older-update",
+    slug: "older-update",
+    publishedAt: "2026-09-25T00:00:00.000Z",
+    updatedAt: "2026-09-27T01:00:00.000Z",
+  })
+  const newer = article({
+    id: "newer-update",
+    slug: "newer-update",
+    publishedAt: "2026-09-25T00:00:00.000Z",
+    updatedAt: "2026-09-27T02:00:00.000Z",
+  })
+  const drafts = buildSocialPostDrafts([older, newer], new Date("2026-09-27T03:00:00.000Z"))
+  assert.deepEqual(drafts.map((draft) => draft.articleId), ["newer-update", "older-update"])
+})
