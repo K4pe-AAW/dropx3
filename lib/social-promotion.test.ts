@@ -84,3 +84,42 @@ test("更新記事は更新時刻が新しい順に並べる", () => {
   const drafts = buildSocialPostDrafts([older, newer], new Date("2026-09-27T03:00:00.000Z"))
   assert.deepEqual(drafts.map((draft) => draft.articleId), ["newer-update", "older-update"])
 })
+
+test("12枠はメンズ・ユニセックス11件と女性向け最大1件にする", () => {
+  const mens = Array.from({ length: 11 }, (_, index) => article({
+    id: `mens-${index}`,
+    slug: `mens-${index}`,
+    title: `メンズ新作 ${index}`,
+    publishedAt: `2026-09-27T${String(index).padStart(2, "0")}:00:00.000Z`,
+  }))
+  const women = Array.from({ length: 4 }, (_, index) => article({
+    id: `women-${index}`,
+    slug: `women-${index}`,
+    title: `ウィメンズ新作 ${index}`,
+    excerpt: "女性向けの新作です。",
+    publishedAt: `2026-09-27T${String(index + 12).padStart(2, "0")}:00:00.000Z`,
+  }))
+
+  const drafts = buildSocialPostDrafts([...women, ...mens], new Date("2026-09-28T03:00:00.000Z"), 12)
+  const womenCount = drafts.filter((draft) => draft.articleId.startsWith("women-")).length
+  assert.equal(drafts.length, 12)
+  assert.equal(womenCount, 1)
+})
+
+test("メンズ候補が足りなくても女性向けで12枠を埋めない", () => {
+  const mens = Array.from({ length: 5 }, (_, index) => article({
+    id: `mens-${index}`,
+    slug: `mens-${index}`,
+    title: `メンズ新作 ${index}`,
+  }))
+  const women = Array.from({ length: 8 }, (_, index) => article({
+    id: `women-${index}`,
+    slug: `women-${index}`,
+    title: `レディース新作 ${index}`,
+    excerpt: "女性向けの新作です。",
+  }))
+
+  const drafts = buildSocialPostDrafts([...women, ...mens], new Date("2026-09-28T03:00:00.000Z"), 12)
+  assert.equal(drafts.length, 6)
+  assert.equal(drafts.filter((draft) => draft.articleId.startsWith("women-")).length, 1)
+})

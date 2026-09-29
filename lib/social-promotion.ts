@@ -1,4 +1,5 @@
 import { buildReleaseCalendar } from "./release-calendar"
+import { isWomenFocusedDraft } from "./article-audience"
 import { siteConfig } from "./site-config"
 import { mutateJson, readArticles } from "./storage"
 import type { Article } from "./types"
@@ -26,6 +27,7 @@ export type SocialQueueState = {
 }
 
 const DAY = 86_400_000
+export const SOCIAL_MENS_SHARE = 0.9
 
 function jstDate(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -123,9 +125,26 @@ export function buildSocialPostDrafts(articles: Article[], now = new Date(), lim
   }
 
   const priority: Record<SocialPostKind, number> = { release_day: 3, article_update: 2, new_article: 1 }
-  return [...byArticle.values()]
+  const sorted = [...byArticle.values()]
     .sort((a, b) => priority[b.kind] - priority[a.kind] || b.freshnessAt.localeCompare(a.freshnessAt))
-    .slice(0, limit)
+  const articleById = new Map(articles.map((article) => [article.id, article]))
+  const mensTarget = Math.ceil(limit * SOCIAL_MENS_SHARE)
+  const otherLimit = Math.max(0, limit - mensTarget)
+  let mensCount = 0
+  let otherCount = 0
+
+  return sorted.filter((draft) => {
+    const article = articleById.get(draft.articleId)
+    const isOther = article ? isWomenFocusedDraft(article) : false
+    if (isOther) {
+      if (otherCount >= otherLimit) return false
+      otherCount += 1
+      return true
+    }
+    if (mensCount >= mensTarget) return false
+    mensCount += 1
+    return true
+  }).slice(0, limit)
 }
 
 export async function refreshSocialQueue(now = new Date()): Promise<SocialQueueState> {
