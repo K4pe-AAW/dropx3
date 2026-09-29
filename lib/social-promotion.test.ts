@@ -123,3 +123,22 @@ test("メンズ候補が足りなくても女性向けで12枠を埋めない", 
   assert.equal(drafts.length, 6)
   assert.equal(drafts.filter((draft) => draft.articleId.startsWith("women-")).length, 1)
 })
+
+test("女性向け明示がなくてもメンズ根拠のない一般記事はその他1割枠にする", () => {
+  const mens = Array.from({ length: 11 }, (_, index) => article({
+    id: `mens-${index}`,
+    slug: `mens-${index}`,
+    title: `メンズ新作 ${index}`,
+  }))
+  const general = Array.from({ length: 4 }, (_, index) => article({
+    id: `general-${index}`,
+    slug: `general-${index}`,
+    title: `一般コラボニュース ${index}`,
+    excerpt: "コラボアイテムの新着情報です。",
+    category: "apparel",
+  }))
+
+  const drafts = buildSocialPostDrafts([...general, ...mens], new Date("2026-09-28T03:00:00.000Z"), 12)
+  assert.equal(drafts.length, 12)
+  assert.equal(drafts.filter((draft) => draft.articleId.startsWith("general-")).length, 1)
+})

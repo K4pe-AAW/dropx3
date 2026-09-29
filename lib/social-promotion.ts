@@ -1,5 +1,5 @@
 import { buildReleaseCalendar } from "./release-calendar"
-import { isWomenFocusedDraft } from "./article-audience"
+import { isMensOrUnisexDraft } from "./article-audience"
 import { siteConfig } from "./site-config"
 import { mutateJson, readArticles } from "./storage"
 import type { Article } from "./types"
@@ -135,8 +135,8 @@ export function buildSocialPostDrafts(articles: Article[], now = new Date(), lim
 
   return sorted.filter((draft) => {
     const article = articleById.get(draft.articleId)
-    const isOther = article ? isWomenFocusedDraft(article) : false
-    if (isOther) {
+    const isMens = article ? isMensOrUnisexDraft(article) : false
+    if (!isMens) {
       if (otherCount >= otherLimit) return false
       otherCount += 1
       return true
