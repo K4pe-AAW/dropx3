@@ -27,7 +27,7 @@ export default async function SocialQueuePage() {
       </div>
 
       <div className="mb-6 rounded-xl border border-lime-300 bg-lime-50 p-4 text-sm text-lime-950">
-        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。ファッション商品に直接関係する記事だけを対象にし、12枠のうちメンズ／ユニセックスを約9割（最大11件）、その他を最大1件にします。同一日内の重複を避け、翌日以降の再投稿を許可します。リンクにはGA4用UTMが付きます。
+        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。ファッション商品に直接関係する記事だけを対象にし、1日最大16枠のうちメンズ／ユニセックスを約9割（最大15件）、その他を最大1件にします。24時間以内の新着・更新を優先し、候補不足時は古い記事で無理に埋めません。同一日内の重複を避け、翌日以降の再投稿を許可します。リンクにはGA4用UTMが付きます。
       </div>
 
       <div className="space-y-5">

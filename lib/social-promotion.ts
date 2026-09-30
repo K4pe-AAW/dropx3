@@ -5,6 +5,7 @@ import { mutateJson, readArticles } from "./storage"
 import type { Article } from "./types"
 
 export const SOCIAL_QUEUE_PATH = "data/social-promotion-queue-v1.json"
+export const SOCIAL_DAILY_SLOT_TARGET = 16
 
 export type SocialPostKind = "new_article" | "release_day" | "article_update"
 
@@ -153,7 +154,7 @@ export function isSocialPromotionEligible(article: Article): boolean {
  * 24〜48時間の新着の順で並べる。発売日が今日でも、古い記事が新着を押し出さないようにする。
  * IDへJST日付を含めるため、同一日内は重複せず、翌日以降は再投稿候補になれる。
  */
-export function buildSocialPostDrafts(articles: Article[], now = new Date(), limit = 12): SocialPostDraft[] {
+export function buildSocialPostDrafts(articles: Article[], now = new Date(), limit = SOCIAL_DAILY_SLOT_TARGET): SocialPostDraft[] {
   const generatedAt = now.toISOString()
   const today = jstDate(now)
   const byArticle = new Map<string, SocialPostDraft>()

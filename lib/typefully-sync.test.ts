@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { draftTitle, sameDayArticleKey } from "./typefully-sync"
+import { draftTitle, sameDayArticleKey, TYPEFULLY_QUEUE_TARGET } from "./typefully-sync"
 import type { SocialPostDraft } from "./social-promotion"
 
 const candidate: SocialPostDraft = {
@@ -26,4 +26,8 @@ test("same-day dedupe ignores post kind but allows another day", () => {
     sameDayArticleKey("article-1:new_article:2026-09-29"),
     sameDayArticleKey("article-1:new_article:2026-09-30")
   )
+})
+
+test("Typefullyは最大16件の予約を維持する", () => {
+  assert.equal(TYPEFULLY_QUEUE_TARGET, 16)
 })

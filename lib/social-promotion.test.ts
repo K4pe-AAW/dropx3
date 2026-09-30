@@ -247,6 +247,24 @@ test("メンズ候補が足りなくても女性向けで12枠を埋めない", 
   assert.equal(drafts.filter((draft) => draft.articleId.startsWith("women-")).length, 1)
 })
 
+test("標準16枠はメンズ・ユニセックス15件とその他最大1件にする", () => {
+  const mens = Array.from({ length: 15 }, (_, index) => article({
+    id: `daily-mens-${index}`,
+    slug: `daily-mens-${index}`,
+    title: `メンズ新着 ${index}`,
+  }))
+  const others = Array.from({ length: 5 }, (_, index) => article({
+    id: `daily-other-${index}`,
+    slug: `daily-other-${index}`,
+    title: `一般ファッション新着 ${index}`,
+    category: "apparel",
+  }))
+
+  const drafts = buildSocialPostDrafts([...others, ...mens], new Date("2026-09-28T03:00:00.000Z"))
+  assert.equal(drafts.length, 16)
+  assert.equal(drafts.filter((draft) => draft.articleId.startsWith("daily-other-")).length, 1)
+})
+
 test("女性向け明示がなくてもメンズ根拠のない一般記事はその他1割枠にする", () => {
   const mens = Array.from({ length: 11 }, (_, index) => article({
     id: `mens-${index}`,
