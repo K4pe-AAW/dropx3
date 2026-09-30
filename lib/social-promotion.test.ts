@@ -28,7 +28,7 @@ function article(patch: Partial<Article> = {}): Article {
   }
 }
 
-test("発売当日は新着より発売日投稿を優先しUTMを付ける", () => {
+test("発売当日の同一記事は発売日投稿としてUTMを付ける", () => {
   const [draft] = buildSocialPostDrafts([article()], new Date("2026-09-28T03:00:00.000Z"))
   assert.equal(draft.kind, "release_day")
   assert.match(draft.text, /本日発売/)
@@ -168,6 +168,44 @@ test("更新記事は更新時刻が新しい順に並べる", () => {
   })
   const drafts = buildSocialPostDrafts([older, newer], new Date("2026-09-27T03:00:00.000Z"))
   assert.deepEqual(drafts.map((draft) => draft.articleId), ["newer-update", "older-update"])
+})
+
+test("24時間以内の新着と更新を古い発売日記事より優先する", () => {
+  const fresh = article({
+    id: "fresh",
+    slug: "fresh",
+    title: "メンズ新作スニーカー",
+    publishedAt: "2026-09-28T02:00:00.000Z",
+    colorways: [{ colorName: "Black", releaseDate: "2026年10月1日", styleCode: "FRESH-1" }],
+  })
+  const updated = article({
+    id: "updated",
+    slug: "updated",
+    title: "メンズ販売情報更新",
+    publishedAt: "2026-09-25T00:00:00.000Z",
+    updatedAt: "2026-09-28T01:00:00.000Z",
+    colorways: [{ colorName: "Navy", releaseDate: "2026年10月1日", styleCode: "UPDATE-1" }],
+  })
+  const releaseDay = article({
+    id: "release-day",
+    slug: "release-day",
+    title: "メンズ定番スニーカー",
+    publishedAt: "2026-09-20T00:00:00.000Z",
+  })
+  const fallback = article({
+    id: "fallback",
+    slug: "fallback",
+    title: "メンズ48時間以内の新着",
+    publishedAt: "2026-09-27T00:00:00.000Z",
+    colorways: [{ colorName: "Gray", releaseDate: "2026年10月1日", styleCode: "FALLBACK-1" }],
+  })
+
+  const drafts = buildSocialPostDrafts(
+    [releaseDay, fallback, updated, fresh],
+    new Date("2026-09-28T03:00:00.000Z")
+  )
+
+  assert.deepEqual(drafts.map((draft) => draft.articleId), ["fresh", "updated", "release-day", "fallback"])
 })
 
 test("12枠はメンズ・ユニセックス11件と女性向け最大1件にする", () => {

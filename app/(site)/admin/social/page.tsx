@@ -21,7 +21,7 @@ export default async function SocialQueuePage() {
         <div>
           <p className="text-xs font-black tracking-[0.2em] text-muted-foreground">DISTRIBUTION</p>
           <h1 className="mt-2 text-2xl font-black">X配信キュー</h1>
-          <p className="mt-2 text-sm text-muted-foreground">新着・発売当日・更新投稿をTypefully向けに自動生成します。</p>
+          <p className="mt-2 text-sm text-muted-foreground">24時間以内の新着・更新を優先し、発売当日、24〜48時間の新着の順でTypefully向けに自動生成します。</p>
         </div>
         <Link href="/admin" className="text-sm font-bold underline">管理画面へ戻る</Link>
       </div>

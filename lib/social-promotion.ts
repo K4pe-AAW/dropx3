@@ -149,7 +149,8 @@ export function isSocialPromotionEligible(article: Article): boolean {
 
 /**
  * Xへ出す価値が高い記事だけを選ぶ。Goss!p/リークは未確認表示を残したまま候補に含める。
- * 同一記事は発売当日 > 更新 > 新着の順で1候補にまとめ、タイムラインの重複を避ける。
+ * 同一記事は1候補にまとめ、24時間以内の新着 > 24時間以内の更新 > 発売当日 >
+ * 24〜48時間の新着の順で並べる。発売日が今日でも、古い記事が新着を押し出さないようにする。
  * IDへJST日付を含めるため、同一日内は重複せず、翌日以降は再投稿候補になれる。
  */
 export function buildSocialPostDrafts(articles: Article[], now = new Date(), limit = 12): SocialPostDraft[] {
@@ -168,11 +169,13 @@ export function buildSocialPostDrafts(articles: Article[], now = new Date(), lim
     if (byArticle.has(article.id)) continue
     const published = Date.parse(article.publishedAt)
     const updated = Date.parse(article.updatedAt ?? "")
-    if (Number.isFinite(updated) && updated > published + 60 * 60 * 1000 && now.getTime() - updated <= DAY) {
+    const updatedAge = now.getTime() - updated
+    if (Number.isFinite(updated) && updated > published + 60 * 60 * 1000 && updatedAge >= 0 && updatedAge <= DAY) {
       byArticle.set(article.id, makeDraft(article, "article_update", "24時間以内に販売・発売情報を更新", generatedAt))
       continue
     }
-    if (now.getTime() - published <= 48 * 60 * 60 * 1000) {
+    const publishedAge = now.getTime() - published
+    if (publishedAge >= 0 && publishedAge <= 48 * 60 * 60 * 1000) {
       const hasConcreteInfo = Boolean(
         article.colorways?.some((item) => item.styleCode || item.releaseDate || item.price) ||
         article.purchaseChannels?.some((item) => item.date || item.url) ||
@@ -184,10 +187,21 @@ export function buildSocialPostDrafts(articles: Article[], now = new Date(), lim
     }
   }
 
-  const priority: Record<SocialPostKind, number> = { release_day: 3, article_update: 2, new_article: 1 }
-  const sorted = [...byArticle.values()]
-    .sort((a, b) => priority[b.kind] - priority[a.kind] || b.freshnessAt.localeCompare(a.freshnessAt))
   const articleById = new Map(articles.map((article) => [article.id, article]))
+  const freshnessPriority = (draft: SocialPostDraft): number => {
+    const article = articleById.get(draft.articleId)
+    if (!article) return 0
+    const publishedAge = now.getTime() - Date.parse(article.publishedAt)
+    if (publishedAge >= 0 && publishedAge <= DAY) return 4
+    const published = Date.parse(article.publishedAt)
+    const updated = Date.parse(article.updatedAt ?? "")
+    const updatedAge = now.getTime() - updated
+    if (Number.isFinite(updated) && updated > published + 60 * 60 * 1000 && updatedAge >= 0 && updatedAge <= DAY) return 3
+    if (draft.kind === "release_day") return 2
+    return 1
+  }
+  const sorted = [...byArticle.values()]
+    .sort((a, b) => freshnessPriority(b) - freshnessPriority(a) || b.freshnessAt.localeCompare(a.freshnessAt))
   const mensTarget = Math.ceil(limit * SOCIAL_MENS_SHARE)
   const otherLimit = Math.max(0, limit - mensTarget)
   let mensCount = 0
