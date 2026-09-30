@@ -128,6 +128,20 @@ function shuffled<T>(items: T[]): T[] {
   return copy
 }
 
+/** 国内ブランドを先頭へ固めず、通常記事2件ごとに1件ずつ混ぜる。 */
+export function interleaveDomesticCandidates<T>(domestic: T[], normal: T[]): T[] {
+  const result: T[] = []
+  let domesticIndex = 0
+  let normalIndex = 0
+  while (domesticIndex < domestic.length || normalIndex < normal.length) {
+    if (domesticIndex < domestic.length) result.push(domestic[domesticIndex++])
+    for (let count = 0; count < 2 && normalIndex < normal.length; count += 1) {
+      result.push(normal[normalIndex++])
+    }
+  }
+  return result
+}
+
 export function orderAutoPublishCandidates(
   drafts: Draft[],
   youtubePublishedInCycle: number,
@@ -165,12 +179,9 @@ export function orderAutoPublishCandidates(
   const youtube = splitAudience(youtubeCandidates)
   const priorityDomestic = splitAudience(priorityDomesticCandidates)
   const normal = splitAudience(normalCandidates)
-  const generalCandidates = [
-    ...priorityDomestic.general,
-    ...normal.general,
-  ]
+  const generalCandidates = interleaveDomesticCandidates(priorityDomestic.general, normal.general)
   const regularWomenCandidates = womenQuotaRemaining > 0
-    ? [...priorityDomestic.women, ...normal.women]
+    ? interleaveDomesticCandidates(priorityDomestic.women, normal.women)
     : []
 
   const prioritizeFashionsnap = (items: Draft[]) => {

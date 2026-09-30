@@ -265,6 +265,40 @@ test("標準16枠はメンズ・ユニセックス15件とその他最大1件に
   assert.equal(drafts.filter((draft) => draft.articleId.startsWith("daily-other-")).length, 1)
 })
 
+test("16枠へ新鮮な国内ブランド新着を最大4件織り交ぜる", () => {
+  const domestic = Array.from({ length: 6 }, (_, index) => article({
+    id: `domestic-${index}`,
+    slug: `domestic-${index}`,
+    title: `Graphpaper メンズ新着 ${index}`,
+    brands: ["Graphpaper"],
+    category: "apparel",
+    publishedAt: `2026-09-28T${String(index).padStart(2, "0")}:00:00.000Z`,
+  }))
+  const regular = Array.from({ length: 16 }, (_, index) => article({
+    id: `regular-${index}`,
+    slug: `regular-${index}`,
+    title: `メンズ通常新着 ${index}`,
+    publishedAt: `2026-09-27T${String(index).padStart(2, "0")}:00:00.000Z`,
+  }))
+  const other = article({
+    id: "other-fashion",
+    slug: "other-fashion",
+    title: "一般ファッション新着",
+    excerpt: "新しいアパレルコレクションです。",
+    brands: ["Other Brand"],
+    category: "apparel",
+    publishedAt: "2026-09-28T05:30:00.000Z",
+  })
+
+  const drafts = buildSocialPostDrafts([...regular, ...domestic, other], new Date("2026-09-28T06:00:00.000Z"))
+  assert.equal(drafts.length, 16)
+  assert.equal(drafts.filter((draft) => draft.articleId.startsWith("domestic-")).length, 4)
+  assert.deepEqual(
+    drafts.map((draft) => draft.articleId).filter((id) => id.startsWith("domestic-")),
+    ["domestic-5", "domestic-4", "domestic-3", "domestic-2"]
+  )
+})
+
 test("女性向け明示がなくてもメンズ根拠のない一般記事はその他1割枠にする", () => {
   const mens = Array.from({ length: 11 }, (_, index) => article({
     id: `mens-${index}`,

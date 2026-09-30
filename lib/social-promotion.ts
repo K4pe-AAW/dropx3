@@ -1,5 +1,6 @@
 import { buildReleaseCalendar } from "./release-calendar"
 import { isMensOrUnisexDraft } from "./article-audience"
+import { isDomesticBrandContent } from "./domestic-brands"
 import { siteConfig } from "./site-config"
 import { mutateJson, readArticles } from "./storage"
 import type { Article } from "./types"
@@ -29,6 +30,7 @@ export type SocialQueueState = {
 
 const DAY = 86_400_000
 export const SOCIAL_MENS_SHARE = 0.9
+export const SOCIAL_DOMESTIC_BRAND_TARGET = 4
 
 const NON_COMMERCE_EVENT_TERMS = [
   /ワークショップ/i,
@@ -203,12 +205,32 @@ export function buildSocialPostDrafts(articles: Article[], now = new Date(), lim
   }
   const sorted = [...byArticle.values()]
     .sort((a, b) => freshnessPriority(b) - freshnessPriority(a) || b.freshnessAt.localeCompare(a.freshnessAt))
+  const domesticTarget = Math.min(SOCIAL_DOMESTIC_BRAND_TARGET, limit)
+  const domestic = sorted.filter((draft) => {
+    const article = articleById.get(draft.articleId)
+    return article ? isDomesticBrandContent(article) : false
+  })
+  const others = sorted.filter((draft) => {
+    const article = articleById.get(draft.articleId)
+    return article ? !isDomesticBrandContent(article) : true
+  })
+  const blended: SocialPostDraft[] = []
+  let domesticIndex = 0
+  let otherIndex = 0
+  while (domesticIndex < Math.min(domesticTarget, domestic.length) || otherIndex < others.length) {
+    if (domesticIndex < Math.min(domesticTarget, domestic.length)) {
+      blended.push(domestic[domesticIndex++])
+    }
+    for (let count = 0; count < 3 && otherIndex < others.length; count += 1) {
+      blended.push(others[otherIndex++])
+    }
+  }
   const mensTarget = Math.ceil(limit * SOCIAL_MENS_SHARE)
   const otherLimit = Math.max(0, limit - mensTarget)
   let mensCount = 0
   let otherCount = 0
 
-  return sorted.filter((draft) => {
+  return blended.filter((draft) => {
     const article = articleById.get(draft.articleId)
     const isMens = article ? isMensOrUnisexDraft(article) : false
     if (!isMens) {

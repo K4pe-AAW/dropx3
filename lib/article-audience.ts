@@ -1,8 +1,11 @@
+import { isMensLedDomesticBrandContent } from "./domestic-brands"
+
 type AudienceText = {
   title?: string
   excerpt?: string
   bodyParagraphs?: string[]
   tags?: string[]
+  brands?: string[]
 }
 
 const WOMEN_ONLY_KEYWORDS = [
@@ -65,6 +68,7 @@ export function isMensOrUnisexDraft(draft: AudienceText & { category?: string })
     ...(draft.tags ?? []),
   ].join(" ")
   return draft.tags?.includes("mens-fashion") === true
+    || isMensLedDomesticBrandContent(draft)
     || MENS_OR_UNISEX_KEYWORDS.some((keyword) => text.includes(keyword))
     || MENS_OR_UNISEX_LATIN_PATTERNS.some((pattern) => pattern.test(text))
     || draft.category === "sneaker"

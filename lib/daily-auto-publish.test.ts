@@ -11,6 +11,7 @@ import {
   MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE,
   buildRequiredAffiliateLinks,
   galleryCandidatesForPublish,
+  interleaveDomesticCandidates,
   jstSlotKey,
   jstFashionsnapMixCycleKey,
   jstYoutubeMixCycleKey,
@@ -19,6 +20,13 @@ import {
   uniqueGalleryCandidates,
 } from "./daily-auto-publish"
 import type { Draft } from "./types"
+
+test("国内ブランド新着を通常記事2件ごとに混ぜる", () => {
+  assert.deepEqual(
+    interleaveDomesticCandidates(["domestic-1", "domestic-2"], ["normal-1", "normal-2", "normal-3", "normal-4"]),
+    ["domestic-1", "normal-1", "normal-2", "domestic-2", "normal-3", "normal-4"]
+  )
+})
 
 test("各2時間枠は最低2記事・最大5記事", () => {
   assert.equal(ARTICLES_PER_AUTO_PUBLISH_RUN, 5)

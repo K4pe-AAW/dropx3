@@ -47,6 +47,27 @@ export const OFFICIAL_BRAND_LISTING_SOURCES: OfficialBrandListingSource[] = [
     productPathMarker: "/ja/products/",
     maxItems: 6,
   },
+  {
+    name: "Graphpaper公式",
+    brand: "Graphpaper",
+    listingUrl: "https://graphpaper-tokyo.com/collections/mens_collections?sort_by=created-descending",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
+  {
+    name: "ssstein公式",
+    brand: "ssstein",
+    listingUrl: "https://ssstein.com/collections/all?sort_by=created-descending",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
+  {
+    name: "CLESSTE公式",
+    brand: "CLESSTE",
+    listingUrl: "https://clesste.com/collections/in-stock?sort_by=created-descending",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
 ]
 
 /**
