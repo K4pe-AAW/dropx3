@@ -231,20 +231,18 @@ export function buildRakutenProductLink(productUrl: string): AffiliateLink {
 }
 
 /**
- * 食事・宅食カテゴリーの独立サイドバー枠。
- * 現在は提携済みの楽天市場検索リンクを使い、特定サービスの価格・効果を断定しない。
- * nosh等の専用ASP案件と提携した後は、この設定だけを公式リンク・素材へ差し替える。
+ * マッスルデリ(A8.net、プログラムID s00000020311001)のサイドバー広告。
+ * DROP DROP DROP向けに発行した素材ID022の300×250公式バナーを改変せず使用する。
+ * ASP配布素材は自己ホストせず、広告主側の更新とA8.netの表示計測を維持する。
  */
-export const SIDEBAR_MEAL_AFFILIATE_PROMO = {
-  href: buildRakutenSearchLink("冷凍弁当 宅配ごはん").url,
-  network: "rakuten" as const,
-  itemName: "冷凍弁当・宅配ごはん",
-  brand: "楽天市場",
-  placementId: "sidebar-meal-delivery",
-  eyebrow: "MEAL & LIFESTYLE",
-  title: "忙しい日の宅配ごはん",
-  description: "冷凍弁当・惣菜のラインナップをまとめてチェック",
-  cta: "楽天市場で探す →",
+export const MUSCLE_DELI_A8_PROMO = {
+  href: "https://px.a8.net/svt/ejp?a8mat=4BE68P+2M2ICY+4CPY+631SX",
+  imageUrl: "https://www25.a8.net/svt/bgt?aid=261001753158&wid=001&eno=01&mid=s00000020311001022000&mc=1",
+  trackingPixelUrl: "https://www18.a8.net/0.gif?a8mat=4BE68P+2M2ICY+4CPY+631SX",
+  network: "a8" as const,
+  itemName: "マッスルデリ",
+  brand: "Muscle Deli",
+  placementId: "sidebar-muscle-deli",
 } as const
 
 /** Amazonアソシエイトの商品検索リンク。タグは公開URLに露出する識別子なのでNEXT_PUBLICで共有する。 */

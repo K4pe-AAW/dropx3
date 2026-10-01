@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import Image from "next/image"
-import { AFFILIATE_REL, SIDEBAR_MEAL_AFFILIATE_PROMO, ULTORA_A8_PROMO } from "@/lib/affiliate"
+import { AFFILIATE_REL, MUSCLE_DELI_A8_PROMO, ULTORA_A8_PROMO } from "@/lib/affiliate"
 import { AffiliateNetwork, trackEvent } from "@/lib/analytics"
 
 const MYTREX_ITEM_NAME = "MYTREX VIDO MT-VD22B"
@@ -53,20 +53,20 @@ function useAffiliateImpression(
 }
 
 /**
- * サイドバー用の広告枠。ULTORA、MYTREX VIDO、食事・宅食を独立した枠として並べ、
+ * サイドバー用の広告枠。ULTORA、MYTREX VIDO、マッスルデリを独立した枠として並べ、
  * 商品・カテゴリーごとのインプレッションとクリックをGA4で比較できるようにする。
  */
 export function AffiliatePromoBanner({ mytrexHref }: { mytrexHref: string }) {
   const ultoraRef = useRef<HTMLAnchorElement>(null)
   const mytrexRef = useRef<HTMLAnchorElement>(null)
-  const mealRef = useRef<HTMLAnchorElement>(null)
+  const muscleDeliRef = useRef<HTMLAnchorElement>(null)
   useAffiliateImpression(ultoraRef, "a8", ULTORA_A8_PROMO.itemName, ULTORA_A8_PROMO.placementId)
   useAffiliateImpression(mytrexRef, "rakuten", MYTREX_ITEM_NAME, MYTREX_PLACEMENT_ID)
   useAffiliateImpression(
-    mealRef,
-    SIDEBAR_MEAL_AFFILIATE_PROMO.network,
-    SIDEBAR_MEAL_AFFILIATE_PROMO.itemName,
-    SIDEBAR_MEAL_AFFILIATE_PROMO.placementId
+    muscleDeliRef,
+    MUSCLE_DELI_A8_PROMO.network,
+    MUSCLE_DELI_A8_PROMO.itemName,
+    MUSCLE_DELI_A8_PROMO.placementId
   )
 
   return (
@@ -163,46 +163,52 @@ export function AffiliatePromoBanner({ mytrexHref }: { mytrexHref: string }) {
         </span>
       </a>
 
-      <a
-        ref={mealRef}
-        href={SIDEBAR_MEAL_AFFILIATE_PROMO.href}
-        target="_blank"
-        rel={AFFILIATE_REL}
-        data-affiliate-placement={SIDEBAR_MEAL_AFFILIATE_PROMO.placementId}
-        aria-label={`${SIDEBAR_MEAL_AFFILIATE_PROMO.title}を楽天市場で探す（PR）`}
-        onClick={() =>
-          trackEvent("affiliate_click", {
-            affiliate_network: SIDEBAR_MEAL_AFFILIATE_PROMO.network,
-            item_name: SIDEBAR_MEAL_AFFILIATE_PROMO.itemName,
-            item_brand: SIDEBAR_MEAL_AFFILIATE_PROMO.brand,
-            placement: "sidebar_promo",
-            article_id: SIDEBAR_MEAL_AFFILIATE_PROMO.placementId,
-            article_title: SIDEBAR_MEAL_AFFILIATE_PROMO.title,
-            content_type: "PROMO",
-            link_url: SIDEBAR_MEAL_AFFILIATE_PROMO.href,
-          })
-        }
-        className="group relative block overflow-hidden rounded-xl border border-[#d9d2c5] bg-[#f7f3ea] px-5 py-5 text-[#181713] shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md"
-      >
-        <span className="flex items-start justify-between gap-3">
-          <span>
-            <span className="block text-[9px] font-bold tracking-[0.18em] text-[#777063]">
-              {SIDEBAR_MEAL_AFFILIATE_PROMO.eyebrow}
-            </span>
-            <strong className="mt-2 block text-xl leading-tight tracking-[-0.03em]">
-              {SIDEBAR_MEAL_AFFILIATE_PROMO.title}
-            </strong>
-          </span>
-          <span className="rounded bg-black px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-white">PR</span>
+      <div className="relative mx-auto w-full max-w-[300px] overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+        <span className="absolute right-2 top-2 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-white">
+          PR
         </span>
-        <span className="mt-3 block text-xs leading-relaxed text-[#625d53]">
-          {SIDEBAR_MEAL_AFFILIATE_PROMO.description}
-        </span>
-        <span className="mt-4 flex items-center justify-between border-t border-[#d9d2c5] pt-3 text-[11px] font-bold">
-          <span>FOOD</span>
-          <span className="transition-transform group-hover:translate-x-0.5">{SIDEBAR_MEAL_AFFILIATE_PROMO.cta}</span>
-        </span>
-      </a>
+        <a
+          ref={muscleDeliRef}
+          href={MUSCLE_DELI_A8_PROMO.href}
+          target="_blank"
+          rel={AFFILIATE_REL}
+          data-affiliate-placement={MUSCLE_DELI_A8_PROMO.placementId}
+          aria-label="マッスルデリ公式を見る（PR）"
+          onClick={() =>
+            trackEvent("affiliate_click", {
+              affiliate_network: MUSCLE_DELI_A8_PROMO.network,
+              item_name: MUSCLE_DELI_A8_PROMO.itemName,
+              item_brand: MUSCLE_DELI_A8_PROMO.brand,
+              placement: "sidebar_promo",
+              article_id: MUSCLE_DELI_A8_PROMO.placementId,
+              article_title: "マッスルデリ 高たんぱく宅配食",
+              content_type: "PROMO",
+              link_url: MUSCLE_DELI_A8_PROMO.href,
+            })
+          }
+          className="block transition-opacity hover:opacity-90"
+        >
+          {/* A8.net配布素材は広告主側で差し替えられるため、Next/Imageへ取り込まず原寸URLを使う。 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={MUSCLE_DELI_A8_PROMO.imageUrl}
+            width="300"
+            height="250"
+            alt="マッスルデリ 高たんぱく宅配食"
+            className="block h-auto w-full"
+          />
+        </a>
+        {/* A8.netの標準広告コードに含まれる表示計測ピクセル。 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={MUSCLE_DELI_A8_PROMO.trackingPixelUrl}
+          width="1"
+          height="1"
+          alt=""
+          aria-hidden="true"
+          className="absolute h-px w-px opacity-0"
+        />
+      </div>
     </div>
   )
 }
