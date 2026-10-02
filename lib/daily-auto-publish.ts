@@ -19,7 +19,12 @@ import { withSeoTopicTags } from "./seo-topics"
 import { applyRakutenProductEvidence, ensureUnconfirmedTitle, isDirectRakutenProductUrl, removeGosspTitlePrefix } from "./information-status"
 import { isDraftAllowedByYoutubeCollectionPolicy } from "./youtube-collection-policy"
 import { isWomenFocusedDraft } from "./article-audience"
-import { isFashionsnapSourced } from "./article-source"
+import {
+  MAX_FASHIONSNAP_ARTICLES_PER_DAY,
+  MAX_PR_TIMES_ARTICLES_PER_DAY,
+  isFashionsnapSourced,
+  isPrTimesSourced,
+} from "./article-source"
 
 // 既存の公開数を引き継ぎつつ、2時間枠ごとに最低2件・最大5件を公開する。
 // 最低件数に届かない場合は、同じ枠内の後続cronで再試行する。
@@ -64,6 +69,15 @@ export function jstSlotKey(now = new Date()): string {
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
   const twoHourBucket = Math.floor(Number(get("hour")) / 2) * 2
   return `${get("year")}-${get("month")}-${get("day")}-${String(twoHourBucket).padStart(2, "0")}-${AUTO_PUBLISH_POLICY_VERSION}`
+}
+
+export function jstDayKey(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now)
 }
 
 export function jstYoutubeMixCycleKey(now = new Date()): string {
@@ -146,7 +160,9 @@ export function orderAutoPublishCandidates(
   drafts: Draft[],
   youtubePublishedInCycle: number,
   womenFocusedPublishedInCycle = 0,
-  fashionsnapPublishedInCycle = 0
+  fashionsnapPublishedInCycle = 0,
+  prTimesPublishedToday = 0,
+  fashionsnapPublishedToday = 0
 ): Draft[] {
   const allowedDrafts = drafts.filter(isDraftAllowedByYoutubeCollectionPolicy)
   const youtubeQuotaRemaining = Math.max(
@@ -170,8 +186,12 @@ export function orderAutoPublishCandidates(
   )
   const fashionsnapQuotaRemaining = Math.max(
     0,
-    MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE - fashionsnapPublishedInCycle
+    Math.min(
+      MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE - fashionsnapPublishedInCycle,
+      MAX_FASHIONSNAP_ARTICLES_PER_DAY - fashionsnapPublishedToday
+    )
   )
+  const prTimesQuotaRemaining = Math.max(0, MAX_PR_TIMES_ARTICLES_PER_DAY - prTimesPublishedToday)
   const splitAudience = (items: Draft[]) => ({
     general: items.filter((draft) => !isWomenFocusedDraft(draft)),
     women: items.filter(isWomenFocusedDraft),
@@ -185,10 +205,14 @@ export function orderAutoPublishCandidates(
     : []
 
   const prioritizeFashionsnap = (items: Draft[]) => {
-    if (fashionsnapQuotaRemaining === 0) return items.filter((draft) => !isFashionsnapSourced(draft))
+    const withinDailyLimits = items.filter((draft) => (
+      (prTimesQuotaRemaining > 0 || !isPrTimesSourced(draft))
+      && (fashionsnapQuotaRemaining > 0 || !isFashionsnapSourced(draft))
+    ))
+    if (fashionsnapQuotaRemaining === 0) return withinDailyLimits
     return [
-      ...items.filter(isFashionsnapSourced),
-      ...items.filter((draft) => !isFashionsnapSourced(draft)),
+      ...withinDailyLimits.filter(isFashionsnapSourced),
+      ...withinDailyLimits.filter((draft) => !isFashionsnapSourced(draft)),
     ]
   }
 
@@ -380,6 +404,12 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
   let alreadyPublishedFashionsnapArticleIds: string[] = []
   let alreadyPublishedTitles: string[] = []
   const existingArticles = await readArticles()
+  const today = jstDayKey(now)
+  const articlesPublishedToday = existingArticles.articles.filter((article) => (
+    jstDayKey(new Date(article.publishedAt)) === today
+  ))
+  const prTimesPublishedToday = articlesPublishedToday.filter(isPrTimesSourced).length
+  const fashionsnapPublishedToday = articlesPublishedToday.filter(isFashionsnapSourced).length
   const existingArticlesById = new Map(existingArticles.articles.map((article) => [article.id, article]))
   await mutateJson<AutoPublishState>(AUTO_PUBLISH_STATE_PATH, { runs: {} }, (state) => {
     const existing = state.runs[slot]
@@ -443,11 +473,14 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     drafts,
     alreadyPublishedYoutubeArticleIds.length,
     alreadyPublishedWomenFocusedArticleIds.length,
-    alreadyPublishedFashionsnapArticleIds.length
+    alreadyPublishedFashionsnapArticleIds.length,
+    prTimesPublishedToday,
+    fashionsnapPublishedToday
   )
   let youtubePublished = 0
   let womenFocusedPublished = 0
   let fashionsnapPublished = 0
+  let prTimesPublished = 0
   for (const draft of candidates) {
     if (publishedArticles.length >= Math.min(ARTICLES_PER_AUTO_PUBLISH_RUN, remainingCapacity)) break
     if (draft.suggestedYoutubeVideoId && youtubePublished >= youtubeQuotaRemaining) continue
@@ -458,8 +491,15 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
     ) continue
     if (
       isFashionsnapSourced(draft)
-      && alreadyPublishedFashionsnapArticleIds.length + fashionsnapPublished
-        >= MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE
+      && (
+        alreadyPublishedFashionsnapArticleIds.length + fashionsnapPublished
+          >= MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE
+        || fashionsnapPublishedToday + fashionsnapPublished >= MAX_FASHIONSNAP_ARTICLES_PER_DAY
+      )
+    ) continue
+    if (
+      isPrTimesSourced(draft)
+      && prTimesPublishedToday + prTimesPublished >= MAX_PR_TIMES_ARTICLES_PER_DAY
     ) continue
     try {
       const article = await prepareArticle(draft)
@@ -476,6 +516,7 @@ export async function runDailyAutoPublish(now = new Date()): Promise<{
       if (draft.suggestedYoutubeVideoId) youtubePublished++
       if (isWomenFocusedDraft(draft)) womenFocusedPublished++
       if (isFashionsnapSourced(draft)) fashionsnapPublished++
+      if (isPrTimesSourced(draft)) prTimesPublished++
     } catch (err) {
       errors.push(`${draft.title}: ${err instanceof Error ? err.message : String(err)}`)
     }

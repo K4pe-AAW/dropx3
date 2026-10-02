@@ -1,5 +1,11 @@
 import { buildReleaseCalendar } from "./release-calendar"
 import { isMensOrUnisexDraft } from "./article-audience"
+import {
+  MAX_FASHIONSNAP_ARTICLES_PER_DAY,
+  MAX_PR_TIMES_ARTICLES_PER_DAY,
+  isFashionsnapSourced,
+  isPrTimesSourced,
+} from "./article-source"
 import { isDomesticBrandContent } from "./domestic-brands"
 import { siteConfig } from "./site-config"
 import { mutateJson, readArticles } from "./storage"
@@ -229,17 +235,26 @@ export function buildSocialPostDrafts(articles: Article[], now = new Date(), lim
   const otherLimit = Math.max(0, limit - mensTarget)
   let mensCount = 0
   let otherCount = 0
+  let prTimesCount = 0
+  let fashionsnapCount = 0
 
   return blended.filter((draft) => {
     const article = articleById.get(draft.articleId)
+    if (!article) return false
+    const fromPrTimes = isPrTimesSourced(article)
+    const fromFashionsnap = isFashionsnapSourced(article)
+    if (fromPrTimes && prTimesCount >= MAX_PR_TIMES_ARTICLES_PER_DAY) return false
+    if (fromFashionsnap && fashionsnapCount >= MAX_FASHIONSNAP_ARTICLES_PER_DAY) return false
     const isMens = article ? isMensOrUnisexDraft(article) : false
     if (!isMens) {
       if (otherCount >= otherLimit) return false
       otherCount += 1
-      return true
+    } else {
+      if (mensCount >= mensTarget) return false
+      mensCount += 1
     }
-    if (mensCount >= mensTarget) return false
-    mensCount += 1
+    if (fromPrTimes) prTimesCount += 1
+    if (fromFashionsnap) fashionsnapCount += 1
     return true
   }).slice(0, limit)
 }

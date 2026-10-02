@@ -13,12 +13,17 @@ import {
   galleryCandidatesForPublish,
   interleaveDomesticCandidates,
   jstSlotKey,
+  jstDayKey,
   jstFashionsnapMixCycleKey,
   jstYoutubeMixCycleKey,
   isSameProductAssetFamily,
   orderAutoPublishCandidates,
   uniqueGalleryCandidates,
 } from "./daily-auto-publish"
+import {
+  MAX_FASHIONSNAP_ARTICLES_PER_DAY,
+  MAX_PR_TIMES_ARTICLES_PER_DAY,
+} from "./article-source"
 import type { Draft } from "./types"
 
 test("国内ブランド新着を通常記事2件ごとに混ぜる", () => {
@@ -46,6 +51,11 @@ test("6記事周期の女性向け単独記事は最大1件にする", () => {
 test("12記事周期のFASHIONSNAP由来記事は最大1件にする", () => {
   assert.equal(ARTICLES_PER_FASHIONSNAP_MIX_CYCLE, 12)
   assert.equal(MAX_FASHIONSNAP_ARTICLES_PER_MIX_CYCLE, 1)
+})
+
+test("PR TIMESとFASHIONSNAPはそれぞれ1日最大3件にする", () => {
+  assert.equal(MAX_PR_TIMES_ARTICLES_PER_DAY, 3)
+  assert.equal(MAX_FASHIONSNAP_ARTICLES_PER_DAY, 3)
 })
 
 test("自動公開はZOZOTOWNを要求せず5店舗のリンクを生成する", () => {
@@ -83,6 +93,11 @@ test("JSTの同じ2時間帯は再試行しても1つの公開枠として扱う
   assert.equal(jstSlotKey(new Date("2026-08-28T23:59:59Z")), "2026-08-29-08-throughput-v4")
   assert.equal(jstSlotKey(new Date("2026-08-29T01:00:00Z")), "2026-08-29-10-throughput-v4")
   assert.equal(jstSlotKey(new Date("2026-08-29T15:00:00Z")), "2026-08-30-00-throughput-v4")
+})
+
+test("日次媒体上限はJSTの日付で集計する", () => {
+  assert.equal(jstDayKey(new Date("2026-08-28T14:59:59Z")), "2026-08-28")
+  assert.equal(jstDayKey(new Date("2026-08-28T15:00:00Z")), "2026-08-29")
 })
 
 test("JSTの連続する2枠をYouTube混在用の6記事周期として扱う", () => {
@@ -204,6 +219,32 @@ test("FASHIONSNAPが未掲載の12記事周期は1件を優先し、掲載済み
   assert.deepEqual(
     orderAutoPublishCandidates([other, fashionsnap1, fashionsnap2], 1, 0, 1).map((draft) => draft.id),
     ["other"]
+  )
+})
+
+test("日次上限到達後はPR TIMESとFASHIONSNAP候補を除外する", () => {
+  const prTimes = {
+    id: "prtimes",
+    title: "メンズ新作",
+    excerpt: "新作",
+    bodyParagraphs: ["新作を紹介"],
+    tags: [],
+    sourceRefs: [{ name: "PR TIMES", url: "https://prtimes.jp/main/html/rd/p/one.html" }],
+  } as unknown as Draft
+  const fashionsnap = {
+    ...prTimes,
+    id: "fashionsnap",
+    sourceRefs: [{ name: "FASHIONSNAP", url: "https://www.fashionsnap.com/article/one/" }],
+  } as unknown as Draft
+  const official = {
+    ...prTimes,
+    id: "official",
+    sourceRefs: [{ name: "ブランド公式", url: "https://brand.example.com/news" }],
+  } as unknown as Draft
+
+  assert.deepEqual(
+    orderAutoPublishCandidates([prTimes, fashionsnap, official], 2, 0, 0, 3, 3).map((draft) => draft.id),
+    ["official"]
   )
 })
 

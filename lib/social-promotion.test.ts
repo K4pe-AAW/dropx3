@@ -299,6 +299,34 @@ test("16枠へ新鮮な国内ブランド新着を最大4件織り交ぜる", ()
   )
 })
 
+test("X候補もPR TIMESとFASHIONSNAPをそれぞれ1日最大3件にする", () => {
+  const prTimes = Array.from({ length: 5 }, (_, index) => article({
+    id: `prtimes-${index}`,
+    slug: `prtimes-${index}`,
+    title: `メンズ PR TIMES新着 ${index}`,
+    publishedAt: `2026-09-28T0${index}:00:00.000Z`,
+    sourceRefs: [{ name: "PR TIMES", url: `https://prtimes.jp/main/html/rd/p/${index}.html` }],
+  }))
+  const fashionsnap = Array.from({ length: 5 }, (_, index) => article({
+    id: `fashionsnap-${index}`,
+    slug: `fashionsnap-${index}`,
+    title: `メンズ FASHIONSNAP新着 ${index}`,
+    publishedAt: `2026-09-28T0${index}:30:00.000Z`,
+    sourceRefs: [{ name: "FASHIONSNAP", url: `https://www.fashionsnap.com/article/${index}/` }],
+  }))
+  const official = Array.from({ length: 10 }, (_, index) => article({
+    id: `official-${index}`,
+    slug: `official-${index}`,
+    title: `メンズ公式新着 ${index}`,
+    publishedAt: `2026-09-28T${String(index).padStart(2, "0")}:45:00.000Z`,
+    sourceRefs: [{ name: "ブランド公式", url: `https://brand.example.com/${index}` }],
+  }))
+
+  const drafts = buildSocialPostDrafts([...prTimes, ...fashionsnap, ...official], new Date("2026-09-28T10:00:00.000Z"))
+  assert.equal(drafts.filter((draft) => draft.articleId.startsWith("prtimes-")).length, 3)
+  assert.equal(drafts.filter((draft) => draft.articleId.startsWith("fashionsnap-")).length, 3)
+})
+
 test("女性向け明示がなくてもメンズ根拠のない一般記事はその他1割枠にする", () => {
   const mens = Array.from({ length: 11 }, (_, index) => article({
     id: `mens-${index}`,

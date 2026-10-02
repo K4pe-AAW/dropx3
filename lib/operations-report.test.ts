@@ -31,5 +31,22 @@ test("公開運用レポートは最古下書き・枠の失敗・直近媒体�
   assert.equal(report.currentSlotAttempts, 2)
   assert.deepEqual(report.currentSlotErrors, ["画像不足"])
   assert.equal(report.recentYoutube, 1)
+  assert.equal(report.todayPrTimes, 0)
+  assert.equal(report.todayFashionsnap, 0)
   assert.deepEqual(report.sourceCounts, [{ source: "YouTube", count: 1 }, { source: "公式", count: 1 }])
+})
+
+test("公開運用レポートはPR TIMESとFASHIONSNAPの本日件数をJSTで集計する", () => {
+  const report = buildOperationsReport(
+    [
+      { ...baseArticle, id: "pr", slug: "pr", sourceRefs: [{ name: "PR TIMES", url: "https://prtimes.jp/main/html/rd/p/1.html" }] },
+      { ...baseArticle, id: "fs", slug: "fs", sourceRefs: [{ name: "FASHIONSNAP", url: "https://www.fashionsnap.com/article/1/" }] },
+    ],
+    [],
+    { runs: {} },
+    "slot",
+    new Date("2026-09-25T12:00:00.000Z")
+  )
+  assert.equal(report.todayPrTimes, 1)
+  assert.equal(report.todayFashionsnap, 1)
 })

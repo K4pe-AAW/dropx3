@@ -79,6 +79,8 @@ export default async function OperationsPage() {
             <div><dt className="text-muted-foreground">YouTube</dt><dd className="mt-1 font-black">{report.recentYoutube}/{report.recentPublished}</dd></div>
             <div><dt className="text-muted-foreground">女性向け</dt><dd className="mt-1 font-black">{report.recentWomenFocused}/{report.recentPublished}</dd></div>
             <div><dt className="text-muted-foreground">FASHIONSNAP</dt><dd className="mt-1 font-black">{report.recentFashionsnap}/{report.recentPublished}</dd></div>
+            <div><dt className="text-muted-foreground">本日 PR TIMES</dt><dd className="mt-1 font-black">{report.todayPrTimes}/3</dd></div>
+            <div><dt className="text-muted-foreground">本日 FASHIONSNAP</dt><dd className="mt-1 font-black">{report.todayFashionsnap}/3</dd></div>
           </dl>
           <h3 className="mt-6 text-sm font-black">情報元</h3>
           <ul className="mt-3 space-y-2 text-xs">

@@ -45,9 +45,10 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   such as ウィメンズ/レディース/Women's; never infer gender from a brand or visual impression.
 - Mix up to two eligible YouTube articles into each four-hour six-article cycle. Do not force a
   video that fails normal publication requirements; fill the remaining slots with standard articles.
-- Across each eight-hour twelve-article cycle, publish no more than one FASHIONSNAP-sourced article.
-  Prefer other official/primary sources for the remaining slots; do not force a FASHIONSNAP article
-  when no candidate passes the normal publication requirements.
+- Publish no more than three PR TIMES-sourced articles and three FASHIONSNAP-sourced articles per JST day.
+  Keep FASHIONSNAP spread across the day at no more than one article per eight-hour cycle. Apply the same
+  daily source caps to X candidates. Prefer official/primary sources for the remaining slots and never force
+  either medium when no candidate passes the normal publication requirements.
 - Public article pages always keep visible price/release/purchase information, but never emit
   `Product` or `Offer` JSON-LD, including BUY/PICKS. DROP DROP DROP is an editorial affiliate medium,
   not the seller, and Product+Offer causes Google to inspect article pages as merchant listings.

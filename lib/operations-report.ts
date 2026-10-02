@@ -1,6 +1,7 @@
 import type { Article, Draft } from "./types"
 import type { AutoPublishState } from "./daily-auto-publish"
-import { isFashionsnapSourced } from "./article-source"
+import { isFashionsnapSourced, isPrTimesSourced } from "./article-source"
+import { jstDayKey } from "./daily-auto-publish"
 import { isWomenFocusedDraft } from "./article-audience"
 
 const HOUR_MS = 60 * 60 * 1000
@@ -19,6 +20,8 @@ export type OperationsReport = {
   recentYoutube: number
   recentWomenFocused: number
   recentFashionsnap: number
+  todayPrTimes: number
+  todayFashionsnap: number
   sourceCounts: Array<{ source: string; count: number }>
 }
 
@@ -50,6 +53,8 @@ export function buildOperationsReport(
   const staleDrafts = drafts.filter((draft) => now.getTime() - time(draftDate(draft)) > 48 * HOUR_MS).length
   const current = state.runs[currentSlotKey]
   const recent = articles.slice().sort((a, b) => time(b.publishedAt) - time(a.publishedAt)).slice(0, 12)
+  const today = jstDayKey(now)
+  const publishedToday = articles.filter((article) => jstDayKey(new Date(article.publishedAt)) === today)
   const counts = new Map<string, number>()
   for (const article of recent) {
     const source = sourceName(article)
@@ -70,6 +75,8 @@ export function buildOperationsReport(
     recentYoutube: recent.filter((article) => Boolean(article.youtubeVideoId)).length,
     recentWomenFocused: recent.filter(isWomenFocusedDraft).length,
     recentFashionsnap: recent.filter(isFashionsnapSourced).length,
+    todayPrTimes: publishedToday.filter(isPrTimesSourced).length,
+    todayFashionsnap: publishedToday.filter(isFashionsnapSourced).length,
     sourceCounts: [...counts.entries()]
       .map(([source, count]) => ({ source, count }))
       .sort((a, b) => b.count - a.count || a.source.localeCompare(b.source, "ja")),
