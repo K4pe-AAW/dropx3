@@ -19,6 +19,7 @@ test("PurchaseLinks: 商品検索語を見出しと各販売先に明示する",
   assert.match(html, /「PUMA T7 TRACK JACKET」の販売情報・購入先/)
   assert.match(html, /公式サイトで探す/)
   assert.match(html, /「PUMA T7 TRACK JACKET」で検索/)
+  assert.match(html, /価格・在庫をマーケットプレイスで比較する（PR）/)
   assert.match(html, /rel="sponsored nofollow noopener noreferrer"/)
   assert.ok(html.indexOf("公式サイトで探す") < html.indexOf("メルカリ"))
 })

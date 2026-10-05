@@ -173,12 +173,17 @@ export default async function ArticleDetailPage({
         </div>
       )}
 
-      <a
-        href="#purchase-links"
-        className="mb-5 inline-flex min-h-11 items-center rounded-full border border-accent px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:mb-8"
+      <TrackedLink
+        event="purchase_section_jump"
+        params={{ article_id: article.id, article_title: article.title, content_type: article.contentType }}
       >
-        公式サイト・販売先を先に見る ↓
-      </a>
+        <a
+          href="#purchase-links"
+          className="mb-5 inline-flex min-h-11 items-center rounded-full border border-accent px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:mb-8"
+        >
+          公式サイト・販売先を先に見る ↓
+        </a>
+      </TrackedLink>
 
       <ArticleBody
         paragraphs={article.bodyParagraphs}

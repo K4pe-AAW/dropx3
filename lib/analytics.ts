@@ -66,7 +66,24 @@ export type AnalyticsEvent =
       params: {
         article_id: string
         article_title: string
-        browser_family: "safari"
+        browser_family: "safari" | "other"
+        affiliate_count: number
+      }
+    }
+  | {
+      name: "purchase_section_jump"
+      params: {
+        article_id: string
+        article_title: string
+        content_type?: string
+      }
+    }
+  | {
+      name: "purchase_section_view"
+      params: {
+        article_id: string
+        article_title: string
+        content_type?: string
         affiliate_count: number
       }
     }

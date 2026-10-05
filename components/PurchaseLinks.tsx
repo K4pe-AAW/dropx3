@@ -19,7 +19,7 @@ type Row = {
   isPrimaryOfficial?: boolean
 }
 
-const SAFARI_PROMPT_SHOWN_KEY = "dropx3-safari-purchase-prompt-shown-v1"
+const OFFICIAL_RETURN_PROMPT_SHOWN_KEY = "dropx3-official-return-purchase-prompt-shown-v2"
 
 /** Safari本体だけを対象にする。iOS版Chrome/Firefox/Edgeやアプリ内WebViewは含めない。 */
 export function isSafariUserAgent(userAgent: string): boolean {
@@ -93,9 +93,11 @@ export function PurchaseLinks({
   brand?: string
   contentType?: string
 }) {
-  const [showSafariPrompt, setShowSafariPrompt] = useState(false)
+  const [showOfficialReturnPrompt, setShowOfficialReturnPrompt] = useState(false)
   const officialDepartureAtRef = useRef<number | null>(null)
   const promptShownRef = useRef(false)
+  const purchaseSectionRef = useRef<HTMLDivElement>(null)
+  const purchaseSectionViewedRef = useRef(false)
   const safeOfficial = officialLinks.filter(
     (link, index, links) =>
       isSafeExternalUrl(link.url) &&
@@ -206,10 +208,45 @@ export function PurchaseLinks({
   const showGroupLabels = affiliateRows.length > 0
 
   useEffect(() => {
-    if (affiliateRows.length === 0 || !isSafariUserAgent(window.navigator.userAgent)) return
+    const section = purchaseSectionRef.current
+    if (!section) return
+
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (purchaseSectionViewedRef.current) return
+        if (entry.isIntersecting) {
+          timer = setTimeout(() => {
+            if (purchaseSectionViewedRef.current) return
+            purchaseSectionViewedRef.current = true
+            trackEvent("purchase_section_view", {
+              article_id: articleId,
+              article_title: articleTitle,
+              content_type: contentType,
+              affiliate_count: affiliateRows.length,
+            })
+            observer.disconnect()
+          }, 500)
+        } else if (timer) {
+          clearTimeout(timer)
+          timer = null
+        }
+      },
+      { threshold: 0.25 }
+    )
+
+    observer.observe(section)
+    return () => {
+      if (timer) clearTimeout(timer)
+      observer.disconnect()
+    }
+  }, [affiliateRows.length, articleId, articleTitle, contentType])
+
+  useEffect(() => {
+    if (affiliateRows.length === 0) return
 
     try {
-      if (window.sessionStorage.getItem(SAFARI_PROMPT_SHOWN_KEY) === "1") {
+      if (window.sessionStorage.getItem(OFFICIAL_RETURN_PROMPT_SHOWN_KEY) === "1") {
         promptShownRef.current = true
         return
       }
@@ -229,15 +266,16 @@ export function PurchaseLinks({
       promptShownRef.current = true
       officialDepartureAtRef.current = null
       try {
-        window.sessionStorage.setItem(SAFARI_PROMPT_SHOWN_KEY, "1")
+        window.sessionStorage.setItem(OFFICIAL_RETURN_PROMPT_SHOWN_KEY, "1")
       } catch {
         // 保存できなくても表示は続行する。
       }
-      setShowSafariPrompt(true)
+      const browserFamily = isSafariUserAgent(window.navigator.userAgent) ? "safari" : "other"
+      setShowOfficialReturnPrompt(true)
       trackEvent("purchase_prompt_view", {
         article_id: articleId,
         article_title: articleTitle,
-        browser_family: "safari",
+        browser_family: browserFamily,
         affiliate_count: affiliateRows.length,
       })
     }
@@ -264,7 +302,7 @@ export function PurchaseLinks({
       })
     } else {
       const safari = isSafariUserAgent(window.navigator.userAgent)
-      if (row.isPrimaryOfficial && safari && affiliateRows.length > 0 && !promptShownRef.current) {
+      if (row.isPrimaryOfficial && affiliateRows.length > 0 && !promptShownRef.current) {
         officialDepartureAtRef.current = Date.now()
       }
       trackEvent("outbound_click", {
@@ -280,7 +318,7 @@ export function PurchaseLinks({
 
   return (
     <>
-      <div id="purchase-links" className="my-8 scroll-mt-24 overflow-hidden rounded-xl border border-border">
+      <div ref={purchaseSectionRef} id="purchase-links" className="my-8 scroll-mt-24 overflow-hidden rounded-xl border border-border">
       <div className="bg-accent px-4 py-3">
         <h2 className="text-sm font-bold text-accent-foreground">
           {primaryItemName ? `「${primaryItemName}」の販売情報・購入先` : "販売情報・購入先"}
@@ -301,8 +339,8 @@ export function PurchaseLinks({
       )}
       {affiliateRows.length > 0 && (
         <div>
-          <div className="bg-secondary/10 px-4 pt-2 text-[11px] font-bold tracking-wide text-muted-foreground/70">
-            中古・マーケットプレイスで探す
+          <div className="bg-secondary/10 px-4 pb-1 pt-2 text-[11px] font-bold tracking-wide text-muted-foreground/70">
+            価格・在庫をマーケットプレイスで比較する（PR）
           </div>
           <div className="divide-y divide-border">
             {affiliateRows.map((row, i) => (
@@ -317,13 +355,13 @@ export function PurchaseLinks({
         </p>
       )}
       </div>
-      {showSafariPrompt && affiliateRows.length > 0 && (
-        <SafariPurchasePrompt
-          rows={affiliateRows.slice(0, 2)}
-          onClose={() => setShowSafariPrompt(false)}
+      {showOfficialReturnPrompt && affiliateRows.length > 0 && (
+        <OfficialReturnPurchasePrompt
+          rows={affiliateRows.slice(0, 3)}
+          onClose={() => setShowOfficialReturnPrompt(false)}
           onRowClick={(row) => {
             handleRowClick(row, "official_return_prompt")
-            setShowSafariPrompt(false)
+            setShowOfficialReturnPrompt(false)
           }}
         />
       )}
@@ -331,7 +369,7 @@ export function PurchaseLinks({
   )
 }
 
-function SafariPurchasePrompt({
+function OfficialReturnPurchasePrompt({
   rows,
   onClose,
   onRowClick,
@@ -356,7 +394,9 @@ function SafariPurchasePrompt({
         ×
       </button>
       <p className="pr-8 text-sm font-black">公式情報は確認できましたか？</p>
-      <p className="mt-1 text-xs text-muted-foreground">価格や在庫を購入先で比較できます。</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        公式で見つからない・在庫がない場合は、価格と在庫をほかの購入先でも比較できます。
+      </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {rows.map((row) => (
           <a
