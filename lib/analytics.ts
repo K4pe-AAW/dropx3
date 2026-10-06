@@ -129,6 +129,14 @@ export type AnalyticsEvent =
         article_id: string
       }
     }
+  | {
+      name: "social_follow_click"
+      params: {
+        platform: "x"
+        placement: "article_end" | "home"
+        article_id?: string
+      }
+    }
 
 export type AnalyticsEventName = AnalyticsEvent["name"]
 export type AnalyticsEventParams<N extends AnalyticsEventName> = Extract<AnalyticsEvent, { name: N }>["params"]

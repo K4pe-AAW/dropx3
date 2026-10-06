@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildSocialPostDrafts, type SocialQueueState } from "@/lib/social-promotion"
+import { buildSocialQueueDrafts, type SocialQueueState } from "@/lib/social-promotion"
 import { readArticles } from "@/lib/storage"
 
 export const dynamic = "force-dynamic"
@@ -14,7 +14,7 @@ export async function GET() {
   const queue: SocialQueueState = {
     generatedAt: now.toISOString(),
     mode: "typefully",
-    drafts: buildSocialPostDrafts(articles, now),
+    drafts: buildSocialQueueDrafts(articles, now),
   }
   return NextResponse.json(queue, {
     headers: { "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=300" },

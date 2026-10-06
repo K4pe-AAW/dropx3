@@ -21,13 +21,13 @@ export default async function SocialQueuePage() {
         <div>
           <p className="text-xs font-black tracking-[0.2em] text-muted-foreground">DISTRIBUTION</p>
           <h1 className="mt-2 text-2xl font-black">X配信キュー</h1>
-          <p className="mt-2 text-sm text-muted-foreground">24時間以内の新着・更新を優先し、発売当日、24〜48時間の新着の順でTypefully向けに自動生成します。</p>
+          <p className="mt-2 text-sm text-muted-foreground">速報12枠とDROP独自の編集投稿4枠を、Typefully向けに自動生成します。</p>
         </div>
         <Link href="/admin" className="text-sm font-bold underline">管理画面へ戻る</Link>
       </div>
 
       <div className="mb-6 rounded-xl border border-lime-300 bg-lime-50 p-4 text-sm text-lime-950">
-        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。ファッション商品に直接関係する記事だけを対象にし、1日最大16枠のうちメンズ／ユニセックスを約9割（最大15件）、その他を最大1件にします。24時間以内の新着・更新を優先し、候補不足時は古い記事で無理に埋めません。同一日内の重複を避け、翌日以降の再投稿を許可します。リンクにはGA4用UTMが付きます。
+        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。1日最大16枠を維持し、通常の新着・発売・更新情報12枠と、今日のまとめ・編集部注目・比較質問・明日予告の編集投稿4枠を混在させます。編集投稿は未体験の使用感を断定せず、Goss!p／リークを編集部推奨の根拠には使いません。同じ型番は別記事でも当日1件にまとめ、リンクにはGA4用UTMが付きます。
       </div>
 
       <div className="space-y-5">

@@ -28,6 +28,13 @@ test("same-day dedupe ignores post kind but allows another day", () => {
   )
 })
 
+test("編集投稿も同じJST日では重複させない", () => {
+  assert.equal(
+    sameDayArticleKey("editorial-daily-drop:editorial_daily_drop:2026-09-29"),
+    "editorial-daily-drop:2026-09-29"
+  )
+})
+
 test("Typefullyは最大16件の予約を維持する", () => {
   assert.equal(TYPEFULLY_QUEUE_TARGET, 16)
 })

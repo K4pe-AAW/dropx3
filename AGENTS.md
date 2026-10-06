@@ -49,6 +49,15 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   Keep FASHIONSNAP spread across the day at no more than one article per eight-hour cycle. Apply the same
   daily source caps to X candidates. Prefer official/primary sources for the remaining slots and never force
   either medium when no candidate passes the normal publication requirements.
+- Keep the Typefully X queue at 16 daily slots when enough fresh candidates exist: 12 factual news/release/update
+  posts plus 4 deterministic DROP editorial posts (daily roundup, editorial spotlight, comparison question, and
+  tomorrow preview). Editorial posts must use published facts only, must not imply purchase, fitting, wear, comfort,
+  or hands-on experience that did not happen, and must not use rumor/leak articles as editorial recommendations.
+  Deduplicate different articles that share the same concrete product/style code before filling the X queue.
+  Treat `lib/drop-editorial-voice.ts` as the source of truth for DROP's editorial perspective. Keep learned
+  audience observations abstract: never copy YouTube comments or creator catchphrases. Local Nakameguro context
+  may appear naturally in weekend styling suggestions, but never invent a shop visit, purchase, fitting, partner
+  reaction, current opening status, or stock information.
 - Public article pages always keep visible price/release/purchase information, but never emit
   `Product` or `Offer` JSON-LD, including BUY/PICKS. DROP DROP DROP is an editorial affiliate medium,
   not the seller, and Product+Offer causes Google to inspect article pages as merchant listings.

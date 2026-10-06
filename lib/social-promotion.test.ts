@@ -1,6 +1,12 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildSocialPostDrafts, isSocialPromotionEligible } from "./social-promotion"
+import {
+  buildSocialPostDrafts,
+  buildSocialQueueDrafts,
+  isSocialPromotionEligible,
+  SOCIAL_EDITORIAL_TARGET,
+  SOCIAL_NEWS_TARGET,
+} from "./social-promotion"
 import { siteConfig } from "./site-config"
 import type { Article } from "./types"
 
@@ -344,4 +350,117 @@ test("女性向け明示がなくてもメンズ根拠のない一般記事は�
   const drafts = buildSocialPostDrafts([...general, ...mens], new Date("2026-09-28T03:00:00.000Z"), 12)
   assert.equal(drafts.length, 12)
   assert.equal(drafts.filter((draft) => draft.articleId.startsWith("general-")).length, 1)
+})
+
+test("Typefully向け16枠は速報12件とDROP編集投稿4件を混在させる", () => {
+  const articles = Array.from({ length: 18 }, (_, index) => article({
+    id: `queue-${index}`,
+    slug: `queue-${index}`,
+    title: `メンズ新作スニーカー ${index} CODE-${String(index).padStart(3, "0")}`,
+    publishedAt: `2026-09-28T${String(index).padStart(2, "0")}:00:00.000Z`,
+    colorways: [{ colorName: "Black", releaseDate: "2026年10月1日", styleCode: `CODE-${String(index).padStart(3, "0")}` }],
+  }))
+
+  const drafts = buildSocialQueueDrafts(articles, new Date("2026-09-28T18:30:00.000Z"))
+  const editorial = drafts.filter((draft) => draft.kind.startsWith("editorial_"))
+  const news = drafts.filter((draft) => !draft.kind.startsWith("editorial_"))
+
+  assert.equal(drafts.length, 16)
+  assert.equal(editorial.length, SOCIAL_EDITORIAL_TARGET)
+  assert.equal(news.length, SOCIAL_NEWS_TARGET)
+  assert.deepEqual(editorial.map((draft) => draft.kind), [
+    "editorial_daily_drop",
+    "editorial_spotlight",
+    "editorial_compare",
+    "editorial_tomorrow",
+  ])
+  assert.deepEqual(
+    drafts.map((draft, index) => draft.kind.startsWith("editorial_") ? index : -1).filter((index) => index >= 0),
+    [0, 5, 11, 14]
+  )
+})
+
+test("編集投稿は未体験レビューを装う表現を使わない", () => {
+  const articles = Array.from({ length: 12 }, (_, index) => article({
+    id: `safe-${index}`,
+    slug: `safe-${index}`,
+    title: `メンズ新作ジャケット ${index}`,
+    category: "jacket",
+    publishedAt: `2026-09-28T${String(index).padStart(2, "0")}:00:00.000Z`,
+    colorways: [{ colorName: "Black", styleCode: `SAFE-${String(index).padStart(3, "0")}` }],
+  }))
+  const editorial = buildSocialQueueDrafts(articles, new Date("2026-09-28T18:30:00.000Z"))
+    .filter((draft) => draft.kind.startsWith("editorial_"))
+  const text = editorial.map((draft) => draft.text).join("\n")
+
+  assert.doesNotMatch(text, /(?:履き心地|着心地|購入しました|買いました|実物は|一日履いて|試着しました)/)
+  assert.ok(editorial.every((draft) => draft.text.length <= 280))
+})
+
+test("日曜の先頭編集投稿は今週のDROPカレンダーになる", () => {
+  const articles = Array.from({ length: 12 }, (_, index) => article({
+    id: `weekly-${index}`,
+    slug: `weekly-${index}`,
+    title: `メンズ新作スニーカー ${index}`,
+    publishedAt: "2026-10-04T00:00:00.000Z",
+    colorways: [{ colorName: "Black", releaseDate: "2026年10月6日", styleCode: `WEEK-${index}` }],
+  }))
+  const editorial = buildSocialQueueDrafts(articles, new Date("2026-10-04T03:00:00.000Z"))
+    .find((draft) => draft.kind === "editorial_daily_drop")
+  assert.match(editorial?.text ?? "", /今週のDROPカレンダー/)
+})
+
+test("編集部注目枠はDROP判断と合わせ方を含む", () => {
+  const articles = Array.from({ length: 12 }, (_, index) => article({
+    id: `verdict-${index}`,
+    slug: `verdict-${index}`,
+    title: `メンズ新作ジャケット ${index}`,
+    category: "jacket",
+    publishedAt: "2026-10-05T00:00:00.000Z",
+    affiliateLinks: [{ label: "販売店", retailer: "公式", url: "https://example.com", price: "¥33,000" }],
+    officialLinks: [{ label: "公式", url: "https://example.com" }],
+    colorways: [{ colorName: "Black", releaseDate: "2026年10月6日", styleCode: `VERDICT-${index}` }],
+  }))
+  const editorial = buildSocialQueueDrafts(articles, new Date("2026-10-05T03:00:00.000Z"))
+    .find((draft) => draft.kind === "editorial_spotlight")
+  assert.match(editorial?.text ?? "", /DROP判断｜買う候補/)
+  assert.match(editorial?.text ?? "", /大人っぽく取り入れやすそう/)
+})
+
+test("同じ型番の別記事はTypefully最終キューで1件にまとめる", () => {
+  const duplicateA = article({
+    id: "duplicate-a",
+    slug: "duplicate-a",
+    title: "Mizuno Wave Prophecy Moc D1GD261401 新着",
+    colorways: [{ colorName: "Black", styleCode: "D1GD261401" }],
+  })
+  const duplicateB = article({
+    id: "duplicate-b",
+    slug: "duplicate-b",
+    title: "ミズノ Wave Prophecy Moc D1GD261401 再販",
+    colorways: [{ colorName: "Black", styleCode: "D1GD261401" }],
+  })
+  const other = Array.from({ length: 12 }, (_, index) => article({
+    id: `other-${index}`,
+    slug: `other-${index}`,
+    title: `メンズ別商品 ${index}`,
+    colorways: [{ colorName: "Black", styleCode: `OTHER-${String(index).padStart(3, "0")}` }],
+  }))
+
+  const news = buildSocialQueueDrafts([duplicateA, duplicateB, ...other], new Date("2026-09-28T03:00:00.000Z"))
+    .filter((draft) => !draft.kind.startsWith("editorial_"))
+  assert.equal(news.filter((draft) => draft.articleId.startsWith("duplicate-")).length, 1)
+})
+
+test("同じ発売日だけでは別商品を重複扱いにしない", () => {
+  const products = Array.from({ length: 12 }, (_, index) => article({
+    id: `same-date-${index}`,
+    slug: `same-date-${index}`,
+    title: `メンズ別商品 ${index} 2026-10-07発売`,
+    colorways: [{ colorName: "Black", releaseDate: "2026年10月7日" }],
+  }))
+
+  const news = buildSocialQueueDrafts(products, new Date("2026-09-28T03:00:00.000Z"))
+    .filter((draft) => !draft.kind.startsWith("editorial_"))
+  assert.equal(news.length, 12)
 })

@@ -49,7 +49,7 @@ export function draftTitle(candidate: SocialPostDraft): string {
 }
 
 export function sameDayArticleKey(id: string): string | null {
-  const match = id.match(/^(.+):(new_article|release_day|article_update):(\d{4}-\d{2}-\d{2})$/)
+  const match = id.match(/^(.+):([a-z_]+):(\d{4}-\d{2}-\d{2})$/)
   return match ? `${match[1]}:${match[3]}` : null
 }
 

@@ -18,6 +18,7 @@ import { CONTENT_TYPE_LABELS, isEditorialContentType } from "@/lib/content-type"
 import { SnapProfileCard } from "@/components/SnapProfileCard"
 import { buildArticleStructuredData } from "@/lib/article-structured-data"
 import { ArticleViewTracker } from "@/components/ArticleViewTracker"
+import { XFollowCard } from "@/components/XFollowCard"
 import { serializeJsonLd } from "@/lib/json-ld"
 import { seoTopicsForArticle, withSeoTopicTags } from "@/lib/seo-topics"
 
@@ -280,6 +281,8 @@ export default async function ArticleDetailPage({
           })}
         </div>
       )}
+
+      <XFollowCard placement="article_end" articleId={article.id} />
 
       {related.length > 0 && (
         <div className="mt-8 sm:mt-14">
