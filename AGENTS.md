@@ -53,6 +53,11 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   posts plus 4 deterministic DROP editorial posts (daily roundup, editorial spotlight, comparison question, and
   tomorrow preview). Editorial posts must use published facts only, must not imply purchase, fitting, wear, comfort,
   or hands-on experience that did not happen, and must not use rumor/leak articles as editorial recommendations.
+  Apply the NAVI-style editorial quality gate before scheduling: source-article evidence and claim checks are required;
+  audience fit, grounding, specificity, naturalness, and usefulness must each score at least 4/5; repetition must be
+  at most 3/5. Typefully must re-check the approval record. Fill a rejected editorial slot with factual news so the
+  16-slot queue stays healthy without publishing weak copy. Record human corrections as Good Examples or Correction
+  Rules in `memory/fashion-review/` rather than copying creator comments or catchphrases.
   Deduplicate different articles that share the same concrete product/style code before filling the X queue.
   Treat `lib/drop-editorial-voice.ts` as the source of truth for DROP's editorial perspective. Keep learned
   audience observations abstract: never copy YouTube comments or creator catchphrases. Local Nakameguro context

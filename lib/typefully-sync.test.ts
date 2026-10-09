@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { draftTitle, sameDayArticleKey, TYPEFULLY_QUEUE_TARGET } from "./typefully-sync"
+import { draftTitle, isTypefullyCandidateApproved, sameDayArticleKey, TYPEFULLY_QUEUE_TARGET } from "./typefully-sync"
 import type { SocialPostDraft } from "./social-promotion"
 
 const candidate: SocialPostDraft = {
@@ -37,4 +37,23 @@ test("編集投稿も同じJST日では重複させない", () => {
 
 test("Typefullyは最大16件の予約を維持する", () => {
   assert.equal(TYPEFULLY_QUEUE_TARGET, 16)
+})
+
+test("Typefullyは品質承認のない編集投稿を予約しない", () => {
+  const editorial = { ...candidate, kind: "editorial_spotlight" as const }
+  assert.equal(isTypefullyCandidateApproved(editorial), false)
+  assert.equal(isTypefullyCandidateApproved({
+    ...editorial,
+    editorialReview: {
+      version: 1,
+      verdict: "approved",
+      reviewedAt: "2026-10-09T00:00:00.000Z",
+      fingerprint: "test",
+      scores: { audienceFit: 4, grounding: 5, specificity: 4, naturalness: 4, usefulness: 4, repetition: 2 },
+      reasons: ["合格"],
+      claimChecks: [{ claim: "事実", evidence: "公開済み記事" }],
+      sourceArticleIds: ["article-1"],
+      limitations: "未試着",
+    },
+  }), true)
 })

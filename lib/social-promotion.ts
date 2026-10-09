@@ -11,6 +11,11 @@ import { siteConfig } from "./site-config"
 import { mutateJson, readArticles } from "./storage"
 import type { Article } from "./types"
 import { editorialStylingPerspective, editorialVerdict } from "./drop-editorial-voice"
+import {
+  isApprovedEditorialReview,
+  reviewEditorialPost,
+  type EditorialQualityReview,
+} from "./drop-editorial-review"
 
 export const SOCIAL_QUEUE_PATH = "data/social-promotion-queue-v1.json"
 export const SOCIAL_DAILY_SLOT_TARGET = 16
@@ -34,6 +39,7 @@ export type SocialPostDraft = {
   reason: string
   generatedAt: string
   freshnessAt: string
+  editorialReview?: EditorialQualityReview
 }
 
 export type SocialQueueState = {
@@ -300,7 +306,25 @@ function buildEditorialDrafts(
     tomorrowUrl
   )
 
-  return [daily, spotlight, compare, tomorrowDraft]
+  const sourceMap = new Map<string, Article[]>([
+    [daily.id, dailyArticles],
+    [spotlight.id, [lead]],
+    [compare.id, second ? [lead, second] : [lead]],
+    [tomorrowDraft.id, tomorrowArticles.length > 0 ? tomorrowArticles : [lead]],
+  ])
+  const reviewed: SocialPostDraft[] = []
+  for (const draft of [daily, spotlight, compare, tomorrowDraft]) {
+    const editorialReview = reviewEditorialPost({
+      id: draft.id,
+      kind: draft.kind,
+      text: draft.text,
+      sourceArticles: sourceMap.get(draft.id) ?? [],
+      reviewedAt: generatedAt,
+      recentEditorialTexts: reviewed.map((item) => item.text),
+    })
+    reviewed.push({ ...draft, editorialReview })
+  }
+  return reviewed
 }
 
 function interleaveEditorialPosts(news: SocialPostDraft[], editorial: SocialPostDraft[], limit: number): SocialPostDraft[] {
@@ -463,10 +487,13 @@ export function buildSocialQueueDrafts(
   const generatedAt = now.toISOString()
   // 編集投稿4件もメンズ中心なので、速報側は12件すべてメンズでも全体方針に合う。
   // 13件分の比率枠で選んでから12件へ絞り、従来の「その他最大1件」も維持する。
-  const news = buildSocialPostDrafts(articles, now, SOCIAL_NEWS_TARGET + 1, { dedupeProducts: true })
-    .slice(0, SOCIAL_NEWS_TARGET)
-  const editorial = buildEditorialDrafts(articles, news, now, generatedAt).slice(0, SOCIAL_EDITORIAL_TARGET)
-  return interleaveEditorialPosts(news, editorial, limit)
+  const newsPool = buildSocialPostDrafts(articles, now, SOCIAL_DAILY_SLOT_TARGET + 1, { dedupeProducts: true })
+  const editorialSources = newsPool.slice(0, SOCIAL_NEWS_TARGET)
+  const editorial = buildEditorialDrafts(articles, editorialSources, now, generatedAt)
+    .filter((draft) => isApprovedEditorialReview(draft.editorialReview))
+    .slice(0, SOCIAL_EDITORIAL_TARGET)
+  // 品質ゲートで編集投稿が落ちても速報を補充し、16枠を維持する。
+  return interleaveEditorialPosts(newsPool, editorial, limit)
 }
 
 export async function refreshSocialQueue(now = new Date()): Promise<SocialQueueState> {

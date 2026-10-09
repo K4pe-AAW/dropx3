@@ -1,4 +1,5 @@
 import type { SocialPostDraft, SocialQueueState } from "./social-promotion"
+import { isApprovedEditorialReview } from "./drop-editorial-review"
 
 export const TYPEFULLY_SOCIAL_SET_ID = 336958
 export const TYPEFULLY_X_USERNAME = "dropx3tokyo"
@@ -51,6 +52,11 @@ export function draftTitle(candidate: SocialPostDraft): string {
 export function sameDayArticleKey(id: string): string | null {
   const match = id.match(/^(.+):([a-z_]+):(\d{4}-\d{2}-\d{2})$/)
   return match ? `${match[1]}:${match[3]}` : null
+}
+
+export function isTypefullyCandidateApproved(candidate: SocialPostDraft): boolean {
+  if (!candidate.kind.startsWith("editorial_")) return true
+  return isApprovedEditorialReview(candidate.editorialReview)
 }
 
 function titleId(title?: string | null): string | null {
@@ -169,7 +175,10 @@ export async function syncTypefullyX({
     [...existingIds].map(sameDayArticleKey).filter(Boolean) as string[]
   )
   const today = jstDate(now)
-  const candidates = feed.drafts.filter((candidate) => candidate.id.endsWith(`:${today}`))
+  const candidates = feed.drafts.filter((candidate) => {
+    if (!candidate.id.endsWith(`:${today}`)) return false
+    return isTypefullyCandidateApproved(candidate)
+  })
   const capacity = Math.max(0, TYPEFULLY_QUEUE_TARGET - active.length)
   let created = 0
   let skippedDuplicate = 0
