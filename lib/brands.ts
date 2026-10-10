@@ -28,6 +28,18 @@ const BRAND_ALIASES: Record<string, string> = {
   "journal standard": "JOURNAL STANDARD",
   ジャーナルスタンダード: "JOURNAL STANDARD",
   "palace skateboards": "Palace Skateboards",
+  "a presse": "A.PRESSE",
+  "a.presse": "A.PRESSE",
+  auralee: "AURALEE",
+  comoli: "COMOLI",
+  lemaire: "LEMAIRE",
+  markaware: "MARKAWARE",
+  masu: "MASU",
+  niceness: "NICENESS",
+  sacai: "sacai",
+  stein: "ssstein",
+  ssstein: "ssstein",
+  yoke: "YOKE",
 }
 
 export function canonicalBrandName(raw: string): string {

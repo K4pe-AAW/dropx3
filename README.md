@@ -69,17 +69,19 @@ npm run collect
 
 [lib/sources.ts](lib/sources.ts) に登録した媒体RSS（FASHIONSNAP / HYPEBEAST JAPAN /
 UPTODATE / FULLRESS）、キーワードで絞り込んだPR TIMESのプレスリリースに加え、
-MARKAWARE / NICENESS / Graphpaper / ssstein / CLESSTEの公式新着商品ページを取得し、OpenAI
+A.PRESSE / AURALEE / COMOLI / LEMAIRE / MARKAWARE / MASU / NICENESS / Graphpaper / ssstein /
+YOKE / sacai / CLESSTEの公式新着商品ページを取得し、OpenAI
 (`gpt-4o-mini`) にDROP DROP DROP独自の文章として書き直させ、`data/drafts.json` に保存する。
 **この時点では一切公開されない。**AIは出典の文章を丸写しせず事実ベースでゼロから書くよう
 プロンプトで指示している（[lib/ai-draft.ts](lib/ai-draft.ts)）ため、収集元が増えても
 「他メディアの文章をそのまま転載する」ことにはならない設計。
 
-国内ブランド公式の新着は、一覧ページから各ブランド最新6商品だけを取得して初回の過去商品大量流入を防ぐ。
+国内ブランド／重点デザイナーズ公式の新着は、一覧ページから各ブランド最新6商品だけを取得して初回の過去商品大量流入を防ぐ。
 商品URLを重複排除し、ブランド名・`official`区分・公式商品リンクを機械的に固定した上で、
 通常記事の自動公開候補では他の媒体記事より先に処理する。商品画像も公式商品ページから取得できた
 当該商品の画像候補だけを使う。対象ブランドを増やす場合は
 `OFFICIAL_BRAND_LISTING_SOURCES`へ同じ条件で追加する。
+収集結果はブランド横断で交互に並べ、1ブランドの初回商品だけでAI下書き上限を使い切らないようにする。
 
 その後、http://localhost:3002/admin （要 `ADMIN_PASSWORD`）で下書き一覧を確認し、各下書きを開いて
 

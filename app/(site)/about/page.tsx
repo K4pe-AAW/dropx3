@@ -14,7 +14,7 @@ export default function AboutPage() {
       <h1 className="mb-5 text-2xl font-black sm:mb-8">サイトについて</h1>
       <div className="space-y-5 text-sm leading-[1.9] text-foreground/90 sm:space-y-6">
         <p>
-          {siteConfig.name}は、20代後半から40代まで楽しめるファッションニュースメディアです。スニーカーとストリートファッションを軸に、新作リリース、ブランドコラボ、長く使える定番、着心地のよいアイテムまで毎日紹介します。
+          {siteConfig.name}は、20代後半から40代まで楽しめるファッションニュースメディアです。スニーカー、ストリートブランド、ドメスティックブランドを軸に、新作リリース、ブランドコラボ、長く使える定番まで毎日紹介します。
         </p>
         <p>
           年齢で着る服を限定せず、トレンド、仕事と休日、素材、シルエット、快適さなど、それぞれの世代が重視する視点から記事を探せます。<Link href="/style-by-age" className="font-bold underline underline-offset-2">年代別の入口はこちら</Link>です。

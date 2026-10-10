@@ -37,7 +37,13 @@ type FeedItem = {
 const OFFICIAL_LISTING_UA = "Mozilla/5.0 (compatible; DropDropDropOfficialBrandWatch/1.0; +https://dropx3.com)"
 
 function productTitleFromLink(text: string, pathname: string): string {
-  const cleaned = text.replace(/\s+/g, " ").trim()
+  const embeddedAlt = text.match(/\balt=["']([^"']+)["']/i)?.[1]
+  const cleaned = (embeddedAlt ?? text)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim()
   if (cleaned.length >= 3) return cleaned.slice(0, 200)
   const slug = pathname.split("/").filter(Boolean).at(-1) ?? "新着商品"
   return decodeURIComponent(slug).replace(/[-_]+/g, " ").slice(0, 200)
@@ -75,13 +81,29 @@ export function extractOfficialBrandProductLinks(
     const url = candidate.toString()
     if (seen.has(url)) return
     seen.add(url)
-    items.push({ url, title: productTitleFromLink($(el).text(), canonicalPath) })
+    const descendantAlt = $(el).find("img[alt]").first().attr("alt")
+    items.push({ url, title: productTitleFromLink(descendantAlt ?? $(el).text(), canonicalPath) })
   })
   return items
 }
 
+/**
+ * 1ブランドの初回商品だけでAI下書き上限を使い切らないよう、ブランドごとの新着を交互に並べる。
+ * 各一覧内の新着順は維持する。
+ */
+export function interleaveOfficialBrandItems(groups: RawItem[][]): RawItem[] {
+  const result: RawItem[] = []
+  const maxLength = Math.max(0, ...groups.map((group) => group.length))
+  for (let index = 0; index < maxLength; index += 1) {
+    for (const group of groups) {
+      if (group[index]) result.push(group[index])
+    }
+  }
+  return result
+}
+
 export async function collectFromOfficialBrandListings(): Promise<{ items: RawItem[]; errors: string[] }> {
-  const items: RawItem[] = []
+  const groups: RawItem[][] = []
   const errors: string[] = []
   for (const source of OFFICIAL_BRAND_LISTING_SOURCES) {
     try {
@@ -91,8 +113,7 @@ export async function collectFromOfficialBrandListings(): Promise<{ items: RawIt
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const fetchedAt = new Date().toISOString()
-      for (const product of extractOfficialBrandProductLinks(await res.text(), source)) {
-        items.push({
+      const sourceItems = extractOfficialBrandProductLinks(await res.text(), source).map((product) => ({
           id: generateId(product.url),
           sourceName: source.name,
           sourceUrl: product.url,
@@ -100,13 +121,13 @@ export async function collectFromOfficialBrandListings(): Promise<{ items: RawIt
           publishedAt: fetchedAt,
           fetchedAt,
           officialBrand: source.brand,
-        })
-      }
+        } satisfies RawItem))
+      groups.push(sourceItems)
     } catch (err) {
       errors.push(`${source.name}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
-  return { items, errors }
+  return { items: interleaveOfficialBrandItems(groups), errors }
 }
 
 /** ショート動画は短尺で情報量が薄く記事化に向かないため収集対象から除外する */

@@ -49,6 +49,11 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   Keep FASHIONSNAP spread across the day at no more than one article per eight-hour cycle. Apply the same
   daily source caps to X candidates. Prefer official/primary sources for the remaining slots and never force
   either medium when no candidate passes the normal publication requirements.
+- Prioritize official new-arrival pages for A.PRESSE, AURALEE, COMOLI, LEMAIRE, MARKAWARE, MASU, NICENESS,
+  Graphpaper, ssstein, YOKE, sacai, and CLESSTE. Keep at most the latest six products per brand per crawl,
+  interleave brands before applying the per-run AI drafting cap, and never guess a product URL or use retailer
+  photography as an official brand image. LEMAIRE is an international designer label but belongs to the same
+  curated designer-priority lane for DROP's editorial mix.
 - Keep the Typefully X queue at 16 daily slots when enough fresh candidates exist: 12 factual news/release/update
   posts plus 4 deterministic DROP editorial posts (daily roundup, editorial spotlight, comparison question, and
   tomorrow preview). Editorial posts must use published facts only, must not imply purchase, fitting, wear, comfort,

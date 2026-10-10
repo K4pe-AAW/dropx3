@@ -5,9 +5,9 @@ import type { Category } from "./types"
  */
 export const siteConfig = {
   name: "DROP DROP DROP",
-  tagline: "20代後半から40代まで楽しめる、ファッションの最新情報を毎日配信。",
+  tagline: "ストリートとドメスティックブランドの新着を、毎日。",
   description:
-    "DROP DROP DROPは、20代後半から40代まで楽しめるスニーカーとファッションの発売・再販・コラボ情報を毎日更新するニュースメディアです。",
+    "DROP DROP DROPは、スニーカー、ストリートブランド、ドメスティックブランドの新作・発売・再販・コラボ情報を毎日更新するファッションニュースメディアです。",
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://dropdropdrop.example.com",
   xHandle: "@dropx3tokyo",
   xUrl: "https://x.com/dropx3tokyo",

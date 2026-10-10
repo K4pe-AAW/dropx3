@@ -29,14 +29,37 @@ export type OfficialBrandListingSource = {
 }
 
 /**
- * 国内ブランドの公式新着。媒体RSSとは別に、ブランド自身の一覧から最新商品のみを拾う。
- * 一覧URL・robots.txt・商品リンクは2026-09-23に実アクセスで確認済み。
+ * 国内ブランド／DROPが重点的に追うデザイナーズブランドの公式新着。
+ * 媒体RSSとは別に、ブランド自身の一覧から最新商品のみを拾う。
+ * 一覧URL・robots.txt・商品リンクは2026-10-10に実アクセスで再確認済み。
+ * LEMAIREは国内ブランドではないが、ユーザー指定の編集対象として同じ優先枠で扱う。
  */
 export const OFFICIAL_BRAND_LISTING_SOURCES: OfficialBrandListingSource[] = [
   {
+    name: "A.PRESSE公式",
+    brand: "A.PRESSE",
+    listingUrl: "https://ec.apresse.jp/collections/new-arrivals",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
+  {
+    name: "AURALEE公式",
+    brand: "AURALEE",
+    listingUrl: "https://auralee.jp/item?category_id=3&new_in=1",
+    productPathMarker: "/item/detail/",
+    maxItems: 6,
+  },
+  {
+    name: "COMOLI公式",
+    brand: "COMOLI",
+    listingUrl: "https://www.comoli.jp/mailorder",
+    productPathMarker: "/mailorder/",
+    maxItems: 6,
+  },
+  {
     name: "MARKAWARE公式",
     brand: "MARKAWARE",
-    listingUrl: "https://markaware.jp/",
+    listingUrl: "https://markaware.jp/collections/shop-all?sort_by=created-descending",
     productPathMarker: "/products/",
     maxItems: 6,
   },
@@ -55,9 +78,37 @@ export const OFFICIAL_BRAND_LISTING_SOURCES: OfficialBrandListingSource[] = [
     maxItems: 6,
   },
   {
+    name: "LEMAIRE公式",
+    brand: "LEMAIRE",
+    listingUrl: "https://www.lemaire.fr/collections/new-arrivals-men-unisex?sort_by=created-descending",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
+  {
+    name: "MASU公式",
+    brand: "MASU",
+    listingUrl: "https://masu-onlinestore.com/collections/new-arrival?sort_by=created-descending",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
+  {
+    name: "sacai公式",
+    brand: "sacai",
+    listingUrl: "https://www.sacai.jp/collections/new-arrivals-man?sort_by=created-descending",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
+  {
     name: "ssstein公式",
     brand: "ssstein",
     listingUrl: "https://ssstein.com/collections/all?sort_by=created-descending",
+    productPathMarker: "/products/",
+    maxItems: 6,
+  },
+  {
+    name: "YOKE公式",
+    brand: "YOKE",
+    listingUrl: "https://yoketokyo.com/collections/new-arrivals?sort_by=created-descending",
     productPathMarker: "/products/",
     maxItems: 6,
   },
@@ -79,8 +130,12 @@ export const OFFICIAL_BRAND_LISTING_SOURCES: OfficialBrandListingSource[] = [
  * 運営するページは対象外）。
  */
 export const DIRECT_BRAND_SOURCES: BrandSource[] = [
+  { name: "A.PRESSE", url: "https://ec.apresse.jp/" },
   { name: "AURALEE", url: "https://auralee.jp/" },
+  { name: "COMOLI", url: "https://www.comoli.jp/" },
+  { name: "LEMAIRE", url: "https://www.lemaire.fr/" },
   { name: "MARKAWARE", url: "https://markaware.jp/" },
+  { name: "MASU", url: "https://masu-onlinestore.com/" },
   { name: "ssstein", url: "https://ssstein.com/" },
   { name: "NICENESS", url: "https://www.niceness.jp/", instagramUrl: "https://www.instagram.com/niceness_official/" },
   { name: "KAPTAIN SUNSHINE", url: "https://kaptainsunshine.com/", instagramUrl: "https://www.instagram.com/kaptainsunshine/" },
@@ -89,7 +144,9 @@ export const DIRECT_BRAND_SOURCES: BrandSource[] = [
   { name: "COVERCHORD", url: "https://coverchord.com/" },
   { name: "1LDK", url: "https://onlinestore.1ldkshop.com/" },
   { name: "ARKnets", url: "https://www.arknets.co.jp/" },
-  { name: "Graphpaper", url: "https://graphpaper-store.com/" },
+  { name: "Graphpaper", url: "https://graphpaper-tokyo.com/" },
+  { name: "sacai", url: "https://www.sacai.jp/" },
+  { name: "YOKE", url: "https://yoketokyo.com/" },
 
   // --- ブーツ/シューズ ---
   { name: "Guidi", url: "https://guidi.it/" },
