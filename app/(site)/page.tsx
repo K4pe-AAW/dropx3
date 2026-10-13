@@ -99,7 +99,6 @@ export default async function HomePage({
       </h1>
       <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[1fr_300px] lg:gap-10">
         <div>
-          {currentPage === 1 && <GooglePreferredSourceCard placement="home" />}
           {currentPage === 1 && columns.length > 0 && (
             <EditorialSection title="編集部コラム" eyebrow="COLUMN" href="/column" articles={columns} />
           )}
@@ -110,20 +109,24 @@ export default async function HomePage({
             <EditorialSection title="編集部スナップ" eyebrow="EDITORIAL SNAP" href="/snap" articles={snaps} />
           )}
           {currentPage === 1 && (
-            <section className="mb-6 rounded-2xl border border-border p-4 sm:mb-12 sm:p-6">
-              <div className="mb-4">
+            <section className="mb-6 rounded-2xl border border-border p-4 sm:mb-10 sm:p-5">
+              <div className="mb-3">
                 <p className="text-[10px] font-black tracking-[0.22em] text-accent">DOMESTIC BRAND GUIDE</p>
-                <h2 className="text-xl font-black">重点ブランドの新作を追う</h2>
-                <p className="mt-1 text-sm text-muted-foreground">公式情報を優先し、新作・発売日・価格をブランド別に整理しています。</p>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <h2 className="text-lg font-black sm:text-xl">重点ブランドの新作</h2>
+                  <Link href="/calendar" className="text-xs font-bold text-muted-foreground underline decoration-2 underline-offset-4 hover:text-foreground">
+                    発売カレンダーを見る
+                  </Link>
+                </div>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {BRAND_HUBS.map((profile) => (
-                  <Link key={profile.name} href={`/brand/${encodeURIComponent(profile.name)}`} className="rounded-xl bg-secondary/60 p-4 transition-colors hover:bg-accent hover:text-accent-foreground">
-                    <span className="block font-black">{profile.name}</span>
-                    <span className="mt-1 block text-xs opacity-70">新作・発売日・関連記事</span>
+                  <Link key={profile.name} href={`/brand/${encodeURIComponent(profile.name)}`} className="flex min-h-12 items-center rounded-lg bg-secondary/60 px-3 py-2.5 transition-colors hover:bg-accent hover:text-accent-foreground">
+                    <span className="text-sm font-black leading-tight">{profile.name}</span>
                   </Link>
                 ))}
               </div>
+              <GooglePreferredSourceCard placement="home" compact />
             </section>
           )}
           {currentPage === 1 && <HorizontalAffiliateBanner />}
