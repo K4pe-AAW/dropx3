@@ -112,7 +112,7 @@ export default async function HomePage({
             <section className="mb-6 rounded-2xl border border-border p-4 sm:mb-10 sm:p-5">
               <div className="mb-3">
                 <p className="text-[10px] font-black tracking-[0.22em] text-accent">DOMESTIC BRAND GUIDE</p>
-                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-4">
                   <h2 className="text-lg font-black sm:text-xl">重点ブランドの新作</h2>
                   <Link href="/calendar" className="text-xs font-bold text-muted-foreground underline decoration-2 underline-offset-4 hover:text-foreground">
                     発売カレンダーを見る
