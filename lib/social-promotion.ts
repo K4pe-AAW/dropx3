@@ -364,8 +364,8 @@ export function isSocialPromotionEligible(article: Article): boolean {
 
 /**
  * Xへ出す価値が高い記事だけを選ぶ。Goss!p/リークは未確認表示を残したまま候補に含める。
- * 同一記事は1候補にまとめ、24時間以内の新着 > 24時間以内の更新 > 発売当日 >
- * 24〜48時間の新着の順で並べる。発売日が今日でも、古い記事が新着を押し出さないようにする。
+ * 同一記事は1候補にまとめ、発売当日 > 24時間以内の新着 > 24時間以内の更新 >
+ * 24〜48時間の新着の順で並べる。発売日が今日の記事は、その日のX枠で最優先する。
  * IDへJST日付を含めるため、同一日内は重複せず、翌日以降は再投稿候補になれる。
  */
 export function buildSocialPostDrafts(
@@ -411,13 +411,13 @@ export function buildSocialPostDrafts(
   const freshnessPriority = (draft: SocialPostDraft): number => {
     const article = articleById.get(draft.articleId)
     if (!article) return 0
+    if (draft.kind === "release_day") return 5
     const publishedAge = now.getTime() - Date.parse(article.publishedAt)
     if (publishedAge >= 0 && publishedAge <= DAY) return 4
     const published = Date.parse(article.publishedAt)
     const updated = Date.parse(article.updatedAt ?? "")
     const updatedAge = now.getTime() - updated
     if (Number.isFinite(updated) && updated > published + 60 * 60 * 1000 && updatedAge >= 0 && updatedAge <= DAY) return 3
-    if (draft.kind === "release_day") return 2
     return 1
   }
   const sortedByFreshness = [...byArticle.values()]
@@ -452,7 +452,13 @@ export function buildSocialPostDrafts(
   let prTimesCount = 0
   let fashionsnapCount = 0
 
-  const news = blended.filter((draft) => {
+  // 国内ブランド配分で候補を混ぜた後も、発売当日を通常の新着・更新より前に戻す。
+  // Array#sortは安定ソートなので、同じ優先度の中では鮮度順とブランド配分を保つ。
+  const prioritized = blended.sort(
+    (a, b) => Number(b.kind === "release_day") - Number(a.kind === "release_day")
+  )
+
+  const news = prioritized.filter((draft) => {
     const article = articleById.get(draft.articleId)
     if (!article) return false
     const fromPrTimes = isPrTimesSourced(article)

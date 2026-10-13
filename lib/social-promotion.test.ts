@@ -176,7 +176,7 @@ test("更新記事は更新時刻が新しい順に並べる", () => {
   assert.deepEqual(drafts.map((draft) => draft.articleId), ["newer-update", "older-update"])
 })
 
-test("24時間以内の新着と更新を古い発売日記事より優先する", () => {
+test("本日発売を24時間以内の新着や更新より優先する", () => {
   const fresh = article({
     id: "fresh",
     slug: "fresh",
@@ -211,7 +211,36 @@ test("24時間以内の新着と更新を古い発売日記事より優先する
     new Date("2026-09-28T03:00:00.000Z")
   )
 
-  assert.deepEqual(drafts.map((draft) => draft.articleId), ["fresh", "updated", "release-day", "fallback"])
+  assert.deepEqual(drafts.map((draft) => draft.articleId), ["release-day", "fresh", "updated", "fallback"])
+})
+
+test("本日発売は国内ブランドの通常新着に押し出されず当日のX枠へ入る", () => {
+  const releaseDay = Array.from({ length: 12 }, (_, index) => article({
+    id: `today-release-${index}`,
+    slug: `today-release-${index}`,
+    title: `本日発売 メンズスニーカー ${index}`,
+    brands: ["New Balance"],
+    publishedAt: "2026-09-20T00:00:00.000Z",
+    colorways: [{ colorName: "Black", releaseDate: "2026年9月28日", styleCode: `TODAY-${index}` }],
+  }))
+  const freshDomestic = Array.from({ length: 4 }, (_, index) => article({
+    id: `fresh-domestic-${index}`,
+    slug: `fresh-domestic-${index}`,
+    title: `Graphpaper メンズ新着 ${index}`,
+    brands: ["Graphpaper"],
+    category: "apparel",
+    publishedAt: `2026-09-28T0${index}:00:00.000Z`,
+    colorways: [{ colorName: "Navy", releaseDate: "2026年10月1日", styleCode: `FRESH-DOM-${index}` }],
+  }))
+
+  const drafts = buildSocialPostDrafts(
+    [...freshDomestic, ...releaseDay],
+    new Date("2026-09-28T06:00:00.000Z"),
+    13
+  )
+
+  assert.equal(drafts.length, 12)
+  assert.ok(drafts.every((draft) => draft.kind === "release_day"))
 })
 
 test("12枠はメンズ・ユニセックス11件と女性向け最大1件にする", () => {
