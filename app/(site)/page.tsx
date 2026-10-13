@@ -7,6 +7,8 @@ import { siteConfig } from "@/lib/site-config"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { serializeJsonLd } from "@/lib/json-ld"
+import { GooglePreferredSourceCard } from "@/components/GooglePreferredSourceCard"
+import { BRAND_HUBS } from "@/lib/brand-hubs"
 
 const PAGE_SIZE = 12
 
@@ -97,6 +99,7 @@ export default async function HomePage({
       </h1>
       <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[1fr_300px] lg:gap-10">
         <div>
+          {currentPage === 1 && <GooglePreferredSourceCard placement="home" />}
           {currentPage === 1 && columns.length > 0 && (
             <EditorialSection title="編集部コラム" eyebrow="COLUMN" href="/column" articles={columns} />
           )}
@@ -105,6 +108,23 @@ export default async function HomePage({
           )}
           {currentPage === 1 && snaps.length > 0 && (
             <EditorialSection title="編集部スナップ" eyebrow="EDITORIAL SNAP" href="/snap" articles={snaps} />
+          )}
+          {currentPage === 1 && (
+            <section className="mb-6 rounded-2xl border border-border p-4 sm:mb-12 sm:p-6">
+              <div className="mb-4">
+                <p className="text-[10px] font-black tracking-[0.22em] text-accent">DOMESTIC BRAND GUIDE</p>
+                <h2 className="text-xl font-black">重点ブランドの新作を追う</h2>
+                <p className="mt-1 text-sm text-muted-foreground">公式情報を優先し、新作・発売日・価格をブランド別に整理しています。</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {BRAND_HUBS.map((profile) => (
+                  <Link key={profile.name} href={`/brand/${encodeURIComponent(profile.name)}`} className="rounded-xl bg-secondary/60 p-4 transition-colors hover:bg-accent hover:text-accent-foreground">
+                    <span className="block font-black">{profile.name}</span>
+                    <span className="mt-1 block text-xs opacity-70">新作・発売日・関連記事</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
           {currentPage === 1 && <HorizontalAffiliateBanner />}
           <div className="mb-3 flex items-end justify-between sm:mb-5">

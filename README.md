@@ -220,6 +220,7 @@ A8.net等のASP審査でもこれらのページの実在が求められるこ�
 | `/picks` | 編集部おすすめ品（EDITOR’S PICKS）一覧 |
 | `/category/[sneaker\|fashion]` | カテゴリー別一覧 |
 | `/brand/[brand]` | ブランド別一覧 |
+| `/calendar.ics` | 公開記事から生成する発売予定の購読カレンダー |
 | `/style-by-age` | 20代後半〜40代の年代別スタイル入口 |
 | `/tag/fashion` `/tag/late-20s-style` `/tag/30s-style` `/tag/40s-style` `/tag/mens-fashion` | 内容に基づくSEOテーマ別一覧 |
 | `/archive/[YYYY-MM]` | 月別アーカイブ |
@@ -231,6 +232,12 @@ A8.net等のASP審査でもこれらのページの実在が求められるこ�
 | `/admin/operations` | 公開数・失敗理由・下書き滞留・媒体配分・再確認結果（要ログイン） |
 | `/admin/monetization` | 購入導線・収益改善候補（要ログイン） |
 | `/admin/social` | X投稿候補・UTM付き記事URL・画像の配信キュー（要ログイン） |
+
+重点ブランドのうちA.PRESSE / COMOLI / AURALEE / Graphpaper / NICENESSは、単純な記事一覧ではなく、
+独自説明・今後の発売予定・公式サイト・関連記事をまとめる常設ブランドハブとして表示する。
+トップページから内部リンクし、サイトマップでは日次更新・優先度0.8として扱う。
+`/calendar`はブランド絞り込みと直近／今後の発売区分を持ち、`/calendar.ics`から予定を購読できる。
+トップと記事末にはGoogle公式のPreferred Sourcesボタンを表示し、`preferred_source_click`で効果を計測する。
 
 ## 既知の制約・今後の課題
 

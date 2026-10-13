@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next"
 import { getAllArticles, getAllBrands } from "@/lib/storage"
 import { siteConfig } from "@/lib/site-config"
 import { SEO_TOPICS } from "@/lib/seo-topics"
+import { getBrandHubProfile } from "@/lib/brand-hubs"
 
 // Article and brand data live in Vercel Blob. Resolve them at request time so
 // local/CI builds never require a production Blob credential.
@@ -50,8 +51,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const brandPages: MetadataRoute.Sitemap = brands.map((b) => ({
     url: `${siteConfig.url}/brand/${encodeURIComponent(b.name)}`,
-    changeFrequency: "weekly",
-    priority: 0.4,
+    changeFrequency: getBrandHubProfile(b.name) ? "daily" : "weekly",
+    priority: getBrandHubProfile(b.name) ? 0.8 : 0.4,
   }))
 
   return [...staticPages, ...articlePages, ...brandPages]
