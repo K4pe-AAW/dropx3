@@ -54,14 +54,16 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   interleave brands before applying the per-run AI drafting cap, and never guess a product URL or use retailer
   photography as an official brand image. LEMAIRE is an international designer label but belongs to the same
   curated designer-priority lane for DROP's editorial mix.
-- Keep the Typefully X queue at 16 daily slots when enough fresh candidates exist: 12 factual news/release/update
-  posts plus 4 deterministic DROP editorial posts (daily roundup, editorial spotlight, comparison question, and
-  tomorrow preview). Editorial posts must use published facts only, must not imply purchase, fitting, wear, comfort,
+- Keep 16 internal X candidates, but publish at most 5 Typefully posts per JST day: 2 factual news/release/update
+  posts plus 3 deterministic DROP editorial posts (daily roundup, editorial spotlight, and comparison question).
+  Spread them across 07:30, 11:45, 15:30, 19:00, and 21:30 JST. Editorial posts stay link-free to favor conversation;
+  do not auto-publish rumor/leak candidates, and do not repeat the same article/product within 7 days.
+  Editorial posts must use published facts only, must not imply purchase, fitting, wear, comfort,
   or hands-on experience that did not happen, and must not use rumor/leak articles as editorial recommendations.
   Apply the NAVI-style editorial quality gate before scheduling: source-article evidence and claim checks are required;
   audience fit, grounding, specificity, naturalness, and usefulness must each score at least 4/5; repetition must be
-  at most 3/5. Typefully must re-check the approval record. Fill a rejected editorial slot with factual news so the
-  16-slot queue stays healthy without publishing weak copy. Record human corrections as Good Examples or Correction
+  at most 3/5. Typefully must re-check the approval record. If an editorial post fails review, leave that public slot
+  empty rather than publishing weak copy or increasing the news-post count. Record human corrections as Good Examples or Correction
   Rules in `memory/fashion-review/` rather than copying creator comments or catchphrases.
   Deduplicate different articles that share the same concrete product/style code before filling the X queue.
   Treat `lib/drop-editorial-voice.ts` as the source of truth for DROP's editorial perspective. Keep learned

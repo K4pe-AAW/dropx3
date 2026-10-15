@@ -3,11 +3,20 @@ import { isApprovedEditorialReview } from "./drop-editorial-review"
 
 export const TYPEFULLY_SOCIAL_SET_ID = 336958
 export const TYPEFULLY_X_USERNAME = "dropx3tokyo"
-export const TYPEFULLY_QUEUE_TARGET = 16
+export const TYPEFULLY_QUEUE_TARGET = 5
+export const TYPEFULLY_DAILY_SLOTS = [
+  { h: 7, m: 30 },
+  { h: 11, m: 45 },
+  { h: 15, m: 30 },
+  { h: 19, m: 0 },
+  { h: 21, m: 30 },
+] as const
 
 type TypefullyDraft = {
   draft_title?: string | null
   status?: string
+  scheduled_date?: string | null
+  published_at?: string | null
 }
 
 type TypefullyListResponse = {
@@ -55,8 +64,22 @@ export function sameDayArticleKey(id: string): string | null {
 }
 
 export function isTypefullyCandidateApproved(candidate: SocialPostDraft): boolean {
+  if (/^(?:Goss!p|リーク)[・｜]|未確認/.test(candidate.text)) return false
   if (!candidate.kind.startsWith("editorial_")) return true
   return isApprovedEditorialReview(candidate.editorialReview)
+}
+
+export function selectTypefullyCandidates(candidates: SocialPostDraft[]): SocialPostDraft[] {
+  const approved = candidates.filter(isTypefullyCandidateApproved)
+  const editorial = (kind: SocialPostDraft["kind"]) => approved.find((candidate) => candidate.kind === kind)
+  const news = approved.filter((candidate) => !candidate.kind.startsWith("editorial_")).slice(0, 2)
+  return [
+    editorial("editorial_daily_drop"),
+    news[0],
+    editorial("editorial_spotlight"),
+    news[1],
+    editorial("editorial_compare"),
+  ].filter((candidate): candidate is SocialPostDraft => Boolean(candidate))
 }
 
 function titleId(title?: string | null): string | null {
@@ -130,14 +153,40 @@ async function uploadImage(
   return null
 }
 
-async function listDrafts(fetchImpl: typeof fetch, apiKey: string, status: string): Promise<TypefullyDraft[]> {
-  const params = new URLSearchParams({ status, limit: "50", order_by: "-created_at" })
+async function listDrafts(
+  fetchImpl: typeof fetch,
+  apiKey: string,
+  status: string,
+  offset = 0
+): Promise<TypefullyDraft[]> {
+  const params = new URLSearchParams({ status, limit: "50", offset: String(offset), order_by: "-created_at" })
   const data = await requestJson<TypefullyListResponse>(
     fetchImpl,
     `${API}/social-sets/${TYPEFULLY_SOCIAL_SET_ID}/drafts?${params}`,
     apiKey
   )
   return data.results ?? []
+}
+
+async function listRecentPublished(fetchImpl: typeof fetch, apiKey: string): Promise<TypefullyDraft[]> {
+  const pages = await Promise.all([0, 50, 100].map((offset) => listDrafts(fetchImpl, apiKey, "published", offset)))
+  return pages.flat()
+}
+
+function jstDateOf(value?: string | null): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : jstDate(date)
+}
+
+function articleIdentityKey(id: string): string | null {
+  const match = id.match(/^(.+):([a-z_]+):(\d{4}-\d{2}-\d{2})$/)
+  if (!match || match[1].startsWith("editorial-")) return null
+  return match[1]
+}
+
+function slotIso(date: string, slot: (typeof TYPEFULLY_DAILY_SLOTS)[number]): string {
+  return new Date(`${date}T${String(slot.h).padStart(2, "0")}:${String(slot.m).padStart(2, "0")}:00+09:00`).toISOString()
 }
 
 export async function syncTypefullyX({
@@ -166,7 +215,7 @@ export async function syncTypefullyX({
   const [scheduled, publishing, published] = await Promise.all([
     listDrafts(fetchImpl, apiKey, "scheduled"),
     listDrafts(fetchImpl, apiKey, "publishing"),
-    listDrafts(fetchImpl, apiKey, "published"),
+    listRecentPublished(fetchImpl, apiKey),
   ])
   const active = [...scheduled, ...publishing]
   const existing = [...active, ...published]
@@ -175,11 +224,28 @@ export async function syncTypefullyX({
     [...existingIds].map(sameDayArticleKey).filter(Boolean) as string[]
   )
   const today = jstDate(now)
-  const candidates = feed.drafts.filter((candidate) => {
+  const candidates = selectTypefullyCandidates(feed.drafts.filter((candidate) => {
     if (!candidate.id.endsWith(`:${today}`)) return false
     return isTypefullyCandidateApproved(candidate)
-  })
-  const capacity = Math.max(0, TYPEFULLY_QUEUE_TARGET - active.length)
+  }))
+  const publishedToday = published.filter((item) => jstDateOf(item.published_at) === today).length
+  const activeToday = active.filter((item) => jstDateOf(item.scheduled_date) === today)
+  const occupiedTimes = new Set(activeToday.map((item) => item.scheduled_date).filter(Boolean) as string[])
+  const availableSlots = TYPEFULLY_DAILY_SLOTS
+    .map((slot) => slotIso(today, slot))
+    .filter((value) => Date.parse(value) > now.getTime() && !occupiedTimes.has(value))
+  const capacity = Math.min(
+    availableSlots.length,
+    Math.max(0, TYPEFULLY_QUEUE_TARGET - publishedToday - activeToday.length)
+  )
+  const recentCutoff = now.getTime() - 7 * 24 * 60 * 60 * 1000
+  const recentArticleKeys = new Set(
+    published
+      .filter((item) => Date.parse(item.published_at ?? "") >= recentCutoff)
+      .map((item) => titleId(item.draft_title))
+      .map((id) => id ? articleIdentityKey(id) : null)
+      .filter(Boolean) as string[]
+  )
   let created = 0
   let skippedDuplicate = 0
   let mediaFallbacks = 0
@@ -187,7 +253,12 @@ export async function syncTypefullyX({
   for (const candidate of candidates) {
     if (created >= capacity) break
     const dayKey = sameDayArticleKey(candidate.id)
-    if (existingIds.has(candidate.id) || (dayKey && existingDayKeys.has(dayKey))) {
+    const articleKey = articleIdentityKey(candidate.id)
+    if (
+      existingIds.has(candidate.id) ||
+      (dayKey && existingDayKeys.has(dayKey)) ||
+      (articleKey && recentArticleKeys.has(articleKey))
+    ) {
       skippedDuplicate += 1
       continue
     }
@@ -214,13 +285,14 @@ export async function syncTypefullyX({
               ],
             },
           },
-          publish_at: "next-free-slot",
+          publish_at: availableSlots[created],
           confirm_publish: true,
         }),
       }
     )
     existingIds.add(candidate.id)
     if (dayKey) existingDayKeys.add(dayKey)
+    if (articleKey) recentArticleKeys.add(articleKey)
     created += 1
   }
 

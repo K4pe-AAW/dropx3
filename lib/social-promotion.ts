@@ -251,7 +251,7 @@ function buildEditorialDrafts(
   const daily = editorialDraft(
     "editorial-daily-drop",
     "editorial_daily_drop",
-    `${jstDay === 0 ? "今週のDROPカレンダー" : "今日のDROP"}｜注目${dailyArticles.length}選\n\n${dailyLines}\n\n新着一覧 ${dailyUrl}\n#メンズファッション`,
+    `${jstDay === 0 ? "今週のDROPカレンダー" : "今日のDROP"}｜注目${dailyArticles.length}選\n\n${dailyLines}\n\n気になる一着を返信で教えてください。\n#メンズファッション`,
     lead,
     "X内で保存しやすい当日新着まとめ",
     generatedAt,
@@ -263,7 +263,7 @@ function buildEditorialDrafts(
   const spotlight = editorialDraft(
     `editorial-spotlight-${lead.id}`,
     "editorial_spotlight",
-    `DROP判断｜${verdict.label}\n${shortItemTitle(lead, 62)}\n\n${verdict.reason}\n${editorialStylingPerspective(lead, now)}\n\n${spotlightUrl}\n${hashtags(lead)}`,
+    `DROP判断｜${verdict.label}\n${shortItemTitle(lead, 62)}\n\n${verdict.reason}\n${editorialStylingPerspective(lead, now)}\n\n皆さんなら買うか、実物を見るか。\n${hashtags(lead)}`,
     lead,
     "事実・判断・合わせ方を分けたDROP編集判断",
     generatedAt,
