@@ -27,6 +27,12 @@ export const DROP_EDITORIAL_VOICE = {
   ],
 } as const
 
+export function pickEditorialLine(seed: string, lines: readonly string[]): string {
+  let hash = 0
+  for (const char of seed) hash = (Math.imul(hash, 31) + (char.codePointAt(0) ?? 0)) >>> 0
+  return lines[hash % lines.length] ?? lines[0] ?? ""
+}
+
 function hasConcretePrice(article: Article): boolean {
   return Boolean(
     article.affiliateLinks.some((link) => link.price) ||
@@ -48,18 +54,30 @@ export function editorialVerdict(article: Article): { label: string; reason: str
   if (!hasConcretePrice(article)) {
     return {
       label: "続報待ち",
-      reason: "価格がまだ判断材料に足りないため、買うかどうかは販売情報の更新後に考えたい一着です。",
+      reason: pickEditorialLine(article.id, [
+        "まだ価格が見えないので、今は雰囲気だけで決めずに続報を待ちたいです。",
+        "気になる見た目ですが、価格が出るまではいったん保留。ここで無理に推す段階ではなさそうです。",
+        "まず知りたいのは価格。そこが分かってから、手持ちと比べて考えたいところです。",
+      ]),
     }
   }
   if (!hasConcreteProductFacts(article)) {
     return {
       label: "実物確認",
-      reason: "価格は見えていますが、サイズや仕様まで確認してから選びたいアイテムです。",
+      reason: pickEditorialLine(`${article.id}:facts`, [
+        "価格は見えています。あとはサイズや仕様を見て、手持ちに本当に必要か決めたいです。",
+        "値段だけなら検討圏内。ただ、サイズ感と細かな仕様が分かるまでは即決しにくいです。",
+        "気になるけれど、まだ材料不足。サイズと仕様を確認してからが本番です。",
+      ]),
     }
   }
   return {
     label: "買う候補",
-    reason: "価格・発売情報・型番まで確認できるため、手持ちとの役割が重ならなければ検討しやすい候補です。",
+    reason: pickEditorialLine(`${article.id}:buy`, [
+      "価格も発売情報も確認できました。手持ちと役割がかぶらないなら、かなり考えやすい候補です。",
+      "必要な情報はひと通り揃っています。あとは似た服を持っていないか、クローゼットを見て決めたいです。",
+      "型番まで追えるので検討しやすいです。勢いで買うより、手持ちにない役割なら候補に入れたい。",
+    ]),
   }
 }
 
@@ -71,17 +89,34 @@ export function editorialStylingPerspective(article: Article, now = new Date()):
     case "sneaker":
     case "boots":
       return weekendLocal
-        ? "中目黒から代官山まで歩いて服を見る日なら、色落ちデニムか太めのスラックスで足元を見せたい一足です。"
-        : "足元を主役にするなら、ワイドパンツか色落ちデニムで色数を抑えると合わせ方が見えやすそうです。"
+        ? pickEditorialLine(`${article.id}:weekend-shoes`, [
+          "中目黒から代官山まで歩く日なら、色落ちデニムで少し力を抜いて履きたいです。",
+          "中目黒で服を見る休日なら、太めのスラックスから足元だけしっかり見せる合わせが気になります。",
+        ])
+        : pickEditorialLine(`${article.id}:weekday-shoes`, [
+          "足元を主役にするなら、ワイドパンツで色数を絞るのがよさそうです。",
+          "色落ちデニムに合わせるくらいが自然。服まで盛りすぎない方が、この靴は生きそうです。",
+          "黒のスラックスで少しきれいに寄せるか、デニムで崩すか。どちらも試しやすそうです。",
+        ])
     case "pants":
-      return "シルエットを主役にして、トップスと靴の色数を抑えたい一本。丈と手持ちの靴との相性は確認したいところです。"
+      return pickEditorialLine(`${article.id}:pants`, [
+        "パンツの形を見せたいので、トップスと靴は色を増やしすぎない方がよさそう。丈だけは手持ちの靴と確認したいです。",
+        "主役はこのシルエット。上は無地でまとめて、裾がどの靴に乗るかを見て選びたいです。",
+      ])
     case "jacket":
       return weekendLocal
-        ? "古着屋とセレクトショップを歩く休日なら、インナーを無地にして羽織りを主役にしたい一着です。"
-        : "羽織りを主役にして、インナーとパンツを無地でまとめると大人っぽく取り入れやすそうです。"
+        ? "古着屋とセレクトショップを歩く休日なら、インナーは無地にして、この羽織りだけ目立たせたいです。"
+        : pickEditorialLine(`${article.id}:jacket`, [
+          "インナーとパンツを無地でまとめれば、頑張りすぎず大人っぽく取り入れやすそうです。",
+          "羽織りが十分強いので、ほかは静かに。黒パンツくらいでちょうどよさそうです。",
+          "合わせるなら、まずは白Tと濃色パンツ。難しく考えず、そのくらいから試したいです。",
+        ])
     case "tops":
     case "apparel":
-      return "黒やネイビーのパンツを土台にすると、デザインを残しながら普段の服へ入れやすそうです。"
+      return pickEditorialLine(`${article.id}:tops`, [
+        "黒かネイビーのパンツを土台にすると、デザインを残しながら普段の服へ入れやすそうです。",
+        "まずはいつもの濃色パンツで十分。トップスの良さを消さない合わせがよさそうです。",
+      ])
     case "accessory":
       return "服を大きく変えずに印象を足せるかが判断軸。色数を絞った日のアクセント候補です。"
     case "vintage":
@@ -90,4 +125,3 @@ export function editorialStylingPerspective(article: Article, now = new Date()):
       return "話題性だけでなく、手持ちの服に役割があるかを考えて選びたい新着です。"
   }
 }
-

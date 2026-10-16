@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { draftTitle, isTypefullyCandidateApproved, sameDayArticleKey, selectTypefullyCandidates, TYPEFULLY_QUEUE_TARGET } from "./typefully-sync"
+import { draftTitle, isTypefullyCandidateApproved, jstMinuteKey, sameDayArticleKey, selectTypefullyCandidates, TYPEFULLY_QUEUE_TARGET } from "./typefully-sync"
 import type { SocialPostDraft } from "./social-promotion"
 
 const candidate: SocialPostDraft = {
@@ -37,6 +37,11 @@ test("編集投稿も同じJST日では重複させない", () => {
 
 test("Typefullyは1日最大5件に絞る", () => {
   assert.equal(TYPEFULLY_QUEUE_TARGET, 5)
+})
+
+test("Typefullyの予約時刻は表記差があってもJST分単位で同じ枠とみなす", () => {
+  assert.equal(jstMinuteKey("2026-10-16T22:30:00.000Z"), "2026-10-17 07:30")
+  assert.equal(jstMinuteKey("2026-10-17T07:30:45+09:00"), "2026-10-17 07:30")
 })
 
 test("Typefully公開候補は重要速報2件と編集3件を交互に選ぶ", () => {

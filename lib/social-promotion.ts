@@ -10,7 +10,7 @@ import { isDomesticBrandContent } from "./domestic-brands"
 import { siteConfig } from "./site-config"
 import { mutateJson, readArticles } from "./storage"
 import type { Article } from "./types"
-import { editorialStylingPerspective, editorialVerdict } from "./drop-editorial-voice"
+import { editorialStylingPerspective, editorialVerdict, pickEditorialLine } from "./drop-editorial-voice"
 import {
   isApprovedEditorialReview,
   reviewEditorialPost,
@@ -251,7 +251,11 @@ function buildEditorialDrafts(
   const daily = editorialDraft(
     "editorial-daily-drop",
     "editorial_daily_drop",
-    `${jstDay === 0 ? "今週のDROPカレンダー" : "今日のDROP"}｜注目${dailyArticles.length}選\n\n${dailyLines}\n\n気になる一着を返信で教えてください。\n#メンズファッション`,
+    `${jstDay === 0 ? "今週のDROPカレンダー" : "今日のDROP"}｜${dailyArticles.length}つ選びました\n\n${dailyLines}\n\n${pickEditorialLine(`${lead.id}:${jstDate(now)}:daily`, [
+      "今日はどれが気になりますか。",
+      "ひとつ選ぶなら、どれにしますか。",
+      "あとで見返せるように、まとめておきます。",
+    ])}\n#今日のDROP`,
     lead,
     "X内で保存しやすい当日新着まとめ",
     generatedAt,
@@ -263,7 +267,11 @@ function buildEditorialDrafts(
   const spotlight = editorialDraft(
     `editorial-spotlight-${lead.id}`,
     "editorial_spotlight",
-    `DROP判断｜${verdict.label}\n${shortItemTitle(lead, 62)}\n\n${verdict.reason}\n${editorialStylingPerspective(lead, now)}\n\n皆さんなら買うか、実物を見るか。\n${hashtags(lead)}`,
+    `DROP判断｜${verdict.label}\n${shortItemTitle(lead, 62)}\n\n${verdict.reason}\n${editorialStylingPerspective(lead, now)}\n\n${pickEditorialLine(`${lead.id}:${jstDate(now)}:spotlight`, [
+      "みなさんなら、ここで買いますか。もう少し待ちますか。",
+      "自分ならいったん手持ちを見直します。みなさんはどうですか。",
+      "気になるけれど即決はしない。そのくらいが今の正直なところです。",
+    ])}\n#DROP判断`,
     lead,
     "事実・判断・合わせ方を分けたDROP編集判断",
     generatedAt,
@@ -272,8 +280,16 @@ function buildEditorialDrafts(
 
   const second = editorialArticles[1]
   const compareText = second
-    ? `どちらを選ぶ？\n\nA｜${shortItemTitle(lead, 48)}\nB｜${shortItemTitle(second, 48)}\n\n今の気分に近い方を返信で教えてください。\n#メンズファッション`
-    : `どう合わせる？\n\n${shortItemTitle(lead, 58)}\n\nデニム／スラックス／ワイドパンツ。合わせたいスタイルを返信で教えてください。\n#メンズファッション`
+    ? `今日はこの2つで迷います。\n\nA｜${shortItemTitle(lead, 48)}\nB｜${shortItemTitle(second, 48)}\n\n${pickEditorialLine(`${lead.id}:${second.id}:compare`, [
+      "今の気分なら、どちらを選びますか。",
+      "手持ちに足すならAとB、どちらですか。",
+      "自分の服に合わせやすい方を教えてください。",
+    ])}\n#30代で選ぶなら`
+    : `これ、どう合わせますか。\n\n${shortItemTitle(lead, 58)}\n\nデニム／スラックス／ワイドパンツ。${pickEditorialLine(`${lead.id}:single-compare`, [
+      "自分ならまずスラックスから試します。",
+      "服好きのみなさんの合わせ方も聞きたいです。",
+      "普段の一本に合わせるなら、どれが近いですか。",
+    ])}\n#30代で選ぶなら`
   const compare = editorialDraft(
     `editorial-compare-${lead.id}${second ? `-${second.id}` : ""}`,
     "editorial_compare",

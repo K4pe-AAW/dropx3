@@ -105,7 +105,7 @@ export function reviewEditorialPost(input: {
   )
   // 商品名はまとめ・比較・寸評で自然に重なるため、完全一致に近い場合だけ不合格にする。
   const repetition = maxSimilarity >= 0.95 ? 5 : maxSimilarity >= 0.8 ? 4 : maxSimilarity >= 0.6 ? 3 : 2
-  const hasUsefulAction = /(?:発売|再販|新着|選ぶ|合わせ|確認|買い逃し|返信|カレンダー|情報)/.test(text)
+  const hasUsefulAction = /(?:発売|再販|新着|選|合わせ|確認|買|待|保留|返信|カレンダー|情報)/.test(text)
   const hasAudiencePerspective = /(?:メンズ|手持ち|デニム|スラックス|パンツ|足元|大人|中目黒|代官山|ワードローブ|スタイル)/.test(text)
   const hasSpecificFact = sourceArticles.some((article) => text.includes(article.title.slice(0, 12))) || facts.length >= 3
   const hasUnsafeExperience = EXPERIENCE_PATTERN.test(text) || DROP_EDITORIAL_VOICE.forbiddenClaims.some((claim) => text.includes(claim))

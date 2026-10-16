@@ -453,7 +453,8 @@ test("編集部注目枠はDROP判断と合わせ方を含む", () => {
   const editorial = buildSocialQueueDrafts(articles, new Date("2026-10-05T03:00:00.000Z"))
     .find((draft) => draft.kind === "editorial_spotlight")
   assert.match(editorial?.text ?? "", /DROP判断｜買う候補/)
-  assert.match(editorial?.text ?? "", /大人っぽく取り入れやすそう/)
+  assert.match(editorial?.text ?? "", /(?:大人っぽく|黒パンツ|白T|羽織り)/)
+  assert.doesNotMatch(editorial?.text ?? "", /皆さんなら買うか、実物を見るか/)
 })
 
 test("同じ型番の別記事はTypefully最終キューで1件にまとめる", () => {

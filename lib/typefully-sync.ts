@@ -41,6 +41,9 @@ export type TypefullySyncResult = {
   created: number
   skippedDuplicate: number
   mediaFallbacks: number
+  editorialReady: number
+  missingEditorialKinds: string[]
+  slotConflicts: number
 }
 
 const API = "https://api.typefully.com/v2"
@@ -179,6 +182,25 @@ function jstDateOf(value?: string | null): string | null {
   return Number.isNaN(date.getTime()) ? null : jstDate(date)
 }
 
+/**
+ * Typefully may return equivalent timestamps with or without milliseconds.
+ * Compare queue occupancy by JST calendar minute instead of raw ISO strings.
+ */
+export function jstMinuteKey(value?: string | null): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date)
+}
+
 function articleIdentityKey(id: string): string | null {
   const match = id.match(/^(.+):([a-z_]+):(\d{4}-\d{2}-\d{2})$/)
   if (!match || match[1].startsWith("editorial-")) return null
@@ -228,12 +250,23 @@ export async function syncTypefullyX({
     if (!candidate.id.endsWith(`:${today}`)) return false
     return isTypefullyCandidateApproved(candidate)
   }))
+  const requiredEditorialKinds = ["editorial_daily_drop", "editorial_spotlight", "editorial_compare"] as const
+  const readyEditorialKinds = new Set(
+    candidates.filter((candidate) => candidate.kind.startsWith("editorial_")).map((candidate) => candidate.kind)
+  )
+  const missingEditorialKinds = requiredEditorialKinds.filter((kind) => !readyEditorialKinds.has(kind))
   const publishedToday = published.filter((item) => jstDateOf(item.published_at) === today).length
   const activeToday = active.filter((item) => jstDateOf(item.scheduled_date) === today)
-  const occupiedTimes = new Set(activeToday.map((item) => item.scheduled_date).filter(Boolean) as string[])
+  const occupiedTimes = new Set(
+    [...activeToday.map((item) => item.scheduled_date), ...published
+      .filter((item) => jstDateOf(item.published_at) === today)
+      .map((item) => item.published_at)]
+      .map(jstMinuteKey)
+      .filter(Boolean) as string[]
+  )
   const availableSlots = TYPEFULLY_DAILY_SLOTS
     .map((slot) => slotIso(today, slot))
-    .filter((value) => Date.parse(value) > now.getTime() && !occupiedTimes.has(value))
+    .filter((value) => Date.parse(value) > now.getTime() && !occupiedTimes.has(jstMinuteKey(value) ?? value))
   const capacity = Math.min(
     availableSlots.length,
     Math.max(0, TYPEFULLY_QUEUE_TARGET - publishedToday - activeToday.length)
@@ -249,6 +282,8 @@ export async function syncTypefullyX({
   let created = 0
   let skippedDuplicate = 0
   let mediaFallbacks = 0
+  let slotConflicts = 0
+  let slotCursor = 0
 
   for (const candidate of candidates) {
     if (created >= capacity) break
@@ -262,6 +297,31 @@ export async function syncTypefullyX({
       skippedDuplicate += 1
       continue
     }
+
+    let targetSlot: string | undefined
+    while (slotCursor < availableSlots.length) {
+      const proposedSlot = availableSlots[slotCursor++]
+      const targetMinute = jstMinuteKey(proposedSlot)
+      // Re-read immediately before creation. This prevents an hourly automation and a
+      // manual recovery run from assigning two posts to the same Typefully minute.
+      const [latestScheduled, latestPublishing] = await Promise.all([
+        listDrafts(fetchImpl, apiKey, "scheduled"),
+        listDrafts(fetchImpl, apiKey, "publishing"),
+      ])
+      const latestActive = [...latestScheduled, ...latestPublishing]
+      const latestIds = new Set(latestActive.map((item) => titleId(item.draft_title)).filter(Boolean) as string[])
+      if (latestIds.has(candidate.id)) {
+        skippedDuplicate += 1
+        break
+      }
+      if (latestActive.some((item) => jstMinuteKey(item.scheduled_date) === targetMinute)) {
+        slotConflicts += 1
+        continue
+      }
+      targetSlot = proposedSlot
+      break
+    }
+    if (!targetSlot) continue
 
     const mediaId = await uploadImage(fetchImpl, apiKey, candidate)
     if (!mediaId) mediaFallbacks += 1
@@ -285,7 +345,7 @@ export async function syncTypefullyX({
               ],
             },
           },
-          publish_at: availableSlots[created],
+          publish_at: targetSlot,
           confirm_publish: true,
         }),
       }
@@ -296,5 +356,13 @@ export async function syncTypefullyX({
     created += 1
   }
 
-  return { scheduledBefore: active.length, created, skippedDuplicate, mediaFallbacks }
+  return {
+    scheduledBefore: active.length,
+    created,
+    skippedDuplicate,
+    mediaFallbacks,
+    editorialReady: readyEditorialKinds.size,
+    missingEditorialKinds,
+    slotConflicts,
+  }
 }
