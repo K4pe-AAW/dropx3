@@ -37,7 +37,8 @@ function article(patch: Partial<Article> = {}): Article {
 test("発売当日の同一記事は発売日投稿としてUTMを付ける", () => {
   const [draft] = buildSocialPostDrafts([article()], new Date("2026-09-28T03:00:00.000Z"))
   assert.equal(draft.kind, "release_day")
-  assert.match(draft.text, /本日発売/)
+  assert.match(draft.text, /^本日発売です。\n/)
+  assert.doesNotMatch(draft.text, /^NEW｜/)
   assert.match(draft.url, /utm_source=x/)
   assert.ok(draft.text.length <= 280)
 })

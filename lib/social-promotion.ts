@@ -140,18 +140,18 @@ function hashtags(article: Article): string {
 
 function makeDraft(article: Article, kind: SocialPostKind, reason: string, generatedAt: string): SocialPostDraft {
   const title = compactTitle(article.title)
-  const eventPrefix = kind === "release_day" ? "本日発売" : kind === "article_update" ? "販売情報を更新" : "NEW"
+  const eventPrefix = kind === "release_day" ? "本日発売です。" : kind === "article_update" ? "販売情報を更新しました。" : "新着です。"
   const statusPrefix = informationPrefix(article)
   const prefix = statusPrefix ? `${statusPrefix}｜${eventPrefix}` : eventPrefix
   const url = trackedArticleUrl(article, kind)
   const tagLine = hashtags(article)
   const excerpt = article.excerpt.replace(/\s+/g, " ").trim().slice(0, 72)
-  const text = `${prefix}｜${title}\n\n${excerpt}${excerpt.length >= 72 ? "…" : ""}\n\n${url}\n${tagLine}`.trim()
+  const text = `${prefix}\n${title}\n\n${excerpt}${excerpt.length >= 72 ? "…" : ""}\n\n${url}\n${tagLine}`.trim()
   return {
     id: `${article.id}:${kind}:${jstDate(new Date(generatedAt))}`,
     articleId: article.id,
     kind,
-    text: text.length <= 280 ? text : `${prefix}｜${title}\n\n${url}\n${tagLine}`.trim(),
+    text: text.length <= 280 ? text : `${prefix}\n${title}\n\n${url}\n${tagLine}`.trim(),
     url,
     imageUrl: new URL(article.coverImage, siteConfig.url).toString(),
     reason,
