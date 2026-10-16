@@ -61,3 +61,16 @@ test("直近投稿とほぼ同じ文章は反復過多として拒否する", ()
   assert.equal(result.verdict, "rejected")
   assert.equal(result.scores.repetition, 5)
 })
+
+test("30代向けの比較投稿を読者適合として扱う", () => {
+  const text = "今日はこの2つで迷います。\n\nA｜Graphpaper メンズジャケット GP-001\nB｜AURALEE メンズコート AU-002\n\n手持ちに足すならAとB、どちらですか。\n#30代で選ぶなら"
+  const result = reviewEditorialPost({
+    id: "editorial-compare-30s",
+    kind: "editorial_compare",
+    text,
+    sourceArticles: [source, { ...source, id: "article-2", title: "AURALEE メンズコート AU-002", brands: ["AURALEE"] }],
+    reviewedAt: "2026-10-16T00:00:00.000Z",
+  })
+  assert.equal(result.scores.audienceFit, 4)
+  assert.equal(result.verdict, "approved")
+})
