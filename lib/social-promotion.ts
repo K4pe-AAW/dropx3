@@ -7,15 +7,10 @@ import {
   isPrTimesSourced,
 } from "./article-source"
 import { isDomesticBrandContent } from "./domestic-brands"
+import { socialFocusLane, type SocialFocusLane } from "./social-focus"
 import { siteConfig } from "./site-config"
 import { mutateJson, readArticles } from "./storage"
 import type { Article } from "./types"
-import { editorialStylingPerspective, editorialVerdict, pickEditorialLine } from "./drop-editorial-voice"
-import {
-  isApprovedEditorialReview,
-  reviewEditorialPost,
-  type EditorialQualityReview,
-} from "./drop-editorial-review"
 
 export const SOCIAL_QUEUE_PATH = "data/social-promotion-queue-v1.json"
 export const SOCIAL_DAILY_SLOT_TARGET = 16
@@ -24,10 +19,6 @@ export type SocialPostKind =
   | "new_article"
   | "release_day"
   | "article_update"
-  | "editorial_daily_drop"
-  | "editorial_spotlight"
-  | "editorial_compare"
-  | "editorial_tomorrow"
 
 export type SocialPostDraft = {
   id: string
@@ -39,7 +30,7 @@ export type SocialPostDraft = {
   reason: string
   generatedAt: string
   freshnessAt: string
-  editorialReview?: EditorialQualityReview
+  focusLane?: SocialFocusLane
 }
 
 export type SocialQueueState = {
@@ -51,8 +42,6 @@ export type SocialQueueState = {
 const DAY = 86_400_000
 export const SOCIAL_MENS_SHARE = 0.9
 export const SOCIAL_DOMESTIC_BRAND_TARGET = 4
-export const SOCIAL_EDITORIAL_TARGET = 4
-export const SOCIAL_NEWS_TARGET = SOCIAL_DAILY_SLOT_TARGET - SOCIAL_EDITORIAL_TARGET
 
 const NON_COMMERCE_EVENT_TERMS = [
   /ワークショップ/i,
@@ -110,14 +99,6 @@ function trackedArticleUrl(article: Article, campaign: SocialPostKind): string {
   return url.toString()
 }
 
-function trackedSiteUrl(campaign: SocialPostKind): string {
-  const url = new URL(siteConfig.url)
-  url.searchParams.set("utm_source", "x")
-  url.searchParams.set("utm_medium", "social")
-  url.searchParams.set("utm_campaign", campaign)
-  return url.toString()
-}
-
 function compactTitle(title: string, max = 88): string {
   const clean = title.replace(/^\s*(?:Goss!p|Gossp!|RUMOR|噂)\s*[｜|:]\s*/i, "").trim()
   return clean.length <= max ? clean : `${clean.slice(0, max - 1)}…`
@@ -157,6 +138,7 @@ function makeDraft(article: Article, kind: SocialPostKind, reason: string, gener
     reason,
     generatedAt,
     freshnessAt: article.updatedAt ?? article.publishedAt,
+    focusLane: socialFocusLane(article),
   }
 }
 
@@ -185,177 +167,6 @@ function dedupeByProductIdentity(
     keys.forEach((key) => seen.add(key))
     return true
   })
-}
-
-function shortItemTitle(article: Article, max = 44): string {
-  const clean = compactTitle(article.title, max).replace(/[！!]$/, "")
-  return clean.length <= max ? clean : `${clean.slice(0, max - 1)}…`
-}
-
-function editorialDraft(
-  id: string,
-  kind: Extract<SocialPostKind, `editorial_${string}`>,
-  text: string,
-  article: Article,
-  reason: string,
-  generatedAt: string,
-  url = trackedSiteUrl(kind)
-): SocialPostDraft {
-  return {
-    id: `${id}:${kind}:${jstDate(new Date(generatedAt))}`,
-    articleId: id,
-    kind,
-    // XはURLを短縮URL相当で数えるため、文字列を途中で切ってURLを壊さない。
-    text: text.trim(),
-    url,
-    imageUrl: new URL(article.coverImage, siteConfig.url).toString(),
-    reason,
-    generatedAt,
-    freshnessAt: article.updatedAt ?? article.publishedAt,
-  }
-}
-
-function buildEditorialDrafts(
-  articles: Article[],
-  selectedNews: SocialPostDraft[],
-  now: Date,
-  generatedAt: string
-): SocialPostDraft[] {
-  const articleById = new Map(articles.map((article) => [article.id, article]))
-  const editorialArticles = selectedNews
-    .map((draft) => articleById.get(draft.articleId))
-    .filter((article): article is Article => Boolean(article))
-    .filter((article) => article.informationStatus !== "rumor" && article.informationStatus !== "leak")
-    .sort((a, b) => {
-      const aPrimary = isPrTimesSourced(a) || isFashionsnapSourced(a) ? 0 : 1
-      const bPrimary = isPrTimesSourced(b) || isFashionsnapSourced(b) ? 0 : 1
-      return bPrimary - aPrimary || (b.updatedAt ?? b.publishedAt).localeCompare(a.updatedAt ?? a.publishedAt)
-    })
-  const lead = editorialArticles[0]
-  if (!lead) return []
-
-  const top = editorialArticles.slice(0, 3)
-  const upcomingWeek = buildReleaseCalendar(articles)
-    .filter((item) => {
-      const delta = new Date(`${item.date}T00:00:00+09:00`).getTime() - new Date(`${jstDate(now)}T00:00:00+09:00`).getTime()
-      return delta >= 0 && delta < 7 * DAY && isSocialPromotionEligible(item.article)
-    })
-    .map((item) => item.article)
-    .filter((article) => article.informationStatus !== "rumor" && article.informationStatus !== "leak")
-    .filter((article, index, values) => values.findIndex((item) => item.id === article.id) === index)
-    .slice(0, 3)
-  const jstDay = new Date(now.getTime() + 9 * 60 * 60 * 1000).getUTCDay()
-  const dailyArticles = jstDay === 0 && upcomingWeek.length > 0 ? upcomingWeek : top
-  const dailyLines = dailyArticles.map((article, index) => `${index + 1}. ${shortItemTitle(article, 38)}`).join("\n")
-  const dailyUrl = trackedSiteUrl("editorial_daily_drop")
-  const daily = editorialDraft(
-    "editorial-daily-drop",
-    "editorial_daily_drop",
-    `${jstDay === 0 ? "今週のDROPカレンダー" : "今日のDROP"}｜${dailyArticles.length}つ選びました\n\n${dailyLines}\n\n${pickEditorialLine(`${lead.id}:${jstDate(now)}:daily`, [
-      "今日はどれが気になりますか。",
-      "ひとつ選ぶなら、どれにしますか。",
-      "あとで見返せるように、まとめておきます。",
-    ])}\n#今日のDROP`,
-    lead,
-    "X内で保存しやすい当日新着まとめ",
-    generatedAt,
-    dailyUrl
-  )
-
-  const verdict = editorialVerdict(lead)
-  const spotlightUrl = trackedArticleUrl(lead, "editorial_spotlight")
-  const spotlight = editorialDraft(
-    `editorial-spotlight-${lead.id}`,
-    "editorial_spotlight",
-    `DROP判断｜${verdict.label}\n${shortItemTitle(lead, 62)}\n\n${verdict.reason}\n${editorialStylingPerspective(lead, now)}\n\n${pickEditorialLine(`${lead.id}:${jstDate(now)}:spotlight`, [
-      "みなさんなら、ここで買いますか。もう少し待ちますか。",
-      "自分ならいったん手持ちを見直します。みなさんはどうですか。",
-      "気になるけれど即決はしない。そのくらいが今の正直なところです。",
-    ])}\n#DROP判断`,
-    lead,
-    "事実・判断・合わせ方を分けたDROP編集判断",
-    generatedAt,
-    spotlightUrl
-  )
-
-  const second = editorialArticles[1]
-  const compareText = second
-    ? `今日はこの2つで迷います。\n\nA｜${shortItemTitle(lead, 48)}\nB｜${shortItemTitle(second, 48)}\n\n${pickEditorialLine(`${lead.id}:${second.id}:compare`, [
-      "今の気分なら、どちらを選びますか。",
-      "手持ちに足すならAとB、どちらですか。",
-      "自分の服に合わせやすい方を教えてください。",
-    ])}\n#30代で選ぶなら`
-    : `これ、どう合わせますか。\n\n${shortItemTitle(lead, 58)}\n\nデニム／スラックス／ワイドパンツ。${pickEditorialLine(`${lead.id}:single-compare`, [
-      "自分ならまずスラックスから試します。",
-      "服好きのみなさんの合わせ方も聞きたいです。",
-      "普段の一本に合わせるなら、どれが近いですか。",
-    ])}\n#30代で選ぶなら`
-  const compare = editorialDraft(
-    `editorial-compare-${lead.id}${second ? `-${second.id}` : ""}`,
-    "editorial_compare",
-    compareText,
-    lead,
-    "リンクを前面に出さない比較・会話投稿",
-    generatedAt
-  )
-
-  const tomorrow = new Date(now.getTime() + DAY)
-  const tomorrowDate = jstDate(tomorrow)
-  const tomorrowArticles = buildReleaseCalendar(articles)
-    .filter((item) => item.date === tomorrowDate && isSocialPromotionEligible(item.article))
-    .map((item) => item.article)
-    .filter((article) => article.informationStatus !== "rumor" && article.informationStatus !== "leak")
-    .filter((article, index, values) => values.findIndex((item) => item.id === article.id) === index)
-    .slice(0, 3)
-  const tomorrowLead = tomorrowArticles[0] ?? lead
-  const tomorrowLines = tomorrowArticles.length > 0
-    ? tomorrowArticles.map((article) => `・${shortItemTitle(article, 45)}`).join("\n")
-    : `・${shortItemTitle(lead, 45)}\n・発売・再販情報は確認でき次第更新`
-  const tomorrowUrl = trackedSiteUrl("editorial_tomorrow")
-  const tomorrowDraft = editorialDraft(
-    "editorial-tomorrow",
-    "editorial_tomorrow",
-    `明日のDROP｜買い逃し防止メモ\n\n${tomorrowLines}\n\n最新情報 ${tomorrowUrl}\n#メンズファッション`,
-    tomorrowLead,
-    tomorrowArticles.length > 0 ? "翌日発売の事前まとめ" : "翌日候補不足時の更新予告",
-    generatedAt,
-    tomorrowUrl
-  )
-
-  const sourceMap = new Map<string, Article[]>([
-    [daily.id, dailyArticles],
-    [spotlight.id, [lead]],
-    [compare.id, second ? [lead, second] : [lead]],
-    [tomorrowDraft.id, tomorrowArticles.length > 0 ? tomorrowArticles : [lead]],
-  ])
-  const reviewed: SocialPostDraft[] = []
-  for (const draft of [daily, spotlight, compare, tomorrowDraft]) {
-    const editorialReview = reviewEditorialPost({
-      id: draft.id,
-      kind: draft.kind,
-      text: draft.text,
-      sourceArticles: sourceMap.get(draft.id) ?? [],
-      reviewedAt: generatedAt,
-      recentEditorialTexts: reviewed.map((item) => item.text),
-    })
-    reviewed.push({ ...draft, editorialReview })
-  }
-  return reviewed
-}
-
-function interleaveEditorialPosts(news: SocialPostDraft[], editorial: SocialPostDraft[], limit: number): SocialPostDraft[] {
-  const editorialSlots = new Map([[0, 0], [5, 1], [11, 2], [14, 3]])
-  const result: SocialPostDraft[] = []
-  let newsIndex = 0
-  for (let slot = 0; slot < limit; slot += 1) {
-    const editorialIndex = editorialSlots.get(slot)
-    if (editorialIndex !== undefined && editorial[editorialIndex]) {
-      result.push(editorial[editorialIndex])
-    } else if (news[newsIndex]) {
-      result.push(news[newsIndex++])
-    }
-  }
-  return result
 }
 
 /**
@@ -497,25 +308,13 @@ export function buildSocialPostDrafts(
   return news
 }
 
-/** Typefullyの16枠を、速報12枠とDROP独自の編集投稿4枠で編成する。 */
+/** X向け内部候補は、ドメブラ／ストリート中心の新着・発売・更新・Goss!pで編成する。 */
 export function buildSocialQueueDrafts(
   articles: Article[],
   now = new Date(),
   limit = SOCIAL_DAILY_SLOT_TARGET
 ): SocialPostDraft[] {
-  if (limit !== SOCIAL_DAILY_SLOT_TARGET) {
-    return buildSocialPostDrafts(articles, now, limit, { dedupeProducts: true })
-  }
-  const generatedAt = now.toISOString()
-  // 編集投稿4件もメンズ中心なので、速報側は12件すべてメンズでも全体方針に合う。
-  // 13件分の比率枠で選んでから12件へ絞り、従来の「その他最大1件」も維持する。
-  const newsPool = buildSocialPostDrafts(articles, now, SOCIAL_DAILY_SLOT_TARGET + 1, { dedupeProducts: true })
-  const editorialSources = newsPool.slice(0, SOCIAL_NEWS_TARGET)
-  const editorial = buildEditorialDrafts(articles, editorialSources, now, generatedAt)
-    .filter((draft) => isApprovedEditorialReview(draft.editorialReview))
-    .slice(0, SOCIAL_EDITORIAL_TARGET)
-  // 品質ゲートで編集投稿が落ちても速報を補充し、16枠を維持する。
-  return interleaveEditorialPosts(newsPool, editorial, limit)
+  return buildSocialPostDrafts(articles, now, limit, { dedupeProducts: true })
 }
 
 export async function refreshSocialQueue(now = new Date()): Promise<SocialQueueState> {

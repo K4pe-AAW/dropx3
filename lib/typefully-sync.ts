@@ -1,5 +1,4 @@
 import type { SocialPostDraft, SocialQueueState } from "./social-promotion"
-import { isApprovedEditorialReview } from "./drop-editorial-review"
 
 export const TYPEFULLY_SOCIAL_SET_ID = 336958
 export const TYPEFULLY_X_USERNAME = "dropx3tokyo"
@@ -58,7 +57,8 @@ function jstDate(now: Date): string {
 }
 
 export function draftTitle(candidate: SocialPostDraft): string {
-  return `DROP ${candidate.id}`
+  const marker = /^Goss!p・未確認｜/.test(candidate.text) ? " [GOSSIP]" : ""
+  return `DROP ${candidate.id}${marker}`
 }
 
 export function sameDayArticleKey(id: string): string | null {
@@ -67,26 +67,31 @@ export function sameDayArticleKey(id: string): string | null {
 }
 
 export function isTypefullyCandidateApproved(candidate: SocialPostDraft): boolean {
-  if (/^(?:Goss!p|リーク)[・｜]|未確認/.test(candidate.text)) return false
-  if (!candidate.kind.startsWith("editorial_")) return true
-  return isApprovedEditorialReview(candidate.editorialReview)
+  if (/^リーク[・｜]|(?:^|\s)LEAK(?:\s|[・｜])/i.test(candidate.text)) return false
+  if (candidate.kind.startsWith("editorial_")) return false
+  return candidate.focusLane === "domestic" || candidate.focusLane === "street"
 }
 
-export function selectTypefullyCandidates(candidates: SocialPostDraft[]): SocialPostDraft[] {
-  const approved = candidates.filter(isTypefullyCandidateApproved)
-  const editorial = (kind: SocialPostDraft["kind"]) => approved.find((candidate) => candidate.kind === kind)
-  const news = approved.filter((candidate) => !candidate.kind.startsWith("editorial_")).slice(0, 2)
-  return [
-    editorial("editorial_daily_drop"),
-    news[0],
-    editorial("editorial_spotlight"),
-    news[1],
-    editorial("editorial_compare"),
-  ].filter((candidate): candidate is SocialPostDraft => Boolean(candidate))
+export function selectTypefullyCandidates(candidates: SocialPostDraft[], gossipLimit = 1): SocialPostDraft[] {
+  const selected: SocialPostDraft[] = []
+  let gossipCount = 0
+  for (const candidate of candidates) {
+    if (!isTypefullyCandidateApproved(candidate)) continue
+    const isGossip = /^Goss!p・未確認｜/.test(candidate.text)
+    if (isGossip && gossipCount >= gossipLimit) continue
+    selected.push(candidate)
+    if (isGossip) gossipCount += 1
+    if (selected.length >= TYPEFULLY_QUEUE_TARGET) break
+  }
+  return selected
 }
 
 function titleId(title?: string | null): string | null {
-  return title?.startsWith("DROP ") ? title.slice(5) : null
+  return title?.startsWith("DROP ") ? title.slice(5).replace(/ \[GOSSIP\]$/, "") : null
+}
+
+function isGossipDraftTitle(title?: string | null): boolean {
+  return Boolean(title?.endsWith(" [GOSSIP]"))
 }
 
 function imageFileName(imageUrl: string): string {
@@ -246,17 +251,17 @@ export async function syncTypefullyX({
     [...existingIds].map(sameDayArticleKey).filter(Boolean) as string[]
   )
   const today = jstDate(now)
+  const publishedTodayItems = published.filter((item) => jstDateOf(item.published_at) === today)
+  const activeToday = active.filter((item) => jstDateOf(item.scheduled_date) === today)
+  const gossipAlreadyQueued = [...publishedTodayItems, ...activeToday]
+    .filter((item) => isGossipDraftTitle(item.draft_title)).length
   const candidates = selectTypefullyCandidates(feed.drafts.filter((candidate) => {
     if (!candidate.id.endsWith(`:${today}`)) return false
     return isTypefullyCandidateApproved(candidate)
-  }))
-  const requiredEditorialKinds = ["editorial_daily_drop", "editorial_spotlight", "editorial_compare"] as const
-  const readyEditorialKinds = new Set(
-    candidates.filter((candidate) => candidate.kind.startsWith("editorial_")).map((candidate) => candidate.kind)
-  )
-  const missingEditorialKinds = requiredEditorialKinds.filter((kind) => !readyEditorialKinds.has(kind))
-  const publishedToday = published.filter((item) => jstDateOf(item.published_at) === today).length
-  const activeToday = active.filter((item) => jstDateOf(item.scheduled_date) === today)
+  }), Math.max(0, 1 - gossipAlreadyQueued))
+  const readyEditorialKinds = new Set<string>()
+  const missingEditorialKinds: string[] = []
+  const publishedToday = publishedTodayItems.length
   const occupiedTimes = new Set(
     [...activeToday.map((item) => item.scheduled_date), ...published
       .filter((item) => jstDateOf(item.published_at) === today)

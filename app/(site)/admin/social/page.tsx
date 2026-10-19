@@ -21,13 +21,13 @@ export default async function SocialQueuePage() {
         <div>
           <p className="text-xs font-black tracking-[0.2em] text-muted-foreground">DISTRIBUTION</p>
           <h1 className="mt-2 text-2xl font-black">X配信キュー</h1>
-          <p className="mt-2 text-sm text-muted-foreground">内部候補16件から、重要速報2件とDROP独自の編集投稿3件をTypefullyへ配信します。</p>
+          <p className="mt-2 text-sm text-muted-foreground">内部候補16件から、ドメブラ／ストリートの新着・発売・更新・Goss!pを厳選してTypefullyへ配信します。</p>
         </div>
         <Link href="/admin" className="text-sm font-bold underline">管理画面へ戻る</Link>
       </div>
 
       <div className="mb-6 rounded-xl border border-lime-300 bg-lime-50 p-4 text-sm text-lime-950">
-        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。内部候補16件から、1日最大5件（重要速報2件＋今日のまとめ・DROP判断・比較質問の編集投稿3件）だけを公開します。編集投稿はリンクを付けず会話を優先し、Goss!p／リークは自動公開しません。同一商品は7日間再投稿せず、速報リンクにはGA4用UTMが付きます。
+        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。内部候補16件から、ドメブラ／ストリートの新着・本日発売・更新情報を1日最大5件だけ公開します。Goss!pは未確認と明示して1日最大1件、リークは自動公開しません。良い候補が少ない日は投稿数を減らし、同一商品は7日間再投稿しません。
       </div>
 
       <div className="space-y-5">

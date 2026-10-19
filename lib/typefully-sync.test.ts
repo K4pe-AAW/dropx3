@@ -13,10 +13,15 @@ const candidate: SocialPostDraft = {
   reason: "test",
   generatedAt: "2026-09-29T00:00:00.000Z",
   freshnessAt: "2026-09-29T00:00:00.000Z",
+  focusLane: "street",
 }
 
 test("Typefully draft title preserves the dated candidate id", () => {
   assert.equal(draftTitle(candidate), "DROP article-1:new_article:2026-09-29")
+  assert.equal(
+    draftTitle({ ...candidate, text: "Goss!p・未確認｜新着です。" }),
+    "DROP article-1:new_article:2026-09-29 [GOSSIP]"
+  )
 })
 
 test("same-day dedupe ignores post kind but allows another day", () => {
@@ -44,62 +49,31 @@ test("Typefullyの予約時刻は表記差があってもJST分単位で同じ�
   assert.equal(jstMinuteKey("2026-10-17T07:30:45+09:00"), "2026-10-17 07:30")
 })
 
-test("Typefully公開候補は重要速報2件と編集3件を交互に選ぶ", () => {
-  const approvedReview = {
-    version: 1 as const,
-    verdict: "approved" as const,
-    reviewedAt: "2026-10-09T00:00:00.000Z",
-    fingerprint: "test",
-    scores: { audienceFit: 4, grounding: 5, specificity: 4, naturalness: 4, usefulness: 4, repetition: 2 },
-    reasons: ["合格"],
-    claimChecks: [{ claim: "事実", evidence: "公開済み記事" }],
-    sourceArticleIds: ["article-1"],
-    limitations: "未試着",
-  }
-  const editorial = (kind: SocialPostDraft["kind"]): SocialPostDraft => ({
+test("Typefully公開候補はドメブラ・ストリートの新着だけを最大5件選ぶ", () => {
+  const focused = Array.from({ length: 6 }, (_, index): SocialPostDraft => ({
     ...candidate,
-    id: `${kind}:${kind}:2026-09-29`,
-    kind,
-    editorialReview: approvedReview,
-  })
-  const news2 = { ...candidate, id: "article-2:release_day:2026-09-29", articleId: "article-2" }
+    id: `article-${index}:new_article:2026-09-29`,
+    articleId: `article-${index}`,
+    focusLane: index % 2 === 0 ? "domestic" : "street",
+  }))
   const selected = selectTypefullyCandidates([
-    editorial("editorial_daily_drop"),
-    candidate,
-    news2,
-    editorial("editorial_spotlight"),
-    editorial("editorial_compare"),
-    editorial("editorial_tomorrow"),
+    { ...candidate, id: "other:new_article:2026-09-29", focusLane: "other" },
+    ...focused,
   ])
-  assert.deepEqual(selected.map((item) => item.kind), [
-    "editorial_daily_drop",
-    "new_article",
-    "editorial_spotlight",
-    "new_article",
-    "editorial_compare",
-  ])
+  assert.equal(selected.length, 5)
+  assert.ok(selected.every((item) => item.focusLane === "domestic" || item.focusLane === "street"))
 })
 
-test("Goss!p・リークはTypefully自動公開候補にしない", () => {
-  assert.equal(isTypefullyCandidateApproved({ ...candidate, text: "Goss!p・未確認｜NEW" }), false)
+test("Goss!pは1日1件まで許可し、リークはTypefully自動公開候補にしない", () => {
+  const gossipA = { ...candidate, id: "gossip-a:new_article:2026-09-29", text: "Goss!p・未確認｜新着です。" }
+  const gossipB = { ...candidate, id: "gossip-b:new_article:2026-09-29", text: "Goss!p・未確認｜続報です。" }
+  assert.equal(isTypefullyCandidateApproved(gossipA), true)
   assert.equal(isTypefullyCandidateApproved({ ...candidate, text: "リーク・未確認｜本日発売" }), false)
+  assert.equal(selectTypefullyCandidates([gossipA, gossipB]).filter((item) => item.text.startsWith("Goss!p")).length, 1)
+  assert.equal(selectTypefullyCandidates([gossipA], 0).length, 0)
 })
 
-test("Typefullyは品質承認のない編集投稿を予約しない", () => {
-  const editorial = { ...candidate, kind: "editorial_spotlight" as const }
-  assert.equal(isTypefullyCandidateApproved(editorial), false)
-  assert.equal(isTypefullyCandidateApproved({
-    ...editorial,
-    editorialReview: {
-      version: 1,
-      verdict: "approved",
-      reviewedAt: "2026-10-09T00:00:00.000Z",
-      fingerprint: "test",
-      scores: { audienceFit: 4, grounding: 5, specificity: 4, naturalness: 4, usefulness: 4, repetition: 2 },
-      reasons: ["合格"],
-      claimChecks: [{ claim: "事実", evidence: "公開済み記事" }],
-      sourceArticleIds: ["article-1"],
-      limitations: "未試着",
-    },
-  }), true)
+test("編集企画は品質承認の有無にかかわらず予約しない", () => {
+  const legacyEditorial = { ...candidate, kind: "editorial_spotlight" } as unknown as SocialPostDraft
+  assert.equal(isTypefullyCandidateApproved(legacyEditorial), false)
 })
