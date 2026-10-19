@@ -7,7 +7,6 @@ import { siteConfig } from "@/lib/site-config"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { serializeJsonLd } from "@/lib/json-ld"
-import { GooglePreferredSourceCard } from "@/components/GooglePreferredSourceCard"
 import { BRAND_HUBS } from "@/lib/brand-hubs"
 
 const PAGE_SIZE = 12
@@ -126,7 +125,6 @@ export default async function HomePage({
                   </Link>
                 ))}
               </div>
-              <GooglePreferredSourceCard placement="home" compact />
             </section>
           )}
           {currentPage === 1 && <HorizontalAffiliateBanner />}

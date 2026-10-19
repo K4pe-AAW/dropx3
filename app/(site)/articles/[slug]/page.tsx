@@ -19,7 +19,6 @@ import { SnapProfileCard } from "@/components/SnapProfileCard"
 import { buildArticleStructuredData } from "@/lib/article-structured-data"
 import { ArticleViewTracker } from "@/components/ArticleViewTracker"
 import { XFollowCard } from "@/components/XFollowCard"
-import { GooglePreferredSourceCard } from "@/components/GooglePreferredSourceCard"
 import { serializeJsonLd } from "@/lib/json-ld"
 import { seoTopicsForArticle, withSeoTopicTags } from "@/lib/seo-topics"
 
@@ -284,7 +283,6 @@ export default async function ArticleDetailPage({
       )}
 
       <XFollowCard placement="article_end" articleId={article.id} />
-      <GooglePreferredSourceCard placement="article_end" />
 
       {related.length > 0 && (
         <div className="mt-8 sm:mt-14">

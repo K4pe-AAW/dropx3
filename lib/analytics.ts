@@ -137,12 +137,6 @@ export type AnalyticsEvent =
         article_id?: string
       }
     }
-  | {
-      name: "preferred_source_click"
-      params: {
-        placement: "home" | "article_end"
-      }
-    }
 
 export type AnalyticsEventName = AnalyticsEvent["name"]
 export type AnalyticsEventParams<N extends AnalyticsEventName> = Extract<AnalyticsEvent, { name: N }>["params"]
