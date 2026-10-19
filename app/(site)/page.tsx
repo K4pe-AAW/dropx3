@@ -108,7 +108,7 @@ export default async function HomePage({
             <EditorialSection title="編集部スナップ" eyebrow="EDITORIAL SNAP" href="/snap" articles={snaps} />
           )}
           {currentPage === 1 && (
-            <section className="mb-6 rounded-2xl border border-border p-4 sm:mb-10 sm:p-5">
+            <section className="mb-5 rounded-2xl border border-border p-4 sm:p-5">
               <div className="mb-3">
                 <p className="text-[10px] font-black tracking-[0.22em] text-accent">DOMESTIC BRAND GUIDE</p>
                 <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-4">
