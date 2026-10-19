@@ -27,7 +27,7 @@ export default async function SocialQueuePage() {
       </div>
 
       <div className="mb-6 rounded-xl border border-lime-300 bg-lime-50 p-4 text-sm text-lime-950">
-        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。内部候補16件から、ドメブラ／ストリートの新着・本日発売・更新情報を1日最大5件だけ公開します。Goss!pは未確認と明示して1日最大1件、リークは自動公開しません。良い候補が少ない日は投稿数を減らし、同一商品は7日間再投稿しません。
+        Typefully連携中（@dropx3tokyo）。最終生成: {jst(queue.generatedAt)}。内部候補16件から、ドメブラ／ストリートの新着・本日発売・更新情報を10:00〜20:00に1日最大10件公開します。Goss!pは未確認と明示して1日最大1件、リークは自動公開しません。良い候補が少ない日は投稿数を減らし、同一商品は7日間再投稿しません。
       </div>
 
       <div className="space-y-5">

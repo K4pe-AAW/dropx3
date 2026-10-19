@@ -2,13 +2,18 @@ import type { SocialPostDraft, SocialQueueState } from "./social-promotion"
 
 export const TYPEFULLY_SOCIAL_SET_ID = 336958
 export const TYPEFULLY_X_USERNAME = "dropx3tokyo"
-export const TYPEFULLY_QUEUE_TARGET = 5
+export const TYPEFULLY_QUEUE_TARGET = 10
 export const TYPEFULLY_DAILY_SLOTS = [
-  { h: 7, m: 30 },
-  { h: 11, m: 45 },
-  { h: 15, m: 30 },
-  { h: 19, m: 0 },
-  { h: 21, m: 30 },
+  { h: 10, m: 0 },
+  { h: 11, m: 0 },
+  { h: 12, m: 0 },
+  { h: 13, m: 0 },
+  { h: 14, m: 0 },
+  { h: 15, m: 0 },
+  { h: 16, m: 0 },
+  { h: 17, m: 0 },
+  { h: 18, m: 0 },
+  { h: 20, m: 0 },
 ] as const
 
 type TypefullyDraft = {

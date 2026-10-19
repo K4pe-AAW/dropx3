@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { draftTitle, isTypefullyCandidateApproved, jstMinuteKey, sameDayArticleKey, selectTypefullyCandidates, TYPEFULLY_QUEUE_TARGET } from "./typefully-sync"
+import { draftTitle, isTypefullyCandidateApproved, jstMinuteKey, sameDayArticleKey, selectTypefullyCandidates, TYPEFULLY_DAILY_SLOTS, TYPEFULLY_QUEUE_TARGET } from "./typefully-sync"
 import type { SocialPostDraft } from "./social-promotion"
 
 const candidate: SocialPostDraft = {
@@ -40,8 +40,20 @@ test("編集投稿も同じJST日では重複させない", () => {
   )
 })
 
-test("Typefullyは1日最大5件に絞る", () => {
-  assert.equal(TYPEFULLY_QUEUE_TARGET, 5)
+test("Typefullyは1日最大10件を10時から20時までに配信する", () => {
+  assert.equal(TYPEFULLY_QUEUE_TARGET, 10)
+  assert.deepEqual(TYPEFULLY_DAILY_SLOTS, [
+    { h: 10, m: 0 },
+    { h: 11, m: 0 },
+    { h: 12, m: 0 },
+    { h: 13, m: 0 },
+    { h: 14, m: 0 },
+    { h: 15, m: 0 },
+    { h: 16, m: 0 },
+    { h: 17, m: 0 },
+    { h: 18, m: 0 },
+    { h: 20, m: 0 },
+  ])
 })
 
 test("Typefullyの予約時刻は表記差があってもJST分単位で同じ枠とみなす", () => {
@@ -49,8 +61,8 @@ test("Typefullyの予約時刻は表記差があってもJST分単位で同じ�
   assert.equal(jstMinuteKey("2026-10-17T07:30:45+09:00"), "2026-10-17 07:30")
 })
 
-test("Typefully公開候補はドメブラ・ストリートの新着だけを最大5件選ぶ", () => {
-  const focused = Array.from({ length: 6 }, (_, index): SocialPostDraft => ({
+test("Typefully公開候補はドメブラ・ストリートの新着だけを最大10件選ぶ", () => {
+  const focused = Array.from({ length: 12 }, (_, index): SocialPostDraft => ({
     ...candidate,
     id: `article-${index}:new_article:2026-09-29`,
     articleId: `article-${index}`,
@@ -60,7 +72,7 @@ test("Typefully公開候補はドメブラ・ストリートの新着だけを�
     { ...candidate, id: "other:new_article:2026-09-29", focusLane: "other" },
     ...focused,
   ])
-  assert.equal(selected.length, 5)
+  assert.equal(selected.length, 10)
   assert.ok(selected.every((item) => item.focusLane === "domestic" || item.focusLane === "street"))
 })
 

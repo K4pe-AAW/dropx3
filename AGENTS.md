@@ -54,11 +54,11 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   interleave brands before applying the per-run AI drafting cap, and never guess a product URL or use retailer
   photography as an official brand image. LEMAIRE is an international designer label but belongs to the same
   curated designer-priority lane for DROP's editorial mix.
-- Keep 16 internal X candidates, but publish at most 5 Typefully posts per JST day. Publish only fresh release,
+- Keep 16 internal X candidates, but publish at most 10 Typefully posts per JST day. Publish only fresh release,
   new-arrival, or material-update posts in the domestic-designer or streetwear lanes. A day may contain fewer than
-  5 posts when the focused candidates are weak or absent. Allow at most one Goss!p/rumor post per JST day with a
-  prominent unconfirmed label; never auto-publish leak candidates. Spread posts across 07:30, 11:45, 15:30, 19:00,
-  and 21:30 JST, and do not repeat the same article/product within 7 days.
+  10 posts when the focused candidates are weak or absent. Allow at most one Goss!p/rumor post per JST day with a
+  prominent unconfirmed label; never auto-publish leak candidates. Spread posts across 10:00, 11:00, 12:00, 13:00,
+  14:00, 15:00, 16:00, 17:00, 18:00, and 20:00 JST, and do not repeat the same article/product within 7 days.
   Deduplicate different articles that share the same concrete product/style code before filling the X queue.
 - Public article pages always keep visible price/release/purchase information, but never emit
   `Product` or `Offer` JSON-LD, including BUY/PICKS. DROP DROP DROP is an editorial affiliate medium,
