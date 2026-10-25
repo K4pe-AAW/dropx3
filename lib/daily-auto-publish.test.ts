@@ -315,6 +315,28 @@ test("自動公開は安全な別カットを追加最大12枚まで保持する
   assert.equal(selected.some((image) => image.url.includes("unrelated")), false)
 })
 
+test("商品専用APIで検証済みの画像はファイル名が異なっても同一商品として保持する", () => {
+  const cover = "https://cdn.shopify.com/files/uuid-cover.jpg"
+  const verified = [
+    cover,
+    "https://cdn.shopify.com/files/uuid-side.jpg",
+    "https://cdn.shopify.com/files/uuid-back.jpg",
+  ]
+  assert.deepEqual(
+    uniqueGalleryCandidates(
+      cover,
+      [
+        { url: verified[1], alt: "サイド" },
+        { url: "https://cdn.shopify.com/files/unrelated.jpg", alt: "別商品" },
+        { url: verified[2], alt: "背面" },
+      ],
+      12,
+      verified
+    ).map((image) => image.url),
+    verified.slice(1)
+  )
+})
+
 test("公開直前に確認済み公式リンクから見つけた画像だけ追加候補へ加える", () => {
   const draft = {
     id: "official-images",

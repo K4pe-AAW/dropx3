@@ -1,4 +1,4 @@
-import { canonicalImageKey, selectProductImageCandidates } from "./image-candidates"
+import { canonicalImageKey, deduplicateImageUrls, MAX_ARTICLE_IMAGE_CANDIDATES, selectProductImageCandidates } from "./image-candidates"
 import { fetchPageText } from "./source-watch/fetchers/html"
 import { mutateDrafts, readDrafts, writeJson } from "./storage"
 import type { Draft, GalleryImage } from "./types"
@@ -27,7 +27,9 @@ function existingImages(draft: Draft): string[] {
 async function collectForDraft(draft: Draft): Promise<ImageUpdate> {
   for (const sourceUrl of orderedSourceUrls(draft)) {
     const page = await fetchPageText(sourceUrl)
-    const selected = selectProductImageCandidates(page.imageCandidates)
+    const selected = page.verifiedProductImageCandidates?.length
+      ? deduplicateImageUrls(page.verifiedProductImageCandidates, MAX_ARTICLE_IMAGE_CANDIDATES)
+      : selectProductImageCandidates(page.imageCandidates)
     if (selected.length > 0) {
       return {
         cover: selected[0],

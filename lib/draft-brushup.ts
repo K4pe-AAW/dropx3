@@ -51,6 +51,7 @@ export type BrushUpResult = {
   colorways: ColorwayInfo[]
   sourceRef: SourceRef
   imageCandidates: string[]
+  verifiedProductImageCandidates?: string[]
   commerceLinkCandidates: { label: string; url: string }[]
 }
 
@@ -148,6 +149,7 @@ export async function brushUpDraftWithUrl(current: BrushUpCurrentDraft, sourceUr
     colorways: colorways.length > 0 ? colorways : [],
     sourceRef: { name: hostname, url: sourceUrl },
     imageCandidates: page.imageCandidates,
+    verifiedProductImageCandidates: page.verifiedProductImageCandidates ?? [],
     commerceLinkCandidates: page.commerceLinkCandidates ?? [],
   }
 }

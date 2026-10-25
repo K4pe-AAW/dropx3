@@ -258,13 +258,15 @@ async function saveArticleImage(imageUrl: string, draft: Draft, name: string): P
 export function uniqueGalleryCandidates(
   coverImageUrl: string,
   gallery: { url: string; alt: string; credit?: string }[],
-  limit = MAX_ARTICLE_GALLERY_IMAGES
+  limit = MAX_ARTICLE_GALLERY_IMAGES,
+  verifiedProductImageUrls: string[] = []
 ): { url: string; alt: string; credit?: string }[] {
   const seen = new Set([canonicalImageKey(coverImageUrl)])
+  const verified = new Set(verifiedProductImageUrls.map(canonicalImageKey))
   const result: { url: string; alt: string; credit?: string }[] = []
   for (const image of gallery) {
     const key = canonicalImageKey(image.url)
-    if (!image.url || seen.has(key) || !isSameProductAssetFamily(coverImageUrl, image.url)) continue
+    if (!image.url || seen.has(key) || (!verified.has(key) && !isSameProductAssetFamily(coverImageUrl, image.url))) continue
     seen.add(key)
     result.push(image)
     if (result.length >= limit) break
@@ -295,9 +297,10 @@ export { isSameProductAssetFamily } from "./image-candidates"
 async function saveGalleryImages(
   draft: Draft,
   coverImageUrl: string,
-  galleryCandidates: GalleryImage[]
+  galleryCandidates: GalleryImage[],
+  verifiedProductImageUrls: string[] = []
 ): Promise<GalleryImage[]> {
-  const candidates = uniqueGalleryCandidates(coverImageUrl, galleryCandidates)
+  const candidates = uniqueGalleryCandidates(coverImageUrl, galleryCandidates, MAX_ARTICLE_GALLERY_IMAGES, verifiedProductImageUrls)
   const saved: GalleryImage[] = []
   for (const [index, image] of candidates.entries()) {
     try {
@@ -350,7 +353,10 @@ async function prepareArticle(draft: Draft): Promise<Article> {
     : await saveGalleryImages(
         draft,
         sourceCoverImage,
-        galleryCandidatesForPublish(draft, sourceUrl, brushed.imageCandidates)
+        galleryCandidatesForPublish(draft, sourceUrl, brushed.imageCandidates),
+        draft.suggestedOfficialLinks?.some((link) => link.url === sourceUrl)
+          ? (brushed.verifiedProductImageCandidates ?? [])
+          : []
       )
   const title = informationStatus === "rumor"
     ? ensureUnconfirmedTitle(brushed.title, informationStatus)

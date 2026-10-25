@@ -49,6 +49,7 @@ function resolveImageUrl(src: string | undefined, pageUrl: string): string | nul
   try {
     const abs = new URL(src, pageUrl)
     if (abs.protocol !== "http:" && abs.protocol !== "https:") return null
+    if (new URL(pageUrl).protocol === "https:" && abs.protocol === "http:") abs.protocol = "https:"
     return abs.toString()
   } catch {
     return null
@@ -109,22 +110,7 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
   $('link[rel="image_src"], link[rel="preload"][as="image"]').each((_, el) => add(metaUrls, $(el).attr("href")))
 
   // Product構造化データのimageはページ運営者が当該商品として明示した画像なので、複数枚でも信頼する。
-  $('script[type="application/ld+json"]').each((_, el) => {
-    try {
-      const value = JSON.parse($(el).text())
-      const nodes: unknown[] = Array.isArray(value) ? value : [value, ...(Array.isArray(value?.["@graph"]) ? value["@graph"] : [])]
-      for (const node of nodes) {
-        if (!node || typeof node !== "object" || (node as Record<string, unknown>)["@type"] !== "Product") continue
-        const images = (node as Record<string, unknown>).image
-        for (const image of Array.isArray(images) ? images : [images]) {
-          if (typeof image === "string") add(productSchemaUrls, image)
-          else if (image && typeof image === "object") add(productSchemaUrls, String((image as Record<string, unknown>).url ?? ""))
-        }
-      }
-    } catch {
-      // 壊れたJSON-LDは無視し、OGP/本文画像へフォールバックする。
-    }
-  })
+  for (const url of extractVerifiedProductImagesFromHtml($, pageUrl)) add(productSchemaUrls, url)
 
   $("article img, article source, main img, main source, .entry-content img, .entry-content source, .post-content img, .post-content source, .content img, .content source")
     .slice(0, 30)
@@ -179,6 +165,83 @@ export function extractImageCandidatesFromHtml($: ReturnType<typeof cheerio.load
     cover,
     ...all.slice(1).filter((url) => trustedKeys.has(canonicalImageKey(url)) || isSameProductAssetFamily(cover, url)),
   ].slice(0, MAX_ARTICLE_IMAGE_CANDIDATES)
+}
+
+/** Product JSON-LDが当該商品として明示した画像を、通常のファイル名判定とは別に保持する。 */
+export function extractVerifiedProductImagesFromHtml(
+  $: ReturnType<typeof cheerio.load>,
+  pageUrl: string
+): string[] {
+  const urls: string[] = []
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const value = JSON.parse($(el).text())
+      const nodes: unknown[] = Array.isArray(value)
+        ? value
+        : [value, ...(Array.isArray(value?.["@graph"]) ? value["@graph"] : [])]
+      for (const node of nodes) {
+        if (!node || typeof node !== "object") continue
+        const type = (node as Record<string, unknown>)["@type"]
+        if (!(type === "Product" || (Array.isArray(type) && type.includes("Product")))) continue
+        const images = (node as Record<string, unknown>).image
+        for (const image of Array.isArray(images) ? images : [images]) {
+          const raw = typeof image === "string"
+            ? image
+            : image && typeof image === "object"
+              ? (image as Record<string, unknown>).url
+              : undefined
+          if (typeof raw !== "string") continue
+          const resolved = resolveImageUrl(raw, pageUrl)
+          if (resolved) urls.push(resolved)
+        }
+      }
+    } catch {
+      // 壊れたJSON-LDは無視する。
+    }
+  })
+  return deduplicateImageUrls(urls, MAX_ARTICLE_IMAGE_CANDIDATES)
+}
+
+function compactProductIdentifier(value: string): string {
+  return decodeURIComponent(value).toLowerCase().replace(/[^a-z0-9]/g, "")
+}
+
+/**
+ * React Server Components等の埋め込みデータにだけ存在する画像を補完する。
+ * 商品URLのslugと画像ファイル名が8文字以上一致する場合だけ採用するため、関連記事やおすすめ商品は混ぜない。
+ */
+export function extractEmbeddedSameProductImagesFromHtml(
+  $: ReturnType<typeof cheerio.load>,
+  pageUrl: string
+): string[] {
+  let slug = ""
+  try {
+    slug = new URL(pageUrl).pathname.split("/").filter(Boolean).at(-1) ?? ""
+  } catch {
+    return []
+  }
+  const productId = compactProductIdentifier(slug)
+  if (productId.length < 8) return []
+
+  const urls: string[] = []
+  $("script").each((_, el) => {
+    const text = $(el).text().replace(/\\\//g, "/").replace(/\\u0026/gi, "&")
+    for (const match of text.matchAll(/https?:\/\/[^"'<>\s\\]+/gi)) {
+      try {
+        const candidate = new URL(match[0])
+        const nested = candidate.searchParams.get("url")
+        const asset = nested ? new URL(nested) : candidate
+        const filename = asset.pathname.split("/").at(-1)?.replace(/\.[a-z0-9]{2,5}$/i, "") ?? ""
+        const imageId = compactProductIdentifier(filename).replace(/\d+$/, "")
+        if (imageId.length >= 8 && (imageId.startsWith(productId) || productId.startsWith(imageId))) {
+          urls.push(candidate.toString())
+        }
+      } catch {
+        // URLとして解釈できない埋め込み文字列は無視する。
+      }
+    }
+  })
+  return deduplicateImageUrls(urls, MAX_ARTICLE_IMAGE_CANDIDATES)
 }
 
 /** 販売先・抽選応募先として人間に提示する価値があるリンクだけを元HTMLからURL付きで拾う。 */
@@ -254,6 +317,12 @@ export type PageTextResult = {
   title?: string
   text?: string
   imageCandidates: string[]
+  /**
+   * 商品専用API/構造化データが、現在のURLの商品に属すると明示した画像。
+   * ファイル名が連番・UUIDで通常の同一商品判定ができない場合でも、公式商品ページからの
+   * 取得時だけ安全に追加カットとして使うため、通常候補とは分けて保持する。
+   */
+  verifiedProductImageCandidates?: string[]
   commerceLinkCandidates?: { label: string; url: string }[]
   /**
    * 取得自体が失敗した理由(人間の編集者にそのまま見せられる短い日本語の説明)。BEAMS等、
@@ -261,6 +330,61 @@ export type PageTextResult = {
    * (2026-08-22に発覚)。取得できたが本文が空、のようなケースとは区別できるようにする。
    */
   failureReason?: string
+}
+
+function shopifyProductJsonUrl(pageUrl: string): string | null {
+  try {
+    const url = new URL(pageUrl)
+    const match = url.pathname.match(/^(.*\/products\/[^/]+)\/?$/i)
+    if (!match) return null
+    url.pathname = `${match[1]}.js`
+    url.search = ""
+    url.hash = ""
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+/** Shopifyの商品専用JSONから、当該商品の画像だけを取り出す。 */
+export function extractShopifyProductImages(payload: unknown, pageUrl: string): string[] {
+  if (!payload || typeof payload !== "object") return []
+  const product = payload as Record<string, unknown>
+  if ((typeof product.id !== "number" && typeof product.id !== "string") || !Array.isArray(product.images)) return []
+
+  const urls = product.images.flatMap((image) => {
+    const raw = typeof image === "string"
+      ? image
+      : image && typeof image === "object"
+        ? (image as Record<string, unknown>).src
+        : undefined
+    if (typeof raw !== "string" || !raw.trim()) return []
+    try {
+      const resolved = new URL(raw, pageUrl)
+      // 公式ページがhttpsなら、Shopify JSON内のprotocol-relative/http画像もhttpsへ統一する。
+      if (new URL(pageUrl).protocol === "https:" && resolved.protocol === "http:") resolved.protocol = "https:"
+      return [resolved.toString()]
+    } catch {
+      return []
+    }
+  })
+  return deduplicateImageUrls(urls, MAX_ARTICLE_IMAGE_CANDIDATES)
+}
+
+async function fetchShopifyProductImages(pageUrl: string): Promise<string[]> {
+  const jsonUrl = shopifyProductJsonUrl(pageUrl)
+  if (!jsonUrl) return []
+  try {
+    const pageOrigin = new URL(pageUrl).origin
+    const res = await fetch(jsonUrl, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(8000) })
+    if (!res.ok || new URL(res.url || jsonUrl).origin !== pageOrigin) return []
+    const contentType = res.headers.get("content-type") ?? ""
+    if (!/(?:json|javascript)/i.test(contentType)) return []
+    return extractShopifyProductImages(await res.json(), pageUrl)
+  } catch {
+    // Shopifyでない商品ページやBot対策サイトは通常HTMLの候補へフォールバックする。
+    return []
+  }
 }
 
 /**
@@ -309,7 +433,18 @@ export async function fetchPageText(url: string): Promise<PageTextResult> {
     const html = new TextDecoder(charset ?? "utf-8").decode(buf)
     const $ = cheerio.load(html)
     const title = $("title").first().text().trim() || $("h1").first().text().trim()
-    const imageCandidates = extractImageCandidatesFromHtml($, url)
+    const htmlImageCandidates = extractImageCandidatesFromHtml($, url)
+    const verifiedProductImageCandidates = deduplicateImageUrls([
+      ...(await fetchShopifyProductImages(url)),
+      ...extractVerifiedProductImagesFromHtml($, url),
+      ...extractEmbeddedSameProductImagesFromHtml($, url),
+    ], MAX_ARTICLE_IMAGE_CANDIDATES)
+    const imageCandidates = verifiedProductImageCandidates.length > 0
+      ? deduplicateImageUrls(
+          [...verifiedProductImageCandidates, ...htmlImageCandidates],
+          MAX_ARTICLE_IMAGE_CANDIDATES
+        )
+      : htmlImageCandidates
     const commerceLinkCandidates = extractCommerceLinkCandidatesFromHtml($, url)
     $("script, style, nav, footer, header, noscript").remove()
     // 価格・発売日が本文末尾にあるECページでも、上限切り捨て前に根拠行を先頭へ移して保持する。
@@ -320,7 +455,13 @@ export async function fetchPageText(url: string): Promise<PageTextResult> {
         failureReason: "ページは取得できましたが本文を認識できませんでした(Bot対策の確認ページ等の可能性があります)",
       }
     }
-    return { title: title || undefined, text: text || undefined, imageCandidates, commerceLinkCandidates }
+    return {
+      title: title || undefined,
+      text: text || undefined,
+      imageCandidates,
+      ...(verifiedProductImageCandidates.length > 0 ? { verifiedProductImageCandidates } : {}),
+      commerceLinkCandidates,
+    }
   } catch (err) {
     const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
     return {

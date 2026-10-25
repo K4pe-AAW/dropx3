@@ -1,7 +1,12 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import * as cheerio from "cheerio"
-import { extractImageCandidatesFromHtml } from "./html"
+import {
+  extractEmbeddedSameProductImagesFromHtml,
+  extractImageCandidatesFromHtml,
+  extractShopifyProductImages,
+  extractVerifiedProductImagesFromHtml,
+} from "./html"
 
 test("同じ画像のサイズ違いURLを1件にまとめ、商品識別子のない汎用detail画像は除外する", () => {
   const $ = cheerio.load(`
@@ -57,4 +62,34 @@ test("Product構造化データで明示された画像はファイル名がハ�
     "https://cdn.example.com/products/abc123.jpg",
     "https://cdn.example.com/products/def456.jpg",
   ])
+  assert.deepEqual(extractVerifiedProductImagesFromHtml($, "https://example.com/item/1"), [
+    "https://cdn.example.com/products/abc123.jpg",
+    "https://cdn.example.com/products/def456.jpg",
+  ])
+})
+
+test("埋め込みデータは商品slugと画像名が一致する画像だけを収集する", () => {
+  const $ = cheerio.load(`
+    <script>self.__next_f.push([1,"https://cache.example/image?url=https%3A%2F%2Fcdn.example%2Fthin_cotton_ls_t-shirt_e1.jpg"])</script>
+    <script>self.__next_f.push([1,"https://cache.example/image?url=https%3A%2F%2Fcdn.example%2Funrelated_jacket1.jpg"])</script>
+  `)
+  assert.deepEqual(
+    extractEmbeddedSameProductImagesFromHtml($, "https://brand.example/mailorder/thin_cotton_ls_t-shirt_e"),
+    ["https://cache.example/image?url=https%3A%2F%2Fcdn.example%2Fthin_cotton_ls_t-shirt_e1.jpg"]
+  )
+})
+
+test("Shopify商品JSONは当該商品の画像だけを最大数まで収集する", () => {
+  const images = Array.from({ length: 16 }, (_, index) => `//cdn.shopify.com/files/view-${index + 1}.jpg`)
+  assert.deepEqual(
+    extractShopifyProductImages({ id: 123, title: "商品", images }, "https://brand.example/products/item"),
+    images.slice(0, 13).map((url) => `https:${url}`)
+  )
+})
+
+test("商品IDまたは画像配列を持たないJSONは商品画像として信用しない", () => {
+  assert.deepEqual(
+    extractShopifyProductImages({ images: ["https://cdn.example.com/recommend/other.jpg"] }, "https://brand.example/products/item"),
+    []
+  )
 })
