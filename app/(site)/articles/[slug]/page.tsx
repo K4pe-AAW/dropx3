@@ -21,6 +21,7 @@ import { ArticleViewTracker } from "@/components/ArticleViewTracker"
 import { XFollowCard } from "@/components/XFollowCard"
 import { serializeJsonLd } from "@/lib/json-ld"
 import { seoTopicsForArticle, withSeoTopicTags } from "@/lib/seo-topics"
+import { ArticleImageLightbox } from "@/components/ArticleImageLightbox"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -163,15 +164,10 @@ export default async function ArticleDetailPage({
           <YouTubeEmbed videoId={article.youtubeVideoId} title={article.title} />
         </div>
       ) : (
-        <div className="mb-5 sm:mb-8">
-          <div className="overflow-hidden rounded-xl bg-muted">
-            {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を横長枠にcropせず、実際の縦横比のまま表示する */}
-            <img src={article.coverImage} alt={article.coverImageAlt} decoding="async" fetchPriority="high" className="w-full h-auto" />
-          </div>
-          {article.coverImageCredit && (
-            <p className="mt-1 text-[10px] text-muted-foreground/60">{article.coverImageCredit}</p>
-          )}
-        </div>
+        <ArticleImageLightbox
+          layout="cover"
+          images={[{ url: article.coverImage, alt: article.coverImageAlt, credit: article.coverImageCredit }]}
+        />
       )}
 
       <TrackedLink
@@ -206,17 +202,7 @@ export default async function ArticleDetailPage({
       {article.quote && <QuoteBlock text={article.quote.text} sourceLabel={article.quote.sourceLabel} />}
 
       {article.galleryImages.length > 0 && (
-        <div className="mt-6 grid grid-cols-2 items-start gap-3 sm:mt-8">
-          {article.galleryImages.map((img, i) => (
-            <div key={i}>
-              <div className="overflow-hidden rounded-xl bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element -- 縦長画像を正方形枠にcropせず、実際の縦横比のまま表示する */}
-                <img src={img.url} alt={img.alt} loading="lazy" decoding="async" className="w-full h-auto" />
-              </div>
-              {img.credit && <p className="mt-1 text-[10px] text-muted-foreground/60">{img.credit}</p>}
-            </div>
-          ))}
-        </div>
+        <ArticleImageLightbox layout="grid" images={article.galleryImages} />
       )}
 
       {article.officialProducts && article.officialProducts.length > 0 && (
