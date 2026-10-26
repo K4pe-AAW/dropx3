@@ -30,6 +30,7 @@ export function buildArticleStructuredData(
     url: articleUrl,
     headline: article.title,
     description: article.excerpt,
+    abstract: article.excerpt,
     image: images,
     thumbnailUrl: images[0],
     datePublished: article.publishedAt,

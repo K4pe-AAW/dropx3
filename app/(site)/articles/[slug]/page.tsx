@@ -22,6 +22,7 @@ import { XFollowCard } from "@/components/XFollowCard"
 import { serializeJsonLd } from "@/lib/json-ld"
 import { seoTopicsForArticle, withSeoTopicTags } from "@/lib/seo-topics"
 import { ArticleImageLightbox } from "@/components/ArticleImageLightbox"
+import { ArticleAnswerSummary } from "@/components/ArticleAnswerSummary"
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString()
@@ -158,6 +159,8 @@ export default async function ArticleDetailPage({
           <p className="text-sm leading-relaxed">{unconfirmedNotice(article.informationStatus)}</p>
         </aside>
       )}
+
+      <ArticleAnswerSummary article={article} />
 
       {article.youtubeVideoId ? (
         <div className="mb-5 sm:mb-8">
