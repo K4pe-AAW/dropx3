@@ -43,6 +43,12 @@ export const BRAND_HUBS: BrandHubProfile[] = [
     summary: "服飾史の要素とものづくりを現代のプロダクトへ落とし込むNICENESS。新作の背景と具体的な販売情報を整理します。",
     focus: ["新作プロダクト", "背景・ディテール", "販売情報"],
   },
+  {
+    name: "YOKE",
+    officialUrl: "https://yoketokyo.com/",
+    summary: "素材やパターンを通して人と服のつながりを提案するYOKE。公式発表を優先し、新作デリバリー、仕様、発売情報を継続して整理します。",
+    focus: ["新作デリバリー", "素材・パターン", "発売情報"],
+  },
 ]
 
 const BRAND_HUB_MAP = new Map(BRAND_HUBS.map((profile) => [profile.name.toLowerCase(), profile]))

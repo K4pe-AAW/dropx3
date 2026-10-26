@@ -112,13 +112,13 @@ export default async function HomePage({
               <div className="mb-3">
                 <p className="text-[10px] font-black tracking-[0.22em] text-accent">DOMESTIC BRAND GUIDE</p>
                 <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-4">
-                  <h2 className="text-lg font-black sm:text-xl">重点ブランドの新作</h2>
+                  <h2 className="text-lg font-black sm:text-xl">ドメスティックブランドの新作</h2>
                   <Link href="/calendar" className="text-xs font-bold text-muted-foreground underline decoration-2 underline-offset-4 hover:text-foreground">
                     発売カレンダーを見る
                   </Link>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
                 {BRAND_HUBS.map((profile) => (
                   <Link key={profile.name} href={`/brand/${encodeURIComponent(profile.name)}`} className="flex min-h-12 items-center rounded-lg bg-secondary/60 px-3 py-2.5 transition-colors hover:bg-accent hover:text-accent-foreground">
                     <span className="text-sm font-black leading-tight">{profile.name}</span>
