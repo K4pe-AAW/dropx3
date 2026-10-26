@@ -13,6 +13,7 @@ import {
 } from "./types"
 import { clearDismissedUrls, dismissDraftsInData } from "./draft-dismissal"
 import { canonicalImageKey, isImageNoiseUrl } from "./image-candidates"
+import { areUpToDateFullressDuplicates, prefersUpToDate } from "./media-source-preference"
 import { readBlobJsonWithEtag } from "./blob-json"
 import { canonicalBrandName, canonicalBrandNames } from "./brands"
 
@@ -442,6 +443,17 @@ export async function addDrafts(
       if (isUrlDup || isTitleDup) {
         skipped++
         continue
+      }
+
+      const mediaConflict = data.drafts.find((existing) => areUpToDateFullressDuplicates(draft, existing))
+      if (mediaConflict) {
+        if (prefersUpToDate(draft) && !prefersUpToDate(mediaConflict)) {
+          // 型番・商品名から同一ニュースと確認できた場合、FULLRESS版をUPTODATE版へ置き換える。
+          data.drafts = data.drafts.filter((existing) => existing.id !== mediaConflict.id)
+        } else {
+          skipped++
+          continue
+        }
       }
 
       const newImageKeys = draftImageKeys(draft)

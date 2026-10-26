@@ -49,6 +49,9 @@ curation tool for a different, 40s-men-focused brand) — do not merge them.
   Keep FASHIONSNAP spread across the day at no more than one article per eight-hour cycle. Apply the same
   daily source caps to X candidates. Prefer official/primary sources for the remaining slots and never force
   either medium when no candidate passes the normal publication requirements.
+- When UPTODATE and FULLRESS cover the same product/news, keep UPTODATE as the canonical media source.
+  Match exact style codes first and only use conservative product-name similarity when no style code exists;
+  never merge distinct colorways or unrelated coverage merely because the brands overlap.
 - Prioritize official new-arrival pages for A.PRESSE, AURALEE, COMOLI, LEMAIRE, MARKAWARE, MASU, NICENESS,
   Graphpaper, ssstein, YOKE, sacai, and CLESSTE. Keep at most the latest six products per brand per crawl,
   interleave brands before applying the per-run AI drafting cap, and never guess a product URL or use retailer

@@ -2,6 +2,7 @@ import { collectFromRss } from "./collector"
 import { draftFromRawItems } from "./ai-draft"
 import { addDrafts, readDrafts, getAllArticles } from "./storage"
 import { fetchPageText } from "./source-watch/fetchers/html"
+import { preferUpToDateRawItems } from "./media-source-preference"
 
 export type CollectSummary = {
   fetched: number
@@ -47,7 +48,10 @@ async function hydratePageAssets(items: Awaited<ReturnType<typeof collectFromRss
  * 自動公開はしない（drafts.jsonに入るだけ）。app/admin でレビュー・公開する。
  */
 export async function runCollectAndDraft(): Promise<CollectSummary> {
-  const { items, errors: collectErrors } = await collectFromRss()
+  const collected = await collectFromRss()
+  const items = preferUpToDateRawItems(collected.items)
+  const sourcePreferenceSkipped = collected.items.length - items.length
+  const collectErrors = collected.errors
 
   // 下書きは公開されるとdrafts.jsonから消えるため、下書きのURLだけを見ていると
   // 「一度公開された記事のソースURLが後日また新着として現れ、二重に下書き化される」
@@ -70,9 +74,9 @@ export async function runCollectAndDraft(): Promise<CollectSummary> {
   const { saved, skipped } = await addDrafts(drafts, { knownTitles, knownImageUrls: knownImageKeys })
 
   return {
-    fetched: items.length,
+    fetched: collected.items.length,
     drafted: saved,
-    skipped,
+    skipped: skipped + sourcePreferenceSkipped,
     errors: [...collectErrors, ...draftErrors],
   }
 }
