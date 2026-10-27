@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 import { siteConfig } from "@/lib/site-config"
+import { BLOCKED_CRAWLER_AGENTS } from "@/lib/crawler-policy"
 
 /**
  * AI検索（ChatGPT / Claude / Perplexity）に引用されることを狙って、検索・引用系の
@@ -25,6 +26,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       { userAgent: "*", allow: "/", disallow: DISALLOW },
       ...AI_SEARCH_AGENTS.map((userAgent) => ({ userAgent, allow: "/", disallow: DISALLOW })),
+      ...BLOCKED_CRAWLER_AGENTS.map((userAgent) => ({ userAgent, disallow: "/" })),
     ],
     sitemap: [`${siteConfig.url}/sitemap.xml`, `${siteConfig.url}/news-sitemap.xml`],
     host: siteConfig.url,

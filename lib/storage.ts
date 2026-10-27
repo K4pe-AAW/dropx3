@@ -16,11 +16,17 @@ import { canonicalImageKey, isImageNoiseUrl } from "./image-candidates"
 import { areUpToDateFullressDuplicates, prefersUpToDate } from "./media-source-preference"
 import { readBlobJsonWithEtag } from "./blob-json"
 import { canonicalBrandName, canonicalBrandNames } from "./brands"
+import { SingleFlightCache } from "./single-flight-cache"
 
 export const ARTICLES_PATH = "data/articles.json"
 export const DRAFTS_PATH = "data/drafts.json"
 export const SCHEDULED_PATH = "data/scheduled.json"
 export const CRAWL_SOURCES_PATH = "data/crawl-sources.json"
+
+// articles.jsonは約20MBまで成長している。公開ページ・bot・cronが同時に読むたび
+// Blobから全件転送すると従量課金が増えるため、同一Functionインスタンス内だけ60秒共有する。
+// 書き込みはmutateJsonの最新ETag読み取りを使い続けるので、競合防止の挙動は変えない。
+const articlesReadCache = new SingleFlightCache<ArticlesData>(60_000)
 
 export function isBlobPreconditionConflict(err: unknown): boolean {
   return (
@@ -148,16 +154,25 @@ export function generateSlug(title: string, id: string): string {
 // --- Articles (公開済み) ---
 
 export async function readArticles(): Promise<ArticlesData> {
-  return readJson<ArticlesData>(ARTICLES_PATH, { articles: [], lastUpdated: new Date().toISOString() })
+  return articlesReadCache.get(() =>
+    readJson<ArticlesData>(ARTICLES_PATH, { articles: [], lastUpdated: new Date().toISOString() })
+  )
 }
 
 export async function writeArticles(data: ArticlesData) {
   await writeJson(ARTICLES_PATH, data)
+  articlesReadCache.set(data)
 }
 
 /** articles.jsonへの読み書きを常にこの関数経由にすることで、公開・編集・予約昇格が競合しても片方が消えない */
 export async function mutateArticles(mutate: (data: ArticlesData) => ArticlesData): Promise<ArticlesData> {
-  return mutateJson<ArticlesData>(ARTICLES_PATH, { articles: [], lastUpdated: new Date().toISOString() }, mutate)
+  const next = await mutateJson<ArticlesData>(
+    ARTICLES_PATH,
+    { articles: [], lastUpdated: new Date().toISOString() },
+    mutate
+  )
+  articlesReadCache.set(next)
+  return next
 }
 
 export async function getAllArticles(): Promise<Article[]> {
