@@ -69,6 +69,8 @@ export function sanitizeAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] 
   return sortAffiliateLinks(links.filter((link) => isSafeExternalUrl(link.url)))
 }
 
+export type AffiliateDestinationKind = "direct_product" | "search_results" | "unknown"
+
 const SEARCH_PARAM_KEYS = ["keyword", "keywords", "p", "k"] as const
 
 /**
@@ -120,11 +122,67 @@ export function affiliateSearchQuery(url: string): string | undefined {
 
 const AFFILIATE_RETAILER_ORDER = ["楽天市場", "メルカリ", "SNKRDUNK", "Amazon", "Yahoo!ショッピング"]
 
+/**
+ * ASPのリダイレクトURLを含め、リンク先が商品詳細か検索結果かを保守的に判定する。
+ * 判別不能なURLを商品詳細扱いすると利用者を誤認させるため、確認できないものはunknownにする。
+ */
+export function affiliateDestinationKind(link: AffiliateLink): AffiliateDestinationKind {
+  if (affiliateSearchQuery(link.url)) return "search_results"
+
+  const urls = [link.url]
+  const visited = new Set<string>()
+  for (let depth = 0; depth < 5; depth++) {
+    const candidate = urls[depth]
+    if (!candidate || visited.has(candidate)) continue
+    visited.add(candidate)
+
+    let parsed: URL
+    try {
+      parsed = new URL(candidate)
+    } catch {
+      continue
+    }
+
+    if (isDirectRakutenProductUrl(parsed.toString())) return "direct_product"
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "")
+    const path = parsed.pathname.toLowerCase()
+    if (
+      (host === "amazon.co.jp" && (/^\/dp\//.test(path) || /^\/gp\/product\//.test(path))) ||
+      (host.endsWith("snkrdunk.com") && /^\/(?:products?|apparels?)\//.test(path)) ||
+      (host === "shopping.yahoo.co.jp" && /^\/products?\//.test(path))
+    ) return "direct_product"
+
+    for (const value of parsed.searchParams.values()) {
+      let decoded = value
+      for (let i = 0; i < 3; i++) {
+        try {
+          const next = decodeURIComponent(decoded)
+          if (next === decoded) break
+          decoded = next
+        } catch {
+          break
+        }
+      }
+      if (/^https?:\/\//i.test(decoded)) urls.push(decoded)
+    }
+  }
+
+  if (/商品(?:詳細|ページ)?(?:を)?見る/.test(link.label)) return "direct_product"
+  return "unknown"
+}
+
 /** 保存済みの古い記事を含め、公開画面では常に指定順で表示する。未知の店舗は末尾で元の順序を保つ。 */
 export function sortAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
   return links
     .map((link, index) => ({ link, index }))
     .sort((a, b) => {
+      const destinationOrder: Record<AffiliateDestinationKind, number> = {
+        direct_product: 0,
+        search_results: 1,
+        unknown: 2,
+      }
+      const destinationDiff = destinationOrder[affiliateDestinationKind(a.link)] - destinationOrder[affiliateDestinationKind(b.link)]
+      if (destinationDiff !== 0) return destinationDiff
       const ai = AFFILIATE_RETAILER_ORDER.findIndex((name) => a.link.retailer.toLowerCase().includes(name.toLowerCase()))
       const bi = AFFILIATE_RETAILER_ORDER.findIndex((name) => b.link.retailer.toLowerCase().includes(name.toLowerCase()))
       return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi) || a.index - b.index

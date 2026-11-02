@@ -22,6 +22,7 @@ export default async function MonetizationPage() {
     ["直近7日公開", report.publishedLast7Days],
     ["48時間超下書き", report.staleDrafts],
     ["購入導線カバー率", percent(report.affiliateCoverage)],
+    ["商品詳細リンク率", percent(report.directProductCoverage)],
     ["公式リンクカバー率", percent(report.officialLinkCoverage)],
   ]
 

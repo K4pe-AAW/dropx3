@@ -9,6 +9,7 @@ import {
   buildRakutenProductLink,
   buildAmazonSearchLink,
   QUICK_AFFILIATE_RETAILERS,
+  affiliateDestinationKind,
   sortAffiliateLinks,
 } from "./affiliate"
 
@@ -39,6 +40,24 @@ test("保存順が違う既存記事も指定の店舗順へ並べ替える", ()
     retailer, label: retailer, url: "https://example.com",
   }))
   assert.deepEqual(sortAffiliateLinks(links).map((link) => link.retailer), ["楽天市場", "Amazon", "Yahoo!ショッピング"])
+})
+
+test("商品詳細リンクと検索結果リンクを区別する", () => {
+  assert.equal(
+    affiliateDestinationKind(buildRakutenProductLink("https://item.rakuten.co.jp/example/item-123/")),
+    "direct_product"
+  )
+  assert.equal(affiliateDestinationKind(buildRakutenSearchLink("Nike Air Max 90")), "search_results")
+  assert.equal(
+    affiliateDestinationKind({ label: "特集を見る", retailer: "A8.net", url: "https://example.com/campaign" }),
+    "unknown"
+  )
+})
+
+test("商品詳細リンクを検索結果リンクより先に並べる", () => {
+  const search = buildRakutenSearchLink("Nike Air Max 90")
+  const product = buildRakutenProductLink("https://item.rakuten.co.jp/example/item-123/")
+  assert.deepEqual(sortAffiliateLinks([search, product]).map(affiliateDestinationKind), ["direct_product", "search_results"])
 })
 
 test("Amazon検索リンクに設定済みトラッキングIDを付与する", () => {

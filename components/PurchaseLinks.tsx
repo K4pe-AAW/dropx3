@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AffiliateLink, OfficialLink, PurchaseChannelInfo } from "@/lib/types"
-import { AFFILIATE_REL, affiliateSearchQuery, isSafeExternalUrl, sanitizeAffiliateLinks } from "@/lib/affiliate"
+import {
+  AFFILIATE_REL,
+  affiliateDestinationKind,
+  affiliateSearchQuery,
+  isSafeExternalUrl,
+  sanitizeAffiliateLinks,
+  type AffiliateDestinationKind,
+} from "@/lib/affiliate"
 import { ExternalLinkIcon } from "@/components/icons"
 import { siteConfig } from "@/lib/site-config"
 import { trackEvent, classifyAffiliateNetwork, linkDomain } from "@/lib/analytics"
@@ -17,6 +24,8 @@ type Row = {
   saleMethod?: PurchaseChannelInfo["saleMethod"]
   date?: string
   isPrimaryOfficial?: boolean
+  destinationKind?: AffiliateDestinationKind
+  position?: number
 }
 
 const OFFICIAL_RETURN_PROMPT_SHOWN_KEY = "dropx3-official-return-purchase-prompt-shown-v2"
@@ -108,19 +117,31 @@ export function PurchaseLinks({
   const safeAffiliate = sanitizeAffiliateLinks(affiliateLinks)
   const primaryItemName = safeAffiliate.map((link) => affiliateSearchQuery(link.url)).find(Boolean)
 
-  const affiliateRows: Row[] = safeAffiliate.map((l) => {
+  const affiliateRows: Row[] = safeAffiliate.map((l, index) => {
     const itemName = affiliateSearchQuery(l.url)
+    const destinationKind = affiliateDestinationKind(l)
     return {
       label: l.retailer || l.label,
       url: l.url,
-      description: [itemName ? `「${itemName}」で検索` : l.label !== l.retailer ? l.label : null, l.price]
+      description: [
+        destinationKind === "direct_product"
+          ? "商品ページで価格・在庫を確認"
+          : itemName
+            ? `「${itemName}」で検索・比較`
+            : l.label !== l.retailer ? l.label : null,
+        l.price,
+      ]
         .filter(Boolean)
         .join(" ・ ") || undefined,
       isAd: true,
       retailer: l.retailer,
       itemName,
+      destinationKind,
+      position: index + 1,
     }
   })
+  const directAffiliateRows = affiliateRows.filter((row) => row.destinationKind === "direct_product")
+  const comparisonAffiliateRows = affiliateRows.filter((row) => row.destinationKind !== "direct_product")
   const directOfficial = safeOfficial.find((link) => isDirectOfficialSiteUrl(link.url))
   const officialSearchUrl = officialSiteSearchUrl(articleTitle, brand, primaryItemName)
   const primaryOfficialUrl = directOfficial?.url ?? officialSearchUrl
@@ -294,6 +315,9 @@ export function PurchaseLinks({
         affiliate_network: classifyAffiliateNetwork(row.retailer),
         item_name: row.itemName ?? articleTitle,
         item_brand: brand,
+        affiliate_retailer: row.retailer,
+        destination_kind: row.destinationKind ?? "unknown",
+        link_position: row.position ?? 0,
         placement,
         article_id: articleId,
         article_title: articleTitle,
@@ -337,13 +361,25 @@ export function PurchaseLinks({
       {secondaryChannelRows.length > 0 && (
         <LinkRowGroup label="セレクト店・二次流通" rows={secondaryChannelRows} onRowClick={handleRowClick} />
       )}
-      {affiliateRows.length > 0 && (
+      {directAffiliateRows.length > 0 && (
         <div>
           <div className="bg-secondary/10 px-4 pb-1 pt-2 text-[11px] font-bold tracking-wide text-muted-foreground/70">
-            価格・在庫をマーケットプレイスで比較する（PR）
+            商品ページで価格・在庫を確認する（PR）
           </div>
           <div className="divide-y divide-border">
-            {affiliateRows.map((row, i) => (
+            {directAffiliateRows.map((row, i) => (
+              <AffiliateRowLink key={i} row={row} articleId={articleId} onRowClick={handleRowClick} />
+            ))}
+          </div>
+        </div>
+      )}
+      {comparisonAffiliateRows.length > 0 && (
+        <div>
+          <div className="bg-secondary/10 px-4 pb-1 pt-2 text-[11px] font-bold tracking-wide text-muted-foreground/70">
+            マーケットプレイスで価格・在庫を比較する（PR）
+          </div>
+          <div className="divide-y divide-border">
+            {comparisonAffiliateRows.map((row, i) => (
               <AffiliateRowLink key={i} row={row} articleId={articleId} onRowClick={handleRowClick} />
             ))}
           </div>
@@ -473,6 +509,9 @@ function AffiliateRowLink({
             trackEvent("affiliate_impression", {
               affiliate_network: classifyAffiliateNetwork(row.retailer),
               item_name: row.itemName ?? row.label,
+              affiliate_retailer: row.retailer,
+              destination_kind: row.destinationKind ?? "unknown",
+              link_position: row.position ?? 0,
               placement: "article_body",
               article_id: articleId,
             })
@@ -490,7 +529,7 @@ function AffiliateRowLink({
       if (timer) clearTimeout(timer)
       observer.disconnect()
     }
-  }, [row.retailer, row.label, row.itemName, articleId])
+  }, [row.retailer, row.label, row.itemName, row.destinationKind, row.position, articleId])
 
   return (
     <a

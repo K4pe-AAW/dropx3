@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { renderToStaticMarkup } from "react-dom/server"
-import { buildMercariSearchLink } from "@/lib/affiliate"
+import { buildMercariSearchLink, buildRakutenProductLink } from "@/lib/affiliate"
 import { isDirectOfficialSiteUrl, isSafariUserAgent, officialSiteSearchUrl, PurchaseLinks } from "./PurchaseLinks"
 
 test("PurchaseLinks: 商品検索語を見出しと各販売先に明示する", () => {
@@ -19,7 +19,7 @@ test("PurchaseLinks: 商品検索語を見出しと各販売先に明示する",
   assert.match(html, /「PUMA T7 TRACK JACKET」の販売情報・購入先/)
   assert.match(html, /公式サイトで探す/)
   assert.match(html, /「PUMA T7 TRACK JACKET」で検索/)
-  assert.match(html, /価格・在庫をマーケットプレイスで比較する（PR）/)
+  assert.match(html, /マーケットプレイスで価格・在庫を比較する（PR）/)
   assert.match(html, /rel="sponsored nofollow noopener noreferrer"/)
   assert.ok(html.indexOf("公式サイトで探す") < html.indexOf("メルカリ"))
 })
@@ -152,4 +152,24 @@ test("PurchaseLinks: 販売方法と公式リンクを同じブロックへ統�
   assert.match(html, /2026年9月16日/)
   assert.equal((html.match(/atmos公式商品ページ/g) ?? []).length, 1)
   assert.doesNotMatch(html, /抽選情報・販売方法/)
+})
+
+test("PurchaseLinks: 商品詳細リンクを検索リンクより先に分けて表示する", () => {
+  const html = renderToStaticMarkup(
+    <PurchaseLinks
+      officialLinks={[]}
+      affiliateLinks={[
+        buildMercariSearchLink("Nike Air Max 90"),
+        buildRakutenProductLink("https://item.rakuten.co.jp/example/item-123/"),
+      ]}
+      articleId="article-7"
+      articleTitle="Nike Air Max 90"
+      brand="Nike"
+    />
+  )
+
+  assert.match(html, /商品ページで価格・在庫を確認する（PR）/)
+  assert.match(html, /マーケットプレイスで価格・在庫を比較する（PR）/)
+  assert.match(html, /商品ページで価格・在庫を確認/)
+  assert.ok(html.indexOf("商品ページで価格・在庫を確認する") < html.indexOf("マーケットプレイスで価格・在庫を比較する"))
 })

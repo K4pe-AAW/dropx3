@@ -1,4 +1,5 @@
 import type { Article, Draft } from "./types"
+import { affiliateDestinationKind } from "./affiliate"
 
 export type MonetizationOpportunity = {
   kind: "published_without_affiliate" | "stale_draft" | "high_intent_article"
@@ -17,6 +18,8 @@ export type MonetizationReport = {
   affiliateCoverage: number
   officialLinkCoverage: number
   affiliateLinkCount: number
+  directProductCoverage: number
+  directProductLinkCount: number
   opportunities: MonetizationOpportunity[]
 }
 
@@ -40,6 +43,9 @@ export function buildMonetizationReport(
   const stale = drafts.filter((draft) => timestamp(draft.sourcePublishedAt ?? draft.createdAt) < staleBefore)
   const withAffiliate = articles.filter((article) => article.affiliateLinks.length > 0)
   const withOfficial = articles.filter((article) => article.officialLinks.length > 0)
+  const withDirectProduct = articles.filter((article) =>
+    article.affiliateLinks.some((link) => affiliateDestinationKind(link) === "direct_product")
+  )
 
   const publishedWithoutAffiliate: MonetizationOpportunity[] = articles
     .filter((article) => article.affiliateLinks.length === 0)
@@ -57,8 +63,8 @@ export function buildMonetizationReport(
       kind: "high_intent_article" as const,
       title: article.title,
       href: `/admin/articles/${article.id}/edit`,
-      reason: `購入導線あり・7日間行動スコア ${engagementScores.get(article.id) ?? 0}`,
-      score: 40 + (engagementScores.get(article.id) ?? 0),
+      reason: `${article.affiliateLinks.some((link) => affiliateDestinationKind(link) === "direct_product") ? "商品詳細リンクあり" : "検索リンクのみ"}・7日間行動スコア ${engagementScores.get(article.id) ?? 0}`,
+      score: 40 + (article.affiliateLinks.some((link) => affiliateDestinationKind(link) === "direct_product") ? 15 : 0) + (engagementScores.get(article.id) ?? 0),
     }))
 
   const staleDrafts: MonetizationOpportunity[] = stale.map((draft) => ({
@@ -78,6 +84,11 @@ export function buildMonetizationReport(
     affiliateCoverage: articles.length === 0 ? 0 : withAffiliate.length / articles.length,
     officialLinkCoverage: articles.length === 0 ? 0 : withOfficial.length / articles.length,
     affiliateLinkCount: articles.reduce((sum, article) => sum + article.affiliateLinks.length, 0),
+    directProductCoverage: articles.length === 0 ? 0 : withDirectProduct.length / articles.length,
+    directProductLinkCount: articles.reduce(
+      (sum, article) => sum + article.affiliateLinks.filter((link) => affiliateDestinationKind(link) === "direct_product").length,
+      0
+    ),
     opportunities: [...highIntentArticles, ...publishedWithoutAffiliate, ...staleDrafts]
       .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "ja"))
       .slice(0, 30),
@@ -125,6 +136,8 @@ export function renderMonetizationMarkdown(report: MonetizationReport, sourceLab
     `| アフィリエイト導線のある記事 | ${percent(report.affiliateCoverage)} |`,
     `| 公式リンクのある記事 | ${percent(report.officialLinkCoverage)} |`,
     `| アフィリエイトリンク総数 | ${report.affiliateLinkCount} |`,
+    `| 商品詳細リンクのある記事 | ${percent(report.directProductCoverage)} |`,
+    `| 商品詳細リンク総数 | ${report.directProductLinkCount} |`,
     "",
     "## 今週の収益改善候補",
     "",

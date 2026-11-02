@@ -35,6 +35,9 @@ export type AnalyticsEvent =
         affiliate_network: AffiliateNetwork
         item_name: string
         item_brand?: string
+        affiliate_retailer?: string
+        destination_kind?: "direct_product" | "search_results" | "unknown"
+        link_position?: number
         placement: "article_body" | "official_return_prompt" | "sidebar_promo" | "home_latest_banner"
         article_id: string
         article_title: string
@@ -125,6 +128,9 @@ export type AnalyticsEvent =
       params: {
         affiliate_network: AffiliateNetwork
         item_name: string
+        affiliate_retailer?: string
+        destination_kind?: "direct_product" | "search_results" | "unknown"
+        link_position?: number
         placement: "article_body" | "sidebar_promo" | "home_latest_banner"
         article_id: string
       }
