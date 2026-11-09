@@ -190,6 +190,14 @@ macOSのTCC保護により、cron / launchdから`~/Desktop`配下へ安定し�
 実機で確認済み。定期収集は`vercel.json`のVercel Cronを唯一の実行元とし、ローカルcronを
 追加しない。
 
+### Googleインデックス監視
+
+`npm run audit:indexability`は本番をGooglebotとして読み、`robots.txt`、通常sitemap、
+ニュースsitemap、固定ページ、最新記事、日替わりサンプルを検査する。`/admin`と`/api/`は
+意図した除外として扱い、公開URLのrobotsブロック、4xx/5xx、不正リダイレクト、noindexだけを
+異常にする。一時的な429/5xxは3回まで再試行する。日次実行はOpenClaw Automationが担当し、
+正常時は通知せず、異常時だけURL付きで修復・報告する。
+
 ## 管理画面 (`/admin`) の認証について
 
 `ADMIN_PASSWORD` をcookie(sha256ハッシュ化・httpOnly)で照合する簡易的なパスワードゲート

@@ -19,6 +19,7 @@ tsconfig.tsbuildinfo
 .DS_Store
 *.pem
 npm-debug.log*
+indexability-report.json
 
 # data (contains generated drafts; keep articles.json but ignore local scratch)
 /data/drafts.json.bak

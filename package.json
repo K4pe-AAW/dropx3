@@ -13,6 +13,7 @@
     "obsidian:sync": "tsx scripts/sync-obsidian-monetization.ts",
     "x:sync": "tsx scripts/sync-typefully-x.ts",
     "x:audit": "tsx scripts/audit-typefully-x.ts",
+    "audit:indexability": "tsx scripts/audit-production-indexability.ts",
     "growth:sync": "cd ../growth-os && npm run snapshot && cd ../drop-drop-drop && npm run obsidian:sync"
   },
   "dependencies": {
