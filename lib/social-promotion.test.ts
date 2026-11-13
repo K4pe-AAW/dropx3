@@ -53,6 +53,16 @@ test("新着投稿は新着ですではなく確認済みの発売日・価格�
   assert.doesNotMatch(draft.text, /新着です。/)
 })
 
+test("不明・未定の価格はX冒頭の確定情報として表示しない", () => {
+  const [draft] = buildSocialPostDrafts([
+    article({
+      colorways: [{ colorName: "Black", releaseDate: "2026年10月1日", price: "不明", styleCode: "U990XX" }],
+    }),
+  ], new Date("2026-09-27T03:00:00.000Z"))
+  assert.match(draft.text, /^発売情報｜2026年10月1日\n/)
+  assert.doesNotMatch(draft.text, /不明/)
+})
+
 test("同じ鮮度なら商品詳細リンクと購入情報がある候補を優先する", () => {
   const weak = article({ id: "weak", slug: "weak", title: "メンズ新着", affiliateLinks: [] })
   const strong = article({

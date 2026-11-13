@@ -120,6 +120,12 @@ function hashtags(article: Article): string {
     .join(" ")
 }
 
+function usableCommercialFact(value?: string): string | undefined {
+  const clean = value?.trim()
+  if (!clean || /^(?:不明|未定|未発表|unknown|n\/?a)$/i.test(clean)) return undefined
+  return clean
+}
+
 function firstCommercialFact(article: Article): { release?: string; price?: string; retailer?: string } {
   const colorway = article.colorways?.find((item) => item.releaseDate || item.price)
   const purchase = article.purchaseChannels?.find((item) => item.date || item.url)
@@ -127,9 +133,9 @@ function firstCommercialFact(article: Article): { release?: string; price?: stri
     (link) => affiliateDestinationKind(link) === "direct_product"
   )
   return {
-    release: colorway?.releaseDate ?? purchase?.date,
-    price: colorway?.price ?? directAffiliate?.price ?? article.affiliateLinks.find((link) => link.price)?.price,
-    retailer: purchase?.retailerName ?? directAffiliate?.retailer,
+    release: usableCommercialFact(colorway?.releaseDate) ?? usableCommercialFact(purchase?.date),
+    price: usableCommercialFact(colorway?.price) ?? usableCommercialFact(directAffiliate?.price) ?? usableCommercialFact(article.affiliateLinks.find((link) => link.price)?.price),
+    retailer: usableCommercialFact(purchase?.retailerName) ?? usableCommercialFact(directAffiliate?.retailer),
   }
 }
 
