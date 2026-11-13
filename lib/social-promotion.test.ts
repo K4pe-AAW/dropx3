@@ -4,6 +4,7 @@ import {
   buildSocialPostDrafts,
   buildSocialQueueDrafts,
   isSocialPromotionEligible,
+  socialPostValueScore,
 } from "./social-promotion"
 import { siteConfig } from "./site-config"
 import type { Article } from "./types"
@@ -35,10 +36,46 @@ function article(patch: Partial<Article> = {}): Article {
 test("発売当日の同一記事は発売日投稿としてUTMを付ける", () => {
   const [draft] = buildSocialPostDrafts([article()], new Date("2026-09-28T03:00:00.000Z"))
   assert.equal(draft.kind, "release_day")
-  assert.match(draft.text, /^本日発売です。\n/)
+  assert.match(draft.text, /^本日発売｜2026年9月28日\n/)
   assert.doesNotMatch(draft.text, /^NEW｜/)
   assert.match(draft.url, /utm_source=x/)
   assert.ok(draft.text.length <= 280)
+})
+
+test("新着投稿は新着ですではなく確認済みの発売日・価格を冒頭へ出す", () => {
+  const [draft] = buildSocialPostDrafts([
+    article({
+      title: "New Balance 新作スニーカー",
+      colorways: [{ colorName: "Gray", releaseDate: "2026年10月1日", price: "22,000円", styleCode: "U990XX" }],
+    }),
+  ], new Date("2026-09-27T03:00:00.000Z"))
+  assert.match(draft.text, /^発売情報｜2026年10月1日｜22,000円\n/)
+  assert.doesNotMatch(draft.text, /新着です。/)
+})
+
+test("同じ鮮度なら商品詳細リンクと購入情報がある候補を優先する", () => {
+  const weak = article({ id: "weak", slug: "weak", title: "メンズ新着", affiliateLinks: [] })
+  const strong = article({
+    id: "strong",
+    slug: "strong",
+    title: "ブランド別注 メンズ新着",
+    affiliateLinks: [{
+      label: "商品ページを見る",
+      retailer: "楽天市場",
+      url: "https://item.rakuten.co.jp/example/item-123/",
+      price: "22,000円",
+    }],
+    purchaseChannels: [{
+      retailerName: "公式オンライン",
+      channelType: "official",
+      saleMethod: "regular",
+      date: "2026年10月1日",
+      url: "https://example.com/product",
+    }],
+  })
+  assert.ok(socialPostValueScore(strong) > socialPostValueScore(weak))
+  const drafts = buildSocialPostDrafts([weak, strong], new Date("2026-09-27T03:00:00.000Z"))
+  assert.deepEqual(drafts.map((draft) => draft.articleId), ["strong", "weak"])
 })
 
 test("Goss!pとリークは未確認表示を残して自動投稿候補にする", () => {

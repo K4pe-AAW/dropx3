@@ -1,4 +1,5 @@
 import { buildReleaseCalendar } from "./release-calendar"
+import { affiliateDestinationKind } from "./affiliate"
 import { isMensOrUnisexDraft } from "./article-audience"
 import {
   MAX_FASHIONSNAP_ARTICLES_PER_DAY,
@@ -119,9 +120,59 @@ function hashtags(article: Article): string {
     .join(" ")
 }
 
+function firstCommercialFact(article: Article): { release?: string; price?: string; retailer?: string } {
+  const colorway = article.colorways?.find((item) => item.releaseDate || item.price)
+  const purchase = article.purchaseChannels?.find((item) => item.date || item.url)
+  const directAffiliate = article.affiliateLinks.find(
+    (link) => affiliateDestinationKind(link) === "direct_product"
+  )
+  return {
+    release: colorway?.releaseDate ?? purchase?.date,
+    price: colorway?.price ?? directAffiliate?.price ?? article.affiliateLinks.find((link) => link.price)?.price,
+    retailer: purchase?.retailerName ?? directAffiliate?.retailer,
+  }
+}
+
+function isCollaborationArticle(article: Article): boolean {
+  return /(?:\s[×xX]\s|コラボ|共同制作|別注)/.test([article.title, article.excerpt].join(" "))
+}
+
+/**
+ * Xで成果につながりやすい「今買える・いつ買える」を、推測せず構造化済み事実だけで評価する。
+ * 鮮度が同じ候補の順序にだけ使い、発売当日の最優先は維持する。
+ */
+export function socialPostValueScore(article: Article): number {
+  const facts = firstCommercialFact(article)
+  const hasDirectAffiliate = article.affiliateLinks.some(
+    (link) => affiliateDestinationKind(link) === "direct_product"
+  )
+  return (
+    (hasDirectAffiliate ? 6 : article.affiliateLinks.length > 0 ? 3 : 0) +
+    (article.purchaseChannels?.some((item) => Boolean(item.url)) ? 4 : 0) +
+    (facts.price ? 2 : 0) +
+    (facts.release ? 2 : 0) +
+    (isCollaborationArticle(article) ? 1 : 0)
+  )
+}
+
+function factLedPrefix(article: Article, kind: SocialPostKind): string {
+  const facts = firstCommercialFact(article)
+  const details = [facts.release, facts.price, facts.retailer].filter(Boolean).slice(0, 2)
+  const lead = kind === "release_day"
+    ? "本日発売"
+    : kind === "article_update"
+      ? "販売情報更新"
+      : isCollaborationArticle(article)
+        ? "コラボ新着"
+        : facts.release || facts.price
+          ? "発売情報"
+          : `${article.brands[0] ?? "ファッション"}新着`
+  return [lead, ...details].join("｜")
+}
+
 function makeDraft(article: Article, kind: SocialPostKind, reason: string, generatedAt: string): SocialPostDraft {
   const title = compactTitle(article.title)
-  const eventPrefix = kind === "release_day" ? "本日発売です。" : kind === "article_update" ? "販売情報を更新しました。" : "新着です。"
+  const eventPrefix = factLedPrefix(article, kind)
   const statusPrefix = informationPrefix(article)
   const prefix = statusPrefix ? `${statusPrefix}｜${eventPrefix}` : eventPrefix
   const url = trackedArticleUrl(article, kind)
@@ -248,7 +299,14 @@ export function buildSocialPostDrafts(
     return 1
   }
   const sortedByFreshness = [...byArticle.values()]
-    .sort((a, b) => freshnessPriority(b) - freshnessPriority(a) || b.freshnessAt.localeCompare(a.freshnessAt))
+    .sort((a, b) => {
+      const freshnessDiff = freshnessPriority(b) - freshnessPriority(a)
+      if (freshnessDiff !== 0) return freshnessDiff
+      const aArticle = articleById.get(a.articleId)
+      const bArticle = articleById.get(b.articleId)
+      const valueDiff = (bArticle ? socialPostValueScore(bArticle) : 0) - (aArticle ? socialPostValueScore(aArticle) : 0)
+      return valueDiff || b.freshnessAt.localeCompare(a.freshnessAt)
+    })
   const sorted = options.dedupeProducts
     ? dedupeByProductIdentity(sortedByFreshness, articleById)
     : sortedByFreshness
